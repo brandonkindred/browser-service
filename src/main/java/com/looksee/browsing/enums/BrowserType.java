@@ -9,7 +9,9 @@ public enum BrowserType {
 	CHROME("chrome"),
 	FIREFOX("firefox"),
 	SAFARI("safari"),
-	IE("ie");
+	IE("ie"),
+	ANDROID("android"),
+	IOS("ios");
 
 	private String shortName;
 
@@ -37,5 +39,9 @@ public enum BrowserType {
 
     public String getShortName() {
         return shortName;
+    }
+
+    public boolean isMobile() {
+        return this == ANDROID || this == IOS;
     }
 }

@@ -3,6 +3,7 @@ package com.looksee.models;
 import com.assertthat.selenium_shutterbug.core.Capture;
 import com.assertthat.selenium_shutterbug.core.Shutterbug;
 import com.looksee.browsing.BrowserFactory;
+import com.looksee.browsing.enums.BrowserType;
 import com.looksee.utils.HtmlUtils;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
@@ -128,6 +129,19 @@ public class Browser {
 	}
 
 	/**
+	 * Checks if this browser session is running on a mobile device (Android or iOS).
+	 *
+	 * @return {@code true} if the browser is a mobile session, {@code false} otherwise
+	 */
+	public boolean isMobile() {
+		try {
+			return BrowserType.create(browserName).isMobile();
+		} catch (IllegalArgumentException e) {
+			return false;
+		}
+	}
+
+	/**
 	 * Navigates to a given url and waits for the readyState to be complete
 	 *
 	 * @param url the {@link URL}
@@ -177,6 +191,9 @@ public class Browser {
 	 * @throws IOException if an error occurs while getting the screenshot
 	 */
 	public BufferedImage getFullPageScreenshot() throws IOException {
+		if (isMobile()) {
+			return getViewportScreenshot();
+		}
 		return Shutterbug.shootPage(driver, Capture.FULL_SCROLL).getImage();
 	}
 
@@ -187,6 +204,9 @@ public class Browser {
 	 * @throws IOException if an error occurs while getting the screenshot
 	 */
 	public BufferedImage getFullPageScreenshotAshot() throws IOException {
+		if (isMobile()) {
+			return getViewportScreenshot();
+		}
 		ru.yandex.qatools.ashot.Screenshot screenshot = new AShot().shootingStrategy(ShootingStrategies.viewportPasting(1000)).takeScreenshot(driver);
 		return screenshot.getImage();
 	}
@@ -199,6 +219,9 @@ public class Browser {
 	 * @throws IOException if an error occurs while getting the screenshot
 	 */
 	public BufferedImage getFullPageScreenshotShutterbug() throws IOException {
+		if (isMobile()) {
+			return getViewportScreenshot();
+		}
 		return Shutterbug.shootPage(driver, Capture.FULL, 1000, true).getImage();
 	}
 
@@ -213,6 +236,9 @@ public class Browser {
 	 */
 	public BufferedImage getElementScreenshot(WebElement element) throws Exception {
 		assert element != null;
+		if (isMobile()) {
+			return ImageIO.read(element.getScreenshotAs(OutputType.FILE));
+		}
 		return Shutterbug.shootElementVerticallyCentered(driver, element).getImage();
 	}
 
@@ -481,6 +507,9 @@ public class Browser {
 	 * Moves the mouse out of the frame to a non-interactive position.
 	 */
 	public void moveMouseOutOfFrame() {
+		if (isMobile()) {
+			return;
+		}
 		try {
 			Actions mouseMoveAction = new Actions(driver).moveByOffset(-(getViewportSize().getWidth() / 3), -(getViewportSize().getHeight() / 3));
 			mouseMoveAction.build().perform();
@@ -497,6 +526,9 @@ public class Browser {
 	 */
 	public void moveMouseToNonInteractive(Point point) {
 		assert point != null;
+		if (isMobile()) {
+			return;
+		}
 		try {
 			Actions mouseMoveAction = new Actions(driver).moveByOffset(point.getX(), point.getY());
 			mouseMoveAction.build().perform();

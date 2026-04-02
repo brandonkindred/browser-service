@@ -29,6 +29,13 @@ public class BrowserConnectionHelper {
 	private static int SELENIUM_HUB_IDX = 0;
 
 	private static String[] HUB_URLS;
+
+	/**
+	 * The index of the Appium server for round-robin selection
+	 */
+	private static int APPIUM_SERVER_IDX = 0;
+
+	private static String[] APPIUM_URLS;
 	
 	/**
 	 * Gets the selenium hub URLs, either from environment variable SELENIUM_URLS or fallback to hardcoded list
@@ -39,6 +46,17 @@ public class BrowserConnectionHelper {
 	public static void setConfiguredSeleniumUrls(String[] urls) {
 		assert urls != null;
 		HUB_URLS=urls;
+	}
+
+	/**
+	 * Sets the Appium server URLs for mobile driver connections
+	 * @param urls the Appium server URLs
+	 *
+	 * precondition: urls != null
+	 */
+	public static void setConfiguredAppiumUrls(String[] urls) {
+		assert urls != null;
+		APPIUM_URLS = urls;
 	}
 
 	/**
@@ -61,16 +79,22 @@ public class BrowserConnectionHelper {
 		assert browser != null;
 		assert environment != null;
 
-		URL hub_url = null;
-		
-		if(environment.equals(BrowserEnvironment.DISCOVERY) && "chrome".equalsIgnoreCase(browser.toString())){
-			hub_url = new URL( "https://"+HUB_URLS[SELENIUM_HUB_IDX%HUB_URLS.length]+"/wd/hub");
-		}
-		else if(environment.equals(BrowserEnvironment.DISCOVERY) && "firefox".equalsIgnoreCase(browser.toString())){
-			hub_url = new URL( "https://"+HUB_URLS[SELENIUM_HUB_IDX%HUB_URLS.length]+"/wd/hub");
-		}
-		SELENIUM_HUB_IDX++;
+		URL server_url = null;
 
-		return BrowserFactory.createBrowser(browser.toString(), hub_url);
+		if (browser.isMobile()) {
+			if (APPIUM_URLS == null || APPIUM_URLS.length == 0) {
+				throw new IllegalStateException(
+					"Appium URLs not configured. Set appium.urls property.");
+			}
+			server_url = new URL("http://" + APPIUM_URLS[APPIUM_SERVER_IDX % APPIUM_URLS.length] + "/wd/hub");
+			APPIUM_SERVER_IDX++;
+		} else if (environment.equals(BrowserEnvironment.DISCOVERY)
+				&& ("chrome".equalsIgnoreCase(browser.toString())
+					|| "firefox".equalsIgnoreCase(browser.toString()))) {
+			server_url = new URL("https://" + HUB_URLS[SELENIUM_HUB_IDX % HUB_URLS.length] + "/wd/hub");
+			SELENIUM_HUB_IDX++;
+		}
+
+		return BrowserFactory.createBrowser(browser.toString(), server_url);
 	}
 }
