@@ -2280,7 +2280,16 @@ public class BrowserService {
 			background_color = "rgb(255,255,255)";
 		}
 		
-		ElementState element_state = new ImageElementState(
+		// Convert gcp annotation to models annotation for ImageElementState constructor
+			com.looksee.models.ImageSafeSearchAnnotation models_ssa = new com.looksee.models.ImageSafeSearchAnnotation(
+				safe_search_annotation.getSpoof(),
+				safe_search_annotation.getMedical(),
+				safe_search_annotation.getAdult(),
+				safe_search_annotation.getViolence(),
+				safe_search_annotation.getRacy()
+			);
+
+			ElementState element_state = new ImageElementState(
 													element.ownText().trim(),
 													element.text(),
 													xpath,
@@ -2302,11 +2311,11 @@ public class BrowserService {
 													image_search_set,
 													logos,
 													labels,
-													safe_search_annotation);
-		
+													models_ssa);
+
 		return element_state;
 	}
-	
+
 	/**
 	 * Process used by the web crawler to build {@link ElementState} list based on the xpaths on the page
 	 * @param page_state the page state
