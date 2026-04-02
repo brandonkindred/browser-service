@@ -1,15 +1,12 @@
 package com.looksee.browsing;
 
 import com.looksee.models.Browser;
-import io.appium.java_client.android.AndroidDriver;
-import io.appium.java_client.ios.IOSDriver;
 import java.net.MalformedURLException;
 import java.net.URL;
 import org.openqa.selenium.ImmutableCapabilities;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.chrome.ChromeOptions;
-import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.slf4j.Logger;
@@ -45,14 +42,13 @@ public final class BrowserFactory {
 		assert browserType != null;
 		assert hubUrl != null;
 
-		switch (browserType.toLowerCase()) {
-			case "chrome":   return openWithChrome(hubUrl);
-			case "firefox":  return openWithFirefox(hubUrl);
-			case "android":  return openWithAndroid(hubUrl);
-			case "ios":      return openWithIOS(hubUrl);
-			default:
-				throw new WebDriverException("Unsupported browser type: " + browserType);
+		if ("chrome".equals(browserType)) {
+			return openWithChrome(hubUrl);
+		} else if ("firefox".equals(browserType)) {
+			return openWithFirefox(hubUrl);
 		}
+
+		throw new WebDriverException("Unsupported browser type: " + browserType);
 	}
 
 	/**
@@ -120,51 +116,5 @@ public final class BrowserFactory {
 		driver.manage().window().maximize();
 
 		return driver;
-	}
-
-	/**
-	 * Opens a new Android browser session via Appium using UiAutomator2 and Chrome.
-	 *
-	 * @param appiumUrl the URL of the Appium server
-	 * @return Android web driver
-	 * @throws WebDriverException if an error occurs while creating the driver
-	 *
-	 * precondition: appiumUrl != null
-	 */
-	@SuppressWarnings("rawtypes")
-	public static WebDriver openWithAndroid(URL appiumUrl) throws WebDriverException {
-		assert appiumUrl != null;
-
-		DesiredCapabilities caps = new DesiredCapabilities();
-		caps.setCapability("platformName", "Android");
-		caps.setCapability("automationName", "UiAutomator2");
-		caps.setCapability("browserName", "Chrome");
-		caps.setCapability("deviceName", "Android Emulator");
-
-		log.debug("Requesting Android driver from Appium server");
-		return new AndroidDriver(appiumUrl, caps);
-	}
-
-	/**
-	 * Opens a new iOS browser session via Appium using XCUITest and Safari.
-	 *
-	 * @param appiumUrl the URL of the Appium server
-	 * @return iOS web driver
-	 * @throws WebDriverException if an error occurs while creating the driver
-	 *
-	 * precondition: appiumUrl != null
-	 */
-	@SuppressWarnings("rawtypes")
-	public static WebDriver openWithIOS(URL appiumUrl) throws WebDriverException {
-		assert appiumUrl != null;
-
-		DesiredCapabilities caps = new DesiredCapabilities();
-		caps.setCapability("platformName", "iOS");
-		caps.setCapability("automationName", "XCUITest");
-		caps.setCapability("browserName", "Safari");
-		caps.setCapability("deviceName", "iPhone Simulator");
-
-		log.debug("Requesting iOS driver from Appium server");
-		return new IOSDriver(appiumUrl, caps);
 	}
 }
