@@ -59,7 +59,7 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.safety.Cleaner;
-import org.jsoup.safety.Whitelist;
+import org.jsoup.safety.Safelist;
 import org.jsoup.select.Elements;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
@@ -1496,7 +1496,7 @@ public class BrowserService {
 		
 		Document html_doc = Jsoup.parseBodyFragment(outerHtml);
 
-		Cleaner cleaner = new Cleaner(Whitelist.relaxed());
+		Cleaner cleaner = new Cleaner(Safelist.relaxed());
 		html_doc = cleaner.clean(html_doc);
 		
 		html_doc.select("script").remove()
