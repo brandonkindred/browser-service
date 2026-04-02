@@ -1,7 +1,7 @@
 package com.looksee.services;
 
 import com.google.cloud.storage.StorageException;
-import com.looksee.browsing.form.ElementRuleExtractor;
+import com.looksee.models.form.ElementRuleExtractor;
 import com.looksee.browsing.helpers.BrowserConnectionHelper;
 import com.looksee.exceptions.ServiceUnavailableException;
 import com.looksee.gcp.CloudVisionUtils;
