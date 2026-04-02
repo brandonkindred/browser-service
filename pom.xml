@@ -46,7 +46,7 @@
 			<version>1.5.4</version>
 		</dependency>
 
-		<!-- Appium -->
+		<!-- Appium (7.x is compatible with Selenium 3.x) -->
 		<dependency>
 			<groupId>io.appium</groupId>
 			<artifactId>java-client</artifactId>
@@ -55,14 +55,6 @@
 				<exclusion>
 					<groupId>org.seleniumhq.selenium</groupId>
 					<artifactId>selenium-java</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.seleniumhq.selenium</groupId>
-					<artifactId>selenium-api</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>org.seleniumhq.selenium</groupId>
-					<artifactId>selenium-support</artifactId>
 				</exclusion>
 			</exclusions>
 		</dependency>
