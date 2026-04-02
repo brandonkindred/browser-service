@@ -1,7 +1,8 @@
 package com.looksee.models;
 
 
-import com.looksee.models.enums.AlertChoice;
+import com.looksee.browsing.enums.AlertChoice;
+import org.apache.commons.codec.digest.DigestUtils;
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.UnhandledAlertException;
@@ -11,13 +12,13 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Represents an Alert or Confirmation pop-up that is triggered by javascript within the page
- * 
  */
-public class PageAlert extends LookseeObject {
+public class PageAlert {
 	private static Logger log = LoggerFactory.getLogger(PageAlert.class);
 
 	private String message;
-	
+	private String key;
+
 	/**
 	 * Constructor
 	 * @param message message of the alert
@@ -28,9 +29,9 @@ public class PageAlert extends LookseeObject {
 		assert message != null : "message must not be null";
 
 		this.message = message;
-		this.setKey(generateKey());
+		this.key = generateKey();
 	}
-	
+
 	/**
 	 * Performs a choice on the alert
 	 * @param driver {@link WebDriver} to perform the choice on
@@ -56,16 +57,24 @@ public class PageAlert extends LookseeObject {
 			log.warn( "Alert not present");
 		}
 	}
-	
+
 	/**
 	 * Retrieves the message of the alert
 	 * @return message of the alert
 	 * @throws UnhandledAlertException if the alert is not present
 	 */
 	public String getMessage() throws UnhandledAlertException{
-		return this.message; 
+		return this.message;
 	}
-	
+
+	/**
+	 * Retrieves the key of the alert
+	 * @return key of the alert
+	 */
+	public String getKey() {
+		return this.key;
+	}
+
 	/**
 	 * Retrieves the message of an alert
 	 * @param alert {@link Alert} to retrieve the message from
@@ -77,9 +86,9 @@ public class PageAlert extends LookseeObject {
 	public static String getMessage(Alert alert) throws UnhandledAlertException{
 		assert alert != null : "alert must not be null";
 
-		return alert.getText(); 
+		return alert.getText();
 	}
-	
+
 	/**
 	 * Checks if two {@link PageAlert}s are equal
 	 * @param o {@link Object} to compare to
@@ -89,10 +98,15 @@ public class PageAlert extends LookseeObject {
 	public boolean equals(Object o){
 		if (this == o) return true;
         if (!(o instanceof PageAlert)) return false;
-        
+
         PageAlert that = (PageAlert)o;
-        
+
         return this.message.equals(that.getMessage());
+	}
+
+	@Override
+	public int hashCode() {
+		return message.hashCode();
 	}
 
 	/**
@@ -108,8 +122,7 @@ public class PageAlert extends LookseeObject {
 	 * Generates a key for the {@link PageAlert}
 	 * @return key for the {@link PageAlert}
 	 */
-	@Override
 	public String generateKey() {
-		return "alert"+org.apache.commons.codec.digest.DigestUtils.sha256Hex(this.getMessage());
+		return "alert" + DigestUtils.sha256Hex(this.getMessage());
 	}
 }

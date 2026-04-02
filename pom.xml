@@ -9,22 +9,9 @@
 
 	<artifactId>looksee-browser</artifactId>
 	<name>LookseeCore Browser</name>
-	<description>Selenium-based browser automation, crawling, and page building</description>
+	<description>Standalone Selenium-based browser automation and interaction</description>
 
 	<dependencies>
-		<dependency>
-			<groupId>com.looksee</groupId>
-			<artifactId>looksee-models</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.looksee</groupId>
-			<artifactId>looksee-persistence</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>com.looksee</groupId>
-			<artifactId>looksee-gcp</artifactId>
-		</dependency>
-
 		<!-- Selenium -->
 		<dependency>
 			<groupId>org.seleniumhq.selenium</groupId>
@@ -91,6 +78,16 @@
 			<groupId>org.apache.commons</groupId>
 			<artifactId>commons-text</artifactId>
 			<version>1.13.1</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-codec</groupId>
+			<artifactId>commons-codec</artifactId>
+		</dependency>
+
+		<!-- Jackson (for enum deserialization) -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-annotations</artifactId>
 		</dependency>
 
 		<!-- Resilience4j for retries -->

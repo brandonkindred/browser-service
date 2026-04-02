@@ -1,9 +1,6 @@
 package com.looksee.browsing;
 
-import com.looksee.models.Element;
-import com.looksee.models.ElementState;
-import com.looksee.models.enums.Action;
-import com.looksee.utils.TimingUtils;
+import com.looksee.browsing.enums.Action;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import org.openqa.selenium.By;
@@ -23,64 +20,60 @@ import org.springframework.stereotype.Component;
 public class Crawler {
 	private static Logger log = LoggerFactory.getLogger(Crawler.class);
 
-	
+
 	/**
-	 * Executes the given element action pair such that
-	 * the action is executed against the element
+	 * Executes the given action on the element identified by the xpath
 	 *
 	 * @param action {@link Action} to perform
-	 * @param elem {@link Element} to perform the action on
+	 * @param xpath XPath identifying the element to perform the action on
 	 * @param driver {@link WebDriver} to perform the action on
 	 * @throws NoSuchElementException if the element is not found
-	 * 
+	 *
 	 * precondition: action != null
-	 * precondition: elem != null
+	 * precondition: xpath != null
 	 * precondition: driver != null
-	 * 
-	 * @throws NoSuchElementException if the element is not found
 	 */
-	public static void performAction(Action action, com.looksee.models.Element elem, WebDriver driver) throws NoSuchElementException{
+	public static void performAction(Action action, String xpath, WebDriver driver) throws NoSuchElementException{
 		assert action != null;
-		assert elem != null;
+		assert xpath != null;
 		assert driver != null;
 		ActionFactory actionFactory = new ActionFactory(driver);
-		WebElement element = driver.findElement(By.xpath(elem.getXpath()));
+		WebElement element = driver.findElement(By.xpath(xpath));
 		actionFactory.execAction(element, "", action);
-		TimingUtils.pauseThread(500L);
+		pauseThread(500L);
 	}
 
 	/**
-	 * Executes the given element action pair such that
-	 * the action is executed against the element
+	 * Executes the given action on the element identified by the xpath
 	 *
 	 * @param action {@link Action} to perform
-	 * @param elem {@link Element} to perform the action on
+	 * @param xpath XPath identifying the element to perform the action on
 	 * @param driver {@link WebDriver} to perform the action on
 	 * @param location {@link Point} to perform the action at
 	 * @throws NoSuchElementException if the element is not found
-	 * 
+	 *
 	 * precondition: action != null
-	 * precondition: elem != null
+	 * precondition: xpath != null
 	 * precondition: driver != null
 	 * precondition: location != null
 	 */
-	public static void performAction(Action action, com.looksee.models.Element elem, WebDriver driver, Point location) throws NoSuchElementException{
+	public static void performAction(Action action, String xpath, WebDriver driver, Point location) throws NoSuchElementException{
 		assert action != null;
-		assert elem != null;
+		assert xpath != null;
 		assert driver != null;
 		assert location != null;
 		ActionFactory actionFactory = new ActionFactory(driver);
-		WebElement element = driver.findElement(By.xpath(elem.getXpath()));
+		WebElement element = driver.findElement(By.xpath(xpath));
 		actionFactory.execAction(element, "", action);
-		TimingUtils.pauseThread(500L);
+		pauseThread(500L);
 	}
-	
+
 	/**
 	 * Scrolls down the page by a given distance
-	 * 
+	 *
 	 * @param driver {@link WebDriver} to scroll
 	 * @param distance distance to scroll
-	 * 
+	 *
 	 * precondition: driver != null
 	 * precondition: distance > 0
 	 */
@@ -89,37 +82,37 @@ public class Crawler {
         assert driver != null;
         ((JavascriptExecutor)driver).executeScript("scroll(0,"+ distance +");");
     }
-	
+
 	/**
-	 * Generates a random location within an element but not within child elements
-	 * 
+	 * Generates a random location within an element but not within a child element region
+	 *
 	 * @param web_element {@link WebElement} to generate a random location within
-	 * @param child_element {@link ElementState} to check for child elements
-	 * @return {@link Point} with random location within the element but not within child elements
-	 * 
+	 * @param childX x-coordinate of the child element
+	 * @param childY y-coordinate of the child element
+	 * @param childWidth width of the child element
+	 * @param childHeight height of the child element
+	 * @return {@link Point} with random location within the element but not within the child region
+	 *
 	 * precondition: web_element != null
-	 * precondition: child_element != null
-	 * 
 	 */
-	public static Point generateRandomLocationWithinElementButNotWithinChildElements(WebElement web_element, ElementState child_element) {
+	public static Point generateRandomLocationWithinElementButNotWithinChildElements(WebElement web_element, int childX, int childY, int childWidth, int childHeight) {
 		assert web_element != null;
-		assert child_element != null;
-		
+
 		Point elem_location = web_element.getLocation();
 
 		int left_lower_x = 0;
-		int left_upper_x = child_element.getXLocation()- elem_location.getX();
-		int right_lower_x = (child_element.getXLocation() - elem_location.getX()) + child_element.getWidth();
+		int left_upper_x = childX - elem_location.getX();
+		int right_lower_x = (childX - elem_location.getX()) + childWidth;
 		int right_upper_x = web_element.getSize().getWidth();
-		
+
 		int top_lower_y = 0;
-		int top_upper_y = child_element.getYLocation() - elem_location.getY();
-		int bottom_lower_y = child_element.getYLocation() - elem_location.getY() + child_element.getHeight();
+		int top_upper_y = childY - elem_location.getY();
+		int bottom_lower_y = childY - elem_location.getY() + childHeight;
 		int bottom_upper_y = web_element.getSize().getHeight();
-		
+
 		int x_coord = 0;
 		int y_coord = 0;
-		
+
 		if(left_lower_x != left_upper_x && left_upper_x > 0){
 			x_coord = new Random().nextInt(left_upper_x);
 		}
@@ -134,7 +127,7 @@ public class Crawler {
 			}
 			x_coord = right_lower_x + x_offset;
 		}
-		
+
 		if(top_lower_y != top_upper_y && top_upper_y > 0){
 			y_coord = new Random().nextInt(top_upper_y);
 		}
@@ -151,5 +144,13 @@ public class Crawler {
 		}
 
 		return new Point(x_coord, y_coord);
+	}
+
+	private static void pauseThread(long millis) {
+		try {
+			Thread.sleep(millis);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		}
 	}
 }

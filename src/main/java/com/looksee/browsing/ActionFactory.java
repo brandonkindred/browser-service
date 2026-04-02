@@ -1,6 +1,6 @@
 package com.looksee.browsing;
 
-import com.looksee.models.enums.Action;
+import com.looksee.browsing.enums.Action;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;

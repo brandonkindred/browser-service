@@ -2,8 +2,8 @@ package com.looksee.browsing.helpers;
 
 import com.looksee.browsing.BrowserFactory;
 import com.looksee.models.Browser;
-import com.looksee.models.enums.BrowserEnvironment;
-import com.looksee.models.enums.BrowserType;
+import com.looksee.browsing.enums.BrowserEnvironment;
+import com.looksee.browsing.enums.BrowserType;
 import io.github.resilience4j.retry.annotation.Retry;
 import java.net.MalformedURLException;
 import java.net.URL;
