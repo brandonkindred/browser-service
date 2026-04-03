@@ -11,7 +11,8 @@ public class BrowserStackPropertiesTest {
         BrowserStackProperties props = new BrowserStackProperties(
                 "myuser", "mykey123", "Windows", "11",
                 "Chrome", "latest", "MyProject", "build-1",
-                "test-session", true, false, 60000, 5);
+                "test-session", "Samsung Galaxy S23", false,
+                true, false, 60000, 5);
 
         assertEquals("myuser", props.getUsername());
         assertEquals("mykey123", props.getAccessKey());
@@ -22,6 +23,8 @@ public class BrowserStackPropertiesTest {
         assertEquals("MyProject", props.getProject());
         assertEquals("build-1", props.getBuild());
         assertEquals("test-session", props.getName());
+        assertEquals("Samsung Galaxy S23", props.getDeviceName());
+        assertFalse(props.isRealMobile());
         assertTrue(props.isLocal());
         assertFalse(props.isDebug());
         assertEquals(60000, props.getConnectionTimeout());
@@ -33,7 +36,7 @@ public class BrowserStackPropertiesTest {
         BrowserStackProperties props = new BrowserStackProperties(
                 "myuser", "mykey123", null, null,
                 null, null, null, null,
-                null, null, null, null, null);
+                null, null, null, null, null, null, null);
 
         assertEquals("myuser", props.getUsername());
         assertEquals("mykey123", props.getAccessKey());
@@ -44,6 +47,8 @@ public class BrowserStackPropertiesTest {
         assertNull(props.getProject());
         assertNull(props.getBuild());
         assertNull(props.getName());
+        assertNull(props.getDeviceName());
+        assertTrue(props.isRealMobile());
         assertFalse(props.isLocal());
         assertTrue(props.isDebug());
         assertEquals(30000, props.getConnectionTimeout());

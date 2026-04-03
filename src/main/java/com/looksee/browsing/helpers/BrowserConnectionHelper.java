@@ -167,6 +167,11 @@ public class BrowserConnectionHelper {
 		assert browser.isMobile();
 		assert environment != null;
 
+		if (browserStackEnabled) {
+			URL server_url = new URL(browserStackHubUrl);
+			return MobileFactory.createBrowserStackMobileDevice(browser.toString(), server_url, browserStackProperties);
+		}
+
 		if (APPIUM_URLS == null || APPIUM_URLS.length == 0) {
 			throw new IllegalStateException(
 				"Appium URLs not configured. Set appium.urls property.");

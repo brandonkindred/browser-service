@@ -18,7 +18,7 @@ import com.looksee.browsing.helpers.BrowserConnectionHelper;
  * Configuration class for BrowserStack integration.
  * Only created when browserstack.access-key property is configured.
  *
- * When active, BrowserStack is used instead of the default Selenium URL-based connection.
+ * When active, BrowserStack is used instead of the default Selenium and Appium URL-based connections.
  *
  * This configuration uses BrowserStackProperties to load values from either:
  * - application.properties: browserstack.access-key, browserstack.username, etc.
@@ -66,6 +66,8 @@ public class BrowserStackConfiguration {
         log.info("   Project: {}", browserStackProperties.getProject());
         log.info("   Build: {}", browserStackProperties.getBuild());
         log.info("   OS: {} {}", browserStackProperties.getOs(), browserStackProperties.getOsVersion());
+        log.info("   Device: {}", browserStackProperties.getDeviceName());
+        log.info("   Real Mobile: {}", browserStackProperties.isRealMobile());
         log.info("   Local: {}", browserStackProperties.isLocal());
         log.info("   Debug: {}", browserStackProperties.isDebug());
         log.info("   Connection timeout: {}ms", browserStackProperties.getConnectionTimeout());
@@ -90,13 +92,15 @@ public class BrowserStackConfiguration {
             log.info("browserstack.os-version: {}", environment.getProperty("browserstack.os-version", "<DEFAULT>"));
             log.info("browserstack.project: {}", environment.getProperty("browserstack.project", "<DEFAULT>"));
             log.info("browserstack.build: {}", environment.getProperty("browserstack.build", "<DEFAULT>"));
+            log.info("browserstack.device-name: {}", environment.getProperty("browserstack.device-name", "<DEFAULT>"));
+            log.info("browserstack.real-mobile: {}", environment.getProperty("browserstack.real-mobile", "true"));
             log.info("browserstack.local: {}", environment.getProperty("browserstack.local", "false"));
             log.info("browserstack.debug: {}", environment.getProperty("browserstack.debug", "true"));
 
             if (accessKey != null && !accessKey.trim().isEmpty()
                     && username != null && !username.trim().isEmpty()) {
                 log.info("BrowserStack configuration ENABLED");
-                log.info("   BrowserConnectionHelper will use BrowserStack instead of Selenium hubs");
+                log.info("   BrowserConnectionHelper will use BrowserStack instead of Selenium/Appium hubs");
             } else {
                 log.warn("BrowserStack partially configured - both username and access-key are required");
             }

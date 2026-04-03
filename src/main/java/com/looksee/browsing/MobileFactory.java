@@ -1,5 +1,6 @@
 package com.looksee.browsing;
 
+import com.looksee.config.BrowserStackProperties;
 import com.looksee.models.MobileDevice;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
@@ -7,6 +8,7 @@ import java.net.URL;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.remote.RemoteWebDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,5 +114,84 @@ public final class MobileFactory {
 
 		log.debug("Requesting iOS driver from Appium server");
 		return new IOSDriver(appiumUrl, caps);
+	}
+
+	/**
+	 * Creates a fully configured MobileDevice instance using BrowserStack.
+	 * BrowserStack runs Appium tests on real devices in the cloud.
+	 *
+	 * @param platformType the mobile platform type ("android", "ios")
+	 * @param hubUrl the BrowserStack hub URL
+	 * @param properties the BrowserStack configuration properties
+	 * @return the created MobileDevice
+	 *
+	 * precondition: platformType != null
+	 * precondition: hubUrl != null
+	 * precondition: properties != null
+	 */
+	public static MobileDevice createBrowserStackMobileDevice(String platformType, URL hubUrl,
+			BrowserStackProperties properties) {
+		assert platformType != null;
+		assert hubUrl != null;
+		assert properties != null;
+
+		WebDriver driver = createBrowserStackMobileDriver(platformType, hubUrl, properties);
+		return new MobileDevice(driver, platformType);
+	}
+
+	/**
+	 * Creates a RemoteWebDriver configured for BrowserStack mobile testing.
+	 * Uses RemoteWebDriver (not AndroidDriver/IOSDriver) since BrowserStack
+	 * handles the Appium server-side; the client just needs to send capabilities.
+	 */
+	private static WebDriver createBrowserStackMobileDriver(String platformType, URL hubUrl,
+			BrowserStackProperties properties) {
+		DesiredCapabilities caps = new DesiredCapabilities();
+
+		// BrowserStack credentials
+		caps.setCapability("browserstack.user", properties.getUsername());
+		caps.setCapability("browserstack.key", properties.getAccessKey());
+
+		// BrowserStack settings
+		caps.setCapability("browserstack.debug", String.valueOf(properties.isDebug()));
+		caps.setCapability("browserstack.local", String.valueOf(properties.isLocal()));
+		caps.setCapability("realMobile", String.valueOf(properties.isRealMobile()));
+
+		// Platform-specific capabilities
+		switch (platformType.toLowerCase()) {
+			case "android":
+				caps.setCapability("platformName", "Android");
+				caps.setCapability("browserName", "Chrome");
+				caps.setCapability("device", properties.getDeviceName() != null
+						? properties.getDeviceName() : "Samsung Galaxy S23");
+				break;
+			case "ios":
+				caps.setCapability("platformName", "iOS");
+				caps.setCapability("browserName", "Safari");
+				caps.setCapability("device", properties.getDeviceName() != null
+						? properties.getDeviceName() : "iPhone 15");
+				break;
+			default:
+				throw new WebDriverException("Unsupported mobile platform type: " + platformType);
+		}
+
+		// OS version if specified
+		if (properties.getOsVersion() != null) {
+			caps.setCapability("os_version", properties.getOsVersion());
+		}
+
+		// Optional capabilities
+		if (properties.getProject() != null) {
+			caps.setCapability("project", properties.getProject());
+		}
+		if (properties.getBuild() != null) {
+			caps.setCapability("build", properties.getBuild());
+		}
+		if (properties.getName() != null) {
+			caps.setCapability("name", properties.getName());
+		}
+
+		log.debug("Creating BrowserStack mobile RemoteWebDriver for platform: {}", platformType);
+		return new RemoteWebDriver(hubUrl, caps);
 	}
 }

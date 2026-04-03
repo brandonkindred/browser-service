@@ -11,7 +11,12 @@ import org.springframework.boot.context.properties.ConstructorBinding;
  * - Environment variables (e.g., BROWSERSTACK_ACCESS_KEY)
  *
  * When browserstack.access-key is configured, BrowserStack will be used
- * instead of the default Selenium URL-based connection.
+ * instead of the default Selenium and Appium URL-based connections.
+ *
+ * For desktop browsers: os, osVersion, browser, browserVersion apply.
+ * For mobile (Appium): deviceName, realMobile, and os/osVersion apply.
+ * BrowserStack determines the platform (Android/iOS) from the BrowserType
+ * passed to getMobileConnection.
  */
 @ConfigurationProperties(prefix = "browserstack")
 @ConstructorBinding
@@ -64,6 +69,18 @@ public class BrowserStackProperties {
     private final String name;
 
     /**
+     * BrowserStack device name for mobile testing (e.g., "Samsung Galaxy S23", "iPhone 15").
+     * Used with Appium connections on BrowserStack.
+     */
+    private final String deviceName;
+
+    /**
+     * Whether to use a real mobile device on BrowserStack (as opposed to an emulator/simulator).
+     * Default is true, since BrowserStack's primary value is real device testing.
+     */
+    private final boolean realMobile;
+
+    /**
      * Whether to enable BrowserStack Local for testing internal/staging sites.
      * Default is false.
      */
@@ -89,7 +106,8 @@ public class BrowserStackProperties {
 
     public BrowserStackProperties(String username, String accessKey, String os, String osVersion,
                                   String browser, String browserVersion, String project,
-                                  String build, String name, Boolean local, Boolean debug,
+                                  String build, String name, String deviceName, Boolean realMobile,
+                                  Boolean local, Boolean debug,
                                   Integer connectionTimeout, Integer maxRetries) {
         this.username = username;
         this.accessKey = accessKey;
@@ -100,6 +118,8 @@ public class BrowserStackProperties {
         this.project = project;
         this.build = build;
         this.name = name;
+        this.deviceName = deviceName;
+        this.realMobile = realMobile != null ? realMobile : true;
         this.local = local != null ? local : false;
         this.debug = debug != null ? debug : true;
         this.connectionTimeout = connectionTimeout != null ? connectionTimeout : 30000;
@@ -140,6 +160,14 @@ public class BrowserStackProperties {
 
     public String getName() {
         return name;
+    }
+
+    public String getDeviceName() {
+        return deviceName;
+    }
+
+    public boolean isRealMobile() {
+        return realMobile;
     }
 
     public boolean isLocal() {
