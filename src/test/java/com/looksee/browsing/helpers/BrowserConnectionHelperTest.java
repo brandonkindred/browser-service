@@ -6,6 +6,7 @@ import java.net.MalformedURLException;
 
 import com.looksee.browsing.enums.BrowserEnvironment;
 import com.looksee.browsing.enums.BrowserType;
+import com.looksee.config.BrowserStackProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -43,5 +44,29 @@ public class BrowserConnectionHelperTest {
 
         assertThrows(IllegalStateException.class,
                 () -> BrowserConnectionHelper.getMobileConnection(BrowserType.IOS, BrowserEnvironment.DISCOVERY));
+    }
+
+    @Test
+    public void testSetBrowserStackConfig() {
+        BrowserStackProperties props = new BrowserStackProperties(
+                "testuser", "testaccesskey", null, null,
+                null, null, null, null,
+                null, null, null, null, null);
+
+        assertDoesNotThrow(() -> BrowserConnectionHelper.setBrowserStackConfig(
+                "https://hub-cloud.browserstack.com/wd/hub", props));
+    }
+
+    @Test
+    public void testClearBrowserStackConfig() {
+        BrowserStackProperties props = new BrowserStackProperties(
+                "testuser", "testaccesskey", null, null,
+                null, null, null, null,
+                null, null, null, null, null);
+
+        BrowserConnectionHelper.setBrowserStackConfig(
+                "https://hub-cloud.browserstack.com/wd/hub", props);
+
+        assertDoesNotThrow(() -> BrowserConnectionHelper.clearBrowserStackConfig());
     }
 }

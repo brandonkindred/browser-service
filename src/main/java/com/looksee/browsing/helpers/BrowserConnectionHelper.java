@@ -2,6 +2,7 @@ package com.looksee.browsing.helpers;
 
 import com.looksee.browsing.BrowserFactory;
 import com.looksee.browsing.MobileFactory;
+import com.looksee.config.BrowserStackProperties;
 import com.looksee.models.Browser;
 import com.looksee.models.MobileDevice;
 import com.looksee.browsing.enums.BrowserEnvironment;
@@ -38,7 +39,22 @@ public class BrowserConnectionHelper {
 	private static int APPIUM_SERVER_IDX = 0;
 
 	private static String[] APPIUM_URLS;
-	
+
+	/**
+	 * Whether BrowserStack is enabled as the connection provider
+	 */
+	private static boolean browserStackEnabled = false;
+
+	/**
+	 * The BrowserStack hub URL
+	 */
+	private static String browserStackHubUrl = null;
+
+	/**
+	 * The BrowserStack configuration properties
+	 */
+	private static BrowserStackProperties browserStackProperties = null;
+
 	/**
 	 * Gets the selenium hub URLs, either from environment variable SELENIUM_URLS or fallback to hardcoded list
 	 * @param urls the selenium hub URLs
@@ -62,6 +78,36 @@ public class BrowserConnectionHelper {
 	}
 
 	/**
+	 * Configures BrowserStack as the connection provider.
+	 * When set, {@link #getConnection} will use BrowserStack instead of the
+	 * default Selenium URL-based round-robin.
+	 *
+	 * @param hubUrl the BrowserStack hub URL
+	 * @param properties the BrowserStack configuration properties
+	 *
+	 * precondition: hubUrl != null
+	 * precondition: properties != null
+	 */
+	public static void setBrowserStackConfig(String hubUrl, BrowserStackProperties properties) {
+		assert hubUrl != null;
+		assert properties != null;
+
+		browserStackHubUrl = hubUrl;
+		browserStackProperties = properties;
+		browserStackEnabled = true;
+	}
+
+	/**
+	 * Clears the BrowserStack configuration, reverting to the default
+	 * Selenium URL-based connection.
+	 */
+	public static void clearBrowserStackConfig() {
+		browserStackEnabled = false;
+		browserStackHubUrl = null;
+		browserStackProperties = null;
+	}
+
+	/**
 	 * Creates a {@link Browser} connection
 	 *
 	 * @param browser the browser to connect to
@@ -80,6 +126,11 @@ public class BrowserConnectionHelper {
     {
 		assert browser != null;
 		assert environment != null;
+
+		if (browserStackEnabled) {
+			URL server_url = new URL(browserStackHubUrl);
+			return BrowserFactory.createBrowserStackBrowser(browser.toString(), server_url, browserStackProperties);
+		}
 
 		URL server_url = null;
 

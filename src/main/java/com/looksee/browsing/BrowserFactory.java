@@ -1,5 +1,6 @@
 package com.looksee.browsing;
 
+import com.looksee.config.BrowserStackProperties;
 import com.looksee.models.Browser;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -7,6 +8,7 @@ import org.openqa.selenium.ImmutableCapabilities;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.chrome.ChromeOptions;
+import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.RemoteWebDriver;
 import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.slf4j.Logger;
@@ -116,5 +118,89 @@ public final class BrowserFactory {
 		driver.manage().window().maximize();
 
 		return driver;
+	}
+
+	/**
+	 * Creates a fully configured Browser instance using BrowserStack.
+	 *
+	 * @param browserType the browser type ("chrome", "firefox")
+	 * @param hubUrl the BrowserStack hub URL
+	 * @param properties the BrowserStack configuration properties
+	 * @return the created Browser
+	 * @throws MalformedURLException if the URL is malformed
+	 *
+	 * precondition: browserType != null
+	 * precondition: hubUrl != null
+	 * precondition: properties != null
+	 */
+	public static Browser createBrowserStackBrowser(String browserType, URL hubUrl,
+			BrowserStackProperties properties) throws MalformedURLException {
+		assert browserType != null;
+		assert hubUrl != null;
+		assert properties != null;
+
+		WebDriver driver = createBrowserStackDriver(browserType, hubUrl, properties);
+		return new Browser(driver, browserType);
+	}
+
+	/**
+	 * Creates a RemoteWebDriver configured for BrowserStack.
+	 * Credentials are passed via capabilities rather than embedded in the URL.
+	 * Headless mode is omitted since BrowserStack manages the display environment.
+	 */
+	private static WebDriver createBrowserStackDriver(String browserType, URL hubUrl,
+			BrowserStackProperties properties) {
+		DesiredCapabilities caps = new DesiredCapabilities();
+
+		// BrowserStack credentials
+		caps.setCapability("browserstack.user", properties.getUsername());
+		caps.setCapability("browserstack.key", properties.getAccessKey());
+
+		// BrowserStack settings
+		caps.setCapability("browserstack.debug", String.valueOf(properties.isDebug()));
+		caps.setCapability("browserstack.local", String.valueOf(properties.isLocal()));
+
+		// Optional capabilities
+		if (properties.getOs() != null) {
+			caps.setCapability("os", properties.getOs());
+		}
+		if (properties.getOsVersion() != null) {
+			caps.setCapability("os_version", properties.getOsVersion());
+		}
+		if (properties.getBrowserVersion() != null) {
+			caps.setCapability("browser_version", properties.getBrowserVersion());
+		}
+		if (properties.getProject() != null) {
+			caps.setCapability("project", properties.getProject());
+		}
+		if (properties.getBuild() != null) {
+			caps.setCapability("build", properties.getBuild());
+		}
+		if (properties.getName() != null) {
+			caps.setCapability("name", properties.getName());
+		}
+
+		// Browser-specific configuration
+		String browser = properties.getBrowser() != null ? properties.getBrowser() : browserType;
+		caps.setCapability("browser", capitalize(browser));
+
+		if ("chrome".equalsIgnoreCase(browserType)) {
+			ChromeOptions chromeOptions = new ChromeOptions();
+			chromeOptions.addArguments("user-agent=LookseeBot");
+			chromeOptions.addArguments("window-size=1920,1080");
+			chromeOptions.addArguments("--remote-allow-origins=*");
+			// Headless mode is omitted — BrowserStack manages the display environment
+			caps.setCapability(ChromeOptions.CAPABILITY, chromeOptions);
+		}
+
+		log.debug("Creating BrowserStack RemoteWebDriver for browser: {}", browser);
+		return new RemoteWebDriver(hubUrl, caps);
+	}
+
+	private static String capitalize(String str) {
+		if (str == null || str.isEmpty()) {
+			return str;
+		}
+		return str.substring(0, 1).toUpperCase() + str.substring(1).toLowerCase();
 	}
 }
