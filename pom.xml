@@ -3,12 +3,12 @@
 	<modelVersion>4.0.0</modelVersion>
 	<parent>
 		<groupId>com.looksee</groupId>
-		<artifactId>LookseeParent</artifactId>
+		<artifactId>Parent</artifactId>
 		<version>0.5.0</version>
 	</parent>
 
-	<artifactId>LookseeBrowser</artifactId>
-	<name>LookseeCore Browser</name>
+	<artifactId>Browser</artifactId>
+	<name>Core Browser</name>
 	<description>Standalone Selenium-based browser automation and interaction</description>
 
 	<dependencies>
