@@ -87,4 +87,72 @@ public class BrowserConnectionHelperTest {
         assertThrows(IllegalStateException.class,
                 () -> BrowserConnectionHelper.getMobileConnection(BrowserType.ANDROID, BrowserEnvironment.DISCOVERY));
     }
+
+    @Test
+    public void testGetMobileConnectionWithNullAppiumUrls() {
+        // When Appium URLs are null, should throw IllegalStateException
+        BrowserConnectionHelper.setConfiguredAppiumUrls(new String[]{});
+        assertThrows(IllegalStateException.class,
+                () -> BrowserConnectionHelper.getMobileConnection(BrowserType.IOS, BrowserEnvironment.TEST));
+    }
+
+    @Test
+    public void testGetConnectionWithDiscoveryEnvironmentChrome() {
+        BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[]{"localhost:4444"});
+        // Will fail when trying to connect to hub, but exercises the round-robin path
+        assertThrows(Exception.class,
+                () -> BrowserConnectionHelper.getConnection(BrowserType.CHROME, BrowserEnvironment.DISCOVERY));
+    }
+
+    @Test
+    public void testGetConnectionWithDiscoveryEnvironmentFirefox() {
+        BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[]{"localhost:4444"});
+        assertThrows(Exception.class,
+                () -> BrowserConnectionHelper.getConnection(BrowserType.FIREFOX, BrowserEnvironment.DISCOVERY));
+    }
+
+    @Test
+    public void testGetConnectionWithTestEnvironment() {
+        BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[]{"localhost:4444"});
+        // TEST environment with chrome won't match DISCOVERY branch, server_url remains null
+        assertThrows(Exception.class,
+                () -> BrowserConnectionHelper.getConnection(BrowserType.CHROME, BrowserEnvironment.TEST));
+    }
+
+    @Test
+    public void testGetConnectionWithBrowserStack() {
+        BrowserStackProperties props = new BrowserStackProperties(
+                "testuser", "testaccesskey", "Windows", "11",
+                "Chrome", "latest", "Project", "Build",
+                "Name", null, null, null, null, null, null);
+        BrowserConnectionHelper.setBrowserStackConfig(
+                "https://hub-cloud.browserstack.com/wd/hub", props);
+        // Will fail to connect to BrowserStack, but exercises the BrowserStack code path
+        assertThrows(Exception.class,
+                () -> BrowserConnectionHelper.getConnection(BrowserType.CHROME, BrowserEnvironment.DISCOVERY));
+    }
+
+    @Test
+    public void testGetMobileConnectionWithBrowserStack() {
+        BrowserStackProperties props = new BrowserStackProperties(
+                "testuser", "testaccesskey", null, "13.0",
+                null, null, null, null,
+                null, "Samsung Galaxy S23", true, false, true, null, null);
+        BrowserConnectionHelper.setBrowserStackConfig(
+                "https://hub-cloud.browserstack.com/wd/hub", props);
+        assertThrows(Exception.class,
+                () -> BrowserConnectionHelper.getMobileConnection(BrowserType.ANDROID, BrowserEnvironment.DISCOVERY));
+    }
+
+    @Test
+    public void testSetConfiguredSeleniumUrlsMultiple() {
+        String[] urls = {"hub1.example.com", "hub2.example.com", "hub3.example.com"};
+        assertDoesNotThrow(() -> BrowserConnectionHelper.setConfiguredSeleniumUrls(urls));
+    }
+
+    @Test
+    public void testNoArgsConstructor() {
+        BrowserConnectionHelper helper = new BrowserConnectionHelper();
+        assertNotNull(helper);
+    }
 }

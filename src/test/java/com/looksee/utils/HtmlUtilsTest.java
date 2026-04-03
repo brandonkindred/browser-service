@@ -169,4 +169,60 @@ public class HtmlUtilsTest {
         List<RuleSet> result = HtmlUtils.extractRuleSetsFromStylesheets(stylesheets, url);
         assertNotNull(result);
     }
+
+    @Test
+    public void testCleanSrcWithCarriageReturn() {
+        String src = "<html><body>Hello\r\nWorld</body></html>";
+        String result = HtmlUtils.cleanSrc(src);
+        assertFalse(result.contains("\r"));
+    }
+
+    @Test
+    public void testCleanSrcMultipleSpaces() {
+        String src = "<html><body>Hello      World</body></html>";
+        String result = HtmlUtils.cleanSrc(src);
+        // Multiple spaces should be collapsed
+        assertFalse(result.contains("      "));
+    }
+
+    @Test
+    public void testExtractBodyMultipleElements() {
+        String src = "<html><body><div>One</div><p>Two</p><span>Three</span></body></html>";
+        String body = HtmlUtils.extractBody(src);
+        assertTrue(body.contains("One"));
+        assertTrue(body.contains("Two"));
+        assertTrue(body.contains("Three"));
+    }
+
+    @Test
+    public void testExtractStylesheetsProtocolRelativeUrl() {
+        String src = "<html><head><link rel='stylesheet' href='//cdn.example.com/style.css'></head><body></body></html>";
+        List<String> result = HtmlUtils.extractStylesheets(src);
+        // Will attempt to fetch the URL and likely fail, but exercises the protocol-relative code path
+        assertNotNull(result);
+    }
+
+    @Test
+    public void testExtractRuleSetsMultipleStylesheets() throws Exception {
+        List<String> stylesheets = new ArrayList<>();
+        stylesheets.add("body { margin: 0; }");
+        stylesheets.add("h1 { font-size: 24px; } p { color: black; }");
+        URL url = new URL("http://example.com");
+        List<RuleSet> result = HtmlUtils.extractRuleSetsFromStylesheets(stylesheets, url);
+        assertNotNull(result);
+        assertTrue(result.size() >= 3);
+    }
+
+    @Test
+    public void testIs503ErrorWithHtmlWrapper() {
+        assertTrue(HtmlUtils.is503Error("<html><body><h1>503 Service Temporarily Unavailable</h1></body></html>"));
+    }
+
+    @Test
+    public void testExtractBodyWithNestedElements() {
+        String src = "<html><body><div><ul><li>Item</li></ul></div></body></html>";
+        String body = HtmlUtils.extractBody(src);
+        assertTrue(body.contains("<li>"));
+        assertTrue(body.contains("Item"));
+    }
 }

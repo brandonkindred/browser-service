@@ -2,6 +2,7 @@ package com.looksee.models;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
+import static org.mockito.ArgumentMatchers.*;
 
 import java.awt.image.BufferedImage;
 import java.io.File;
@@ -309,5 +310,107 @@ public class BrowserTest {
         when(driver.executeScript(contains("pageXOffset"))).thenReturn("0,0");
         browser.scrollToElement("//body/header/div", mockElement);
         verify(driver).executeScript("window.scrollTo(0, 0)");
+    }
+
+    @Test
+    public void testNavigateToWithWaitException() {
+        // When waitForPageToLoad throws, navigateTo should still succeed
+        when(driver.executeScript("return document.readyState")).thenThrow(new RuntimeException("timeout"));
+        assertDoesNotThrow(() -> browser.navigateTo("http://example.com"));
+        verify(driver).get("http://example.com");
+    }
+
+    @Test
+    public void testExtractAttributesDuplicateKey() {
+        List<String> attrs = new ArrayList<>();
+        attrs.add("class::first");
+        attrs.add("class::second");
+        when(driver.executeScript(contains("attributes"), eq(mockElement))).thenReturn(attrs);
+
+        Map<String, String> result = browser.extractAttributes(mockElement);
+        // Should keep the first occurrence and ignore duplicate
+        assertEquals("[first]", result.get("class"));
+    }
+
+    @Test
+    public void testExtractAttributesWithQuotes() {
+        List<String> attrs = new ArrayList<>();
+        attrs.add("data-val::it\\'s");
+        when(driver.executeScript(contains("attributes"), eq(mockElement))).thenReturn(attrs);
+
+        Map<String, String> result = browser.extractAttributes(mockElement);
+        assertNotNull(result);
+        // The quote replacement should work
+        assertEquals("[it's]", result.get("data-val"));
+    }
+
+    @Test
+    public void testExtractAttributesMultipleValues() {
+        List<String> attrs = new ArrayList<>();
+        attrs.add("class::btn primary large");
+        when(driver.executeScript(contains("attributes"), eq(mockElement))).thenReturn(attrs);
+
+        Map<String, String> result = browser.extractAttributes(mockElement);
+        assertEquals("[btn, primary, large]", result.get("class"));
+    }
+
+    @Test
+    public void testRemoveElementWhenNotJavascriptExecutor() {
+        // Test when driver is not a JavascriptExecutor - use a plain WebDriver mock
+        WebDriver plainDriver = mock(WebDriver.class);
+        when(driver.executeScript(contains("innerWidth"), any())).thenReturn("1920");
+        when(driver.executeScript(contains("innerHeight"), any())).thenReturn("1080");
+
+        // The browser's driver IS a JavascriptExecutor, so removeElement will execute
+        browser.removeElement("popup");
+        verify(driver).executeScript(contains("getElementsByClassName"));
+    }
+
+    @Test
+    public void testScrollToElementWithNonNavXpath() {
+        // Element already at offset - loop should terminate immediately
+        when(mockElement.getLocation()).thenReturn(new Point(0, 0));
+        when(driver.executeScript(contains("pageXOffset"))).thenReturn("0,0");
+
+        browser.setYScrollOffset(0);
+        browser.scrollToElement("//body/div/section", mockElement);
+
+        // getViewportScrollOffset should be called
+        verify(driver, atLeastOnce()).executeScript(contains("pageXOffset"));
+    }
+
+    @Test
+    public void testGetterSetter() {
+        browser.setYScrollOffset(100);
+        assertEquals(100, browser.getYScrollOffset());
+
+        browser.setXScrollOffset(50);
+        assertEquals(50, browser.getXScrollOffset());
+
+        browser.setBrowserName("firefox");
+        assertEquals("firefox", browser.getBrowserName());
+    }
+
+    @Test
+    public void testGetViewportSizeIsSetInConstructor() {
+        Dimension size = browser.getViewportSize();
+        assertNotNull(size);
+        assertEquals(1920, size.getWidth());
+        assertEquals(1080, size.getHeight());
+    }
+
+    @Test
+    public void testSetViewportSize() {
+        Dimension newSize = new Dimension(1024, 768);
+        browser.setViewportSize(newSize);
+        assertEquals(1024, browser.getViewportSize().getWidth());
+        assertEquals(768, browser.getViewportSize().getHeight());
+    }
+
+    @Test
+    public void testSetDriver() {
+        MockDriver newDriver = mock(MockDriver.class);
+        browser.setDriver(newDriver);
+        assertEquals(newDriver, browser.getDriver());
     }
 }

@@ -18,6 +18,7 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.openqa.selenium.By;
+import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.Point;
@@ -230,5 +231,93 @@ public class MobileDeviceTest {
         MobileDevice empty = new MobileDevice();
         assertNull(empty.getDriver());
         assertNull(empty.getPlatformName());
+    }
+
+    @Test
+    public void testNavigateToWithWaitException() {
+        when(driver.executeScript("return document.readyState")).thenThrow(new RuntimeException("timeout"));
+        assertDoesNotThrow(() -> device.navigateTo("http://example.com"));
+        verify(driver).get("http://example.com");
+    }
+
+    @Test
+    public void testIsDisplayedFalse() {
+        when(driver.findElement(By.xpath("//p"))).thenReturn(mockElement);
+        when(mockElement.isDisplayed()).thenReturn(false);
+        assertFalse(device.isDisplayed("//p"));
+    }
+
+    @Test
+    public void testExtractAttributesEmpty() {
+        List<String> attrs = new ArrayList<>();
+        when(driver.executeScript(contains("attributes"), eq(mockElement))).thenReturn(attrs);
+
+        Map<String, String> result = device.extractAttributes(mockElement);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    public void testExtractAttributesSinglePart() {
+        List<String> attrs = new ArrayList<>();
+        attrs.add("data-only");
+        when(driver.executeScript(contains("attributes"), eq(mockElement))).thenReturn(attrs);
+
+        Map<String, String> result = device.extractAttributes(mockElement);
+        assertTrue(result.isEmpty());
+    }
+
+    @Test
+    public void testExtractAttributesDuplicateKey() {
+        List<String> attrs = new ArrayList<>();
+        attrs.add("class::first");
+        attrs.add("class::second");
+        when(driver.executeScript(contains("attributes"), eq(mockElement))).thenReturn(attrs);
+
+        Map<String, String> result = device.extractAttributes(mockElement);
+        assertEquals("[first]", result.get("class"));
+    }
+
+    @Test
+    public void testExtractAttributesWithQuotes() {
+        List<String> attrs = new ArrayList<>();
+        attrs.add("data-val::it\\'s");
+        when(driver.executeScript(contains("attributes"), eq(mockElement))).thenReturn(attrs);
+
+        Map<String, String> result = device.extractAttributes(mockElement);
+        assertEquals("[it's]", result.get("data-val"));
+    }
+
+    @Test
+    public void testGetterSetter() {
+        device.setYScrollOffset(100);
+        assertEquals(100, device.getYScrollOffset());
+
+        device.setXScrollOffset(50);
+        assertEquals(50, device.getXScrollOffset());
+
+        device.setPlatformName("ios");
+        assertEquals("ios", device.getPlatformName());
+    }
+
+    @Test
+    public void testGetViewportSizeIsSetInConstructor() {
+        Dimension size = device.getViewportSize();
+        assertNotNull(size);
+        assertEquals(375, size.getWidth());
+        assertEquals(812, size.getHeight());
+    }
+
+    @Test
+    public void testSetViewportSize() {
+        Dimension newSize = new Dimension(390, 844);
+        device.setViewportSize(newSize);
+        assertEquals(390, device.getViewportSize().getWidth());
+    }
+
+    @Test
+    public void testSetDriver() {
+        MockMobileDriver newDriver = mock(MockMobileDriver.class);
+        device.setDriver(newDriver);
+        assertEquals(newDriver, device.getDriver());
     }
 }
