@@ -120,9 +120,12 @@ public class CssUtilsTest {
         ruleSetList.put("p", rules);
 
         java.net.URL url = new java.net.URL("http://example.com");
+        // w3c_document is asserted non-null but not used in the method body
+        javax.xml.parsers.DocumentBuilder db = javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        org.w3c.dom.Document w3cDoc = db.newDocument();
 
         Map<String, String> result = CssUtils.loadPreRenderCssProperties(
-                jsoupDoc, null, ruleSetList, url, "//p", elem);
+                jsoupDoc, w3cDoc, ruleSetList, url, "//p", elem);
         assertNotNull(result);
         assertEquals("red", result.get("color"));
     }
@@ -138,9 +141,11 @@ public class CssUtilsTest {
         ruleSetList.put("@font-face", rules);
 
         java.net.URL url = new java.net.URL("http://example.com");
+        javax.xml.parsers.DocumentBuilder db = javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        org.w3c.dom.Document w3cDoc = db.newDocument();
 
         Map<String, String> result = CssUtils.loadPreRenderCssProperties(
-                jsoupDoc, null, ruleSetList, url, "//p", elem);
+                jsoupDoc, w3cDoc, ruleSetList, url, "//p", elem);
         assertNotNull(result);
         assertTrue(result.isEmpty()); // @font-face should be skipped
     }
@@ -156,9 +161,11 @@ public class CssUtilsTest {
         ruleSetList.put("p:before", rules);
 
         java.net.URL url = new java.net.URL("http://example.com");
+        javax.xml.parsers.DocumentBuilder db = javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        org.w3c.dom.Document w3cDoc = db.newDocument();
 
         Map<String, String> result = CssUtils.loadPreRenderCssProperties(
-                jsoupDoc, null, ruleSetList, url, "//p", elem);
+                jsoupDoc, w3cDoc, ruleSetList, url, "//p", elem);
         assertNotNull(result);
         // Should strip :before and match <p>
         assertEquals("''", result.get("content"));
@@ -175,9 +182,11 @@ public class CssUtilsTest {
         ruleSetList.put("div", rules);
 
         java.net.URL url = new java.net.URL("http://example.com");
+        javax.xml.parsers.DocumentBuilder db = javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder();
+        org.w3c.dom.Document w3cDoc = db.newDocument();
 
         Map<String, String> result = CssUtils.loadPreRenderCssProperties(
-                jsoupDoc, null, ruleSetList, url, "//p", elem);
+                jsoupDoc, w3cDoc, ruleSetList, url, "//p", elem);
         assertNotNull(result);
         assertTrue(result.isEmpty());
     }
