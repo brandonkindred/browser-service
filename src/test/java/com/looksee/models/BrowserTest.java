@@ -333,16 +333,16 @@ public class BrowserTest {
     }
 
     @Test
-    public void testExtractAttributesWithQuotesInName() {
+    public void testExtractAttributesWithSpecialCharsInName() {
         List<String> attrs = new ArrayList<>();
-        // The replace("\'", "'") is applied to attribute NAMES, not values
-        // Use a name with escaped quote: data\'val -> data'val
-        attrs.add("data\\'val::test");
+        attrs.add("data-val::test");
+        attrs.add("aria-label::hello world");
         when(driver.executeScript(contains("attributes"), eq(mockElement))).thenReturn(attrs);
 
         Map<String, String> result = browser.extractAttributes(mockElement);
         assertNotNull(result);
-        assertEquals("[test]", result.get("data'val"));
+        assertEquals("[test]", result.get("data-val"));
+        assertEquals("[hello, world]", result.get("aria-label"));
     }
 
     @Test
