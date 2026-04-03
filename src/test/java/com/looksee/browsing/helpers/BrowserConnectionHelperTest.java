@@ -115,7 +115,8 @@ public class BrowserConnectionHelperTest {
     public void testGetConnectionWithTestEnvironment() {
         BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[]{"localhost:4444"});
         // TEST environment with chrome won't match DISCOVERY branch, server_url remains null
-        assertThrows(Exception.class,
+        // which triggers an assertion error in BrowserFactory.createBrowser
+        assertThrows(Throwable.class,
                 () -> BrowserConnectionHelper.getConnection(BrowserType.CHROME, BrowserEnvironment.TEST));
     }
 

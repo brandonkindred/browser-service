@@ -278,13 +278,14 @@ public class MobileDeviceTest {
     }
 
     @Test
-    public void testExtractAttributesWithQuotes() {
+    public void testExtractAttributesWithQuotesInName() {
         List<String> attrs = new ArrayList<>();
-        attrs.add("data-val::it\\'s");
+        // The replace("\'", "'") is applied to attribute NAMES, not values
+        attrs.add("data\\'val::test");
         when(driver.executeScript(contains("attributes"), eq(mockElement))).thenReturn(attrs);
 
         Map<String, String> result = device.extractAttributes(mockElement);
-        assertEquals("[it's]", result.get("data-val"));
+        assertEquals("[test]", result.get("data'val"));
     }
 
     @Test
