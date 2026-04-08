@@ -1,7 +1,7 @@
 package com.looksee.browser;
 
 
-import com.looksee.browsing.enums.AlertChoice;
+import com.looksee.browser.enums.AlertChoice;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.NoAlertPresentException;

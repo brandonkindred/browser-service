@@ -3,7 +3,7 @@ package com.looksee.browser;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.looksee.browsing.enums.AlertChoice;
+import com.looksee.browser.enums.AlertChoice;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.Alert;
 import org.openqa.selenium.NoAlertPresentException;

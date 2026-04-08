@@ -1,7 +1,7 @@
 package com.looksee.browser;
 
-import com.looksee.browsing.MobileFactory;
-import com.looksee.utils.HtmlUtils;
+import com.looksee.browser.MobileFactory;
+import com.looksee.browser.utils.HtmlUtils;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.URL;

@@ -2,8 +2,8 @@ package com.looksee.browser;
 
 import com.assertthat.selenium_shutterbug.core.Capture;
 import com.assertthat.selenium_shutterbug.core.Shutterbug;
-import com.looksee.browsing.BrowserFactory;
-import com.looksee.utils.HtmlUtils;
+import com.looksee.browser.BrowserFactory;
+import com.looksee.browser.utils.HtmlUtils;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -42,10 +42,10 @@ import ru.yandex.qatools.ashot.shooting.ShootingStrategies;
  * <p>For static utility operations, see:
  * <ul>
  *   <li>{@link HtmlUtils} — HTML parsing and cleaning</li>
- *   <li>{@link com.looksee.utils.CssUtils} — CSS property extraction</li>
+ *   <li>{@link com.looksee.browser.utils.CssUtils} — CSS property extraction</li>
  *   <li>{@link com.looksee.utils.ScreenshotUtils} — element screenshot extraction from images</li>
  *   <li>{@link com.looksee.utils.ElementUtils} — label finding, coordinate calculations</li>
- *   <li>{@link com.looksee.utils.NetworkUtils} — URL reading with SSL/GZIP support</li>
+ *   <li>{@link com.looksee.browser.utils.NetworkUtils} — URL reading with SSL/GZIP support</li>
  *   <li>{@link BrowserFactory} — WebDriver and Browser creation</li>
  * </ul>
  *
