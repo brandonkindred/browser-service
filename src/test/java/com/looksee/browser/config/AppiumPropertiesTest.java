@@ -1,4 +1,4 @@
-package com.looksee.config;
+package com.looksee.browser.config;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -7,11 +7,17 @@ import org.junit.jupiter.api.Test;
 public class AppiumPropertiesTest {
 
     @Test
-    public void testConstructorWithAllValues() {
-        AppiumProperties props = new AppiumProperties(
-                "server1:4723,server2:4723", "Android", "Pixel 6",
-                "Chrome", "UiAutomator2", "13.0", "/path/to/app.apk",
-                90000, 5);
+    public void testSetters() {
+        AppiumProperties props = new AppiumProperties();
+        props.setUrls("server1:4723,server2:4723");
+        props.setPlatformName("Android");
+        props.setDeviceName("Pixel 6");
+        props.setBrowserName("Chrome");
+        props.setAutomationName("UiAutomator2");
+        props.setPlatformVersion("13.0");
+        props.setApp("/path/to/app.apk");
+        props.setConnectionTimeout(90000);
+        props.setMaxRetries(5);
 
         assertEquals("server1:4723,server2:4723", props.getUrls());
         assertEquals("Android", props.getPlatformName());
@@ -25,9 +31,9 @@ public class AppiumPropertiesTest {
     }
 
     @Test
-    public void testConstructorWithDefaults() {
-        AppiumProperties props = new AppiumProperties(
-                "server:4723", null, null, null, null, null, null, null, null);
+    public void testDefaults() {
+        AppiumProperties props = new AppiumProperties();
+        props.setUrls("server:4723");
 
         assertEquals("server:4723", props.getUrls());
         assertNull(props.getPlatformName());
@@ -42,8 +48,8 @@ public class AppiumPropertiesTest {
 
     @Test
     public void testGetUrlsArray() {
-        AppiumProperties props = new AppiumProperties(
-                "s1:4723,s2:4723,s3:4723", null, null, null, null, null, null, null, null);
+        AppiumProperties props = new AppiumProperties();
+        props.setUrls("s1:4723,s2:4723,s3:4723");
         String[] urls = props.getUrlsArray();
         assertEquals(3, urls.length);
         assertEquals("s1:4723", urls[0]);
@@ -51,15 +57,14 @@ public class AppiumPropertiesTest {
 
     @Test
     public void testGetUrlsArrayNull() {
-        AppiumProperties props = new AppiumProperties(
-                null, null, null, null, null, null, null, null, null);
+        AppiumProperties props = new AppiumProperties();
         assertEquals(0, props.getUrlsArray().length);
     }
 
     @Test
     public void testGetUrlsArrayEmpty() {
-        AppiumProperties props = new AppiumProperties(
-                "  ", null, null, null, null, null, null, null, null);
+        AppiumProperties props = new AppiumProperties();
+        props.setUrls("  ");
         assertEquals(0, props.getUrlsArray().length);
     }
 }

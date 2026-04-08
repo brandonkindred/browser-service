@@ -6,11 +6,18 @@ import java.net.MalformedURLException;
 
 import com.looksee.browsing.enums.BrowserEnvironment;
 import com.looksee.browsing.enums.BrowserType;
-import com.looksee.config.BrowserStackProperties;
+import com.looksee.browser.config.BrowserStackProperties;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 public class BrowserConnectionHelperTest {
+
+    private static BrowserStackProperties basicProps() {
+        BrowserStackProperties props = new BrowserStackProperties();
+        props.setUsername("testuser");
+        props.setAccessKey("testaccesskey");
+        return props;
+    }
 
     @BeforeEach
     public void setUp() {
@@ -49,10 +56,7 @@ public class BrowserConnectionHelperTest {
 
     @Test
     public void testSetBrowserStackConfig() {
-        BrowserStackProperties props = new BrowserStackProperties(
-                "testuser", "testaccesskey", null, null,
-                null, null, null, null,
-                null, null, null, null, null, null, null);
+        BrowserStackProperties props = basicProps();
 
         assertDoesNotThrow(() -> BrowserConnectionHelper.setBrowserStackConfig(
                 "https://hub-cloud.browserstack.com/wd/hub", props));
@@ -60,10 +64,7 @@ public class BrowserConnectionHelperTest {
 
     @Test
     public void testClearBrowserStackConfig() {
-        BrowserStackProperties props = new BrowserStackProperties(
-                "testuser", "testaccesskey", null, null,
-                null, null, null, null,
-                null, null, null, null, null, null, null);
+        BrowserStackProperties props = basicProps();
 
         BrowserConnectionHelper.setBrowserStackConfig(
                 "https://hub-cloud.browserstack.com/wd/hub", props);
@@ -74,10 +75,8 @@ public class BrowserConnectionHelperTest {
     @Test
     public void testGetMobileConnectionWithoutUrlsWhenBrowserStackCleared() {
         // Ensure that after clearing BrowserStack, mobile connections still require Appium URLs
-        BrowserStackProperties props = new BrowserStackProperties(
-                "testuser", "testaccesskey", null, null,
-                null, null, null, null,
-                null, "Samsung Galaxy S23", null, null, null, null, null);
+        BrowserStackProperties props = basicProps();
+        props.setDeviceName("Samsung Galaxy S23");
 
         BrowserConnectionHelper.setBrowserStackConfig(
                 "https://hub-cloud.browserstack.com/wd/hub", props);
@@ -122,10 +121,14 @@ public class BrowserConnectionHelperTest {
 
     @Test
     public void testGetConnectionWithBrowserStack() {
-        BrowserStackProperties props = new BrowserStackProperties(
-                "testuser", "testaccesskey", "Windows", "11",
-                "Chrome", "latest", "Project", "Build",
-                "Name", null, null, null, null, null, null);
+        BrowserStackProperties props = basicProps();
+        props.setOs("Windows");
+        props.setOsVersion("11");
+        props.setBrowser("Chrome");
+        props.setBrowserVersion("latest");
+        props.setProject("Project");
+        props.setBuild("Build");
+        props.setName("Name");
         BrowserConnectionHelper.setBrowserStackConfig(
                 "https://hub-cloud.browserstack.com/wd/hub", props);
         // Will fail to connect to BrowserStack, but exercises the BrowserStack code path
@@ -135,10 +138,12 @@ public class BrowserConnectionHelperTest {
 
     @Test
     public void testGetMobileConnectionWithBrowserStack() {
-        BrowserStackProperties props = new BrowserStackProperties(
-                "testuser", "testaccesskey", null, "13.0",
-                null, null, null, null,
-                null, "Samsung Galaxy S23", true, false, true, null, null);
+        BrowserStackProperties props = basicProps();
+        props.setOsVersion("13.0");
+        props.setDeviceName("Samsung Galaxy S23");
+        props.setRealMobile(true);
+        props.setLocal(false);
+        props.setDebug(true);
         BrowserConnectionHelper.setBrowserStackConfig(
                 "https://hub-cloud.browserstack.com/wd/hub", props);
         assertThrows(Exception.class,

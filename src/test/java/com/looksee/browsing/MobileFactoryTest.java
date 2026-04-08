@@ -5,11 +5,18 @@ import static org.junit.jupiter.api.Assertions.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 
-import com.looksee.config.BrowserStackProperties;
+import com.looksee.browser.config.BrowserStackProperties;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.WebDriverException;
 
 public class MobileFactoryTest {
+
+    private static BrowserStackProperties basicProps() {
+        BrowserStackProperties props = new BrowserStackProperties();
+        props.setUsername("user");
+        props.setAccessKey("key");
+        return props;
+    }
 
     @Test
     public void testCreateDriverUnsupportedPlatform() throws MalformedURLException {
@@ -54,42 +61,34 @@ public class MobileFactoryTest {
     @Test
     public void testCreateBrowserStackMobileDeviceAndroid() throws MalformedURLException {
         URL url = new URL("http://localhost:4723/wd/hub");
-        BrowserStackProperties props = new BrowserStackProperties(
-                "user", "key", null, "13.0",
-                null, null, "MyProject", "build-1",
-                "test", "Samsung Galaxy S23", true,
-                false, true, 30000, 3);
+        BrowserStackProperties props = basicProps();
+        props.setOsVersion("13.0");
+        props.setProject("MyProject");
+        props.setBuild("build-1");
+        props.setName("test");
+        props.setDeviceName("Samsung Galaxy S23");
         assertThrows(Exception.class, () -> MobileFactory.createBrowserStackMobileDevice("android", url, props));
     }
 
     @Test
     public void testCreateBrowserStackMobileDeviceIOS() throws MalformedURLException {
         URL url = new URL("http://localhost:4723/wd/hub");
-        BrowserStackProperties props = new BrowserStackProperties(
-                "user", "key", null, "17.0",
-                null, null, null, null,
-                null, null, true,
-                false, true, 30000, 3);
+        BrowserStackProperties props = basicProps();
+        props.setOsVersion("17.0");
         assertThrows(Exception.class, () -> MobileFactory.createBrowserStackMobileDevice("ios", url, props));
     }
 
     @Test
     public void testCreateBrowserStackMobileDeviceUnsupported() throws MalformedURLException {
         URL url = new URL("http://localhost:4723/wd/hub");
-        BrowserStackProperties props = new BrowserStackProperties(
-                "user", "key", null, null,
-                null, null, null, null,
-                null, null, null, null, null, null, null);
+        BrowserStackProperties props = basicProps();
         assertThrows(WebDriverException.class, () -> MobileFactory.createBrowserStackMobileDevice("windows", url, props));
     }
 
     @Test
     public void testCreateBrowserStackMobileDeviceWithNullDeviceName() throws MalformedURLException {
         URL url = new URL("http://localhost:4723/wd/hub");
-        BrowserStackProperties props = new BrowserStackProperties(
-                "user", "key", null, null,
-                null, null, null, null,
-                null, null, null, null, null, null, null);
+        BrowserStackProperties props = basicProps();
         // deviceName is null, so defaults should be used
         assertThrows(Exception.class, () -> MobileFactory.createBrowserStackMobileDevice("android", url, props));
     }

@@ -2,12 +2,11 @@ package com.looksee.browsing.helpers;
 
 import com.looksee.browsing.BrowserFactory;
 import com.looksee.browsing.MobileFactory;
-import com.looksee.config.BrowserStackProperties;
+import com.looksee.browser.config.BrowserStackProperties;
 import com.looksee.browser.Browser;
 import com.looksee.browser.MobileDevice;
 import com.looksee.browsing.enums.BrowserEnvironment;
 import com.looksee.browsing.enums.BrowserType;
-import io.github.resilience4j.retry.annotation.Retry;
 import java.net.MalformedURLException;
 import java.net.URL;
 import lombok.NoArgsConstructor;
@@ -15,10 +14,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * A helper class for creating a {@link Browser} connection
+ * A helper class for creating a {@link Browser} connection.
+ *
+ * <p>Retries are intentionally <em>not</em> wired into this helper: this
+ * class is framework-agnostic plain Java, and the retry annotation that
+ * used to live here depended on Spring AOP. Callers that need retries
+ * should wrap the static methods in their own retry logic (resilience4j,
+ * Failsafe, a hand-rolled loop, etc.).
  */
 @NoArgsConstructor
-@Retry(name="webdriver")
 public class BrowserConnectionHelper {
 	/**
 	 * The logger for the {@link BrowserConnectionHelper} class
@@ -120,7 +124,6 @@ public class BrowserConnectionHelper {
 	 *
 	 * @throws MalformedURLException if the url is malformed
 	 */
-    @Retry(name="webdriver")
 	public static Browser getConnection(BrowserType browser, BrowserEnvironment environment)
 			throws MalformedURLException
     {
@@ -159,7 +162,6 @@ public class BrowserConnectionHelper {
 	 * @throws MalformedURLException if the url is malformed
 	 * @throws IllegalStateException if Appium URLs are not configured
 	 */
-    @Retry(name="webdriver")
 	public static MobileDevice getMobileConnection(BrowserType browser, BrowserEnvironment environment)
 			throws MalformedURLException
     {

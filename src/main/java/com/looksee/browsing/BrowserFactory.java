@@ -1,6 +1,6 @@
 package com.looksee.browsing;
 
-import com.looksee.config.BrowserStackProperties;
+import com.looksee.browser.config.BrowserStackProperties;
 import com.looksee.browser.Browser;
 import java.net.MalformedURLException;
 import java.net.URL;

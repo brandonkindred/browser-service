@@ -1,4 +1,4 @@
-package com.looksee.config;
+package com.looksee.browser.config;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -7,12 +7,23 @@ import org.junit.jupiter.api.Test;
 public class BrowserStackPropertiesTest {
 
     @Test
-    public void testConstructorWithAllValues() {
-        BrowserStackProperties props = new BrowserStackProperties(
-                "myuser", "mykey123", "Windows", "11",
-                "Chrome", "latest", "MyProject", "build-1",
-                "test-session", "Samsung Galaxy S23", false,
-                true, false, 60000, 5);
+    public void testSetters() {
+        BrowserStackProperties props = new BrowserStackProperties();
+        props.setUsername("myuser");
+        props.setAccessKey("mykey123");
+        props.setOs("Windows");
+        props.setOsVersion("11");
+        props.setBrowser("Chrome");
+        props.setBrowserVersion("latest");
+        props.setProject("MyProject");
+        props.setBuild("build-1");
+        props.setName("test-session");
+        props.setDeviceName("Samsung Galaxy S23");
+        props.setRealMobile(false);
+        props.setLocal(true);
+        props.setDebug(false);
+        props.setConnectionTimeout(60000);
+        props.setMaxRetries(5);
 
         assertEquals("myuser", props.getUsername());
         assertEquals("mykey123", props.getAccessKey());
@@ -32,11 +43,10 @@ public class BrowserStackPropertiesTest {
     }
 
     @Test
-    public void testConstructorWithDefaults() {
-        BrowserStackProperties props = new BrowserStackProperties(
-                "myuser", "mykey123", null, null,
-                null, null, null, null,
-                null, null, null, null, null, null, null);
+    public void testDefaults() {
+        BrowserStackProperties props = new BrowserStackProperties();
+        props.setUsername("myuser");
+        props.setAccessKey("mykey123");
 
         assertEquals("myuser", props.getUsername());
         assertEquals("mykey123", props.getAccessKey());
