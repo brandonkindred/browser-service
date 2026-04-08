@@ -1,7 +1,7 @@
 package com.looksee.browsing;
 
 import com.looksee.config.BrowserStackProperties;
-import com.looksee.models.Browser;
+import com.looksee.browser.Browser;
 import java.net.MalformedURLException;
 import java.net.URL;
 import org.openqa.selenium.ImmutableCapabilities;

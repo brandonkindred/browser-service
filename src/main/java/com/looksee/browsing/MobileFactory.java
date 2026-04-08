@@ -1,7 +1,7 @@
 package com.looksee.browsing;
 
 import com.looksee.config.BrowserStackProperties;
-import com.looksee.models.MobileDevice;
+import com.looksee.browser.MobileDevice;
 import io.appium.java_client.android.AndroidDriver;
 import io.appium.java_client.ios.IOSDriver;
 import java.net.URL;

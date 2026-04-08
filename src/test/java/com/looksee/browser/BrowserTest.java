@@ -1,4 +1,4 @@
-package com.looksee.models;
+package com.looksee.browser;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;

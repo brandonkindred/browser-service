@@ -1,4 +1,4 @@
-package com.looksee.models;
+package com.looksee.browser;
 
 
 import com.looksee.browsing.enums.AlertChoice;

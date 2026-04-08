@@ -1,9 +1,12 @@
-package com.looksee.models;
+package com.looksee.browser;
 
-import com.looksee.browsing.MobileFactory;
+import com.assertthat.selenium_shutterbug.core.Capture;
+import com.assertthat.selenium_shutterbug.core.Shutterbug;
+import com.looksee.browsing.BrowserFactory;
 import com.looksee.utils.HtmlUtils;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -14,31 +17,41 @@ import javax.imageio.ImageIO;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.openqa.selenium.Alert;
 import org.openqa.selenium.By;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.OutputType;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
+import org.openqa.selenium.interactions.Actions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ru.yandex.qatools.ashot.AShot;
+import ru.yandex.qatools.ashot.shooting.ShootingStrategies;
 
 /**
- * Manages an Appium mobile device session and provides methods for interacting
- * with mobile browsers. This is the mobile counterpart of {@link Browser},
- * allowing Appium to evolve independently from Selenium.
+ * Manages a Selenium browser session and provides methods for interacting with the browser.
+ * Handles navigation, scrolling, screenshots, element interaction, and DOM manipulation.
  *
- * <p>Uses native Appium/WebDriver screenshot capabilities instead of
- * Shutterbug/AShot (which are desktop-only). Does not support mouse actions
- * since mobile devices use touch interactions.
+ * <p>For static utility operations, see:
+ * <ul>
+ *   <li>{@link HtmlUtils} — HTML parsing and cleaning</li>
+ *   <li>{@link com.looksee.utils.CssUtils} — CSS property extraction</li>
+ *   <li>{@link com.looksee.utils.ScreenshotUtils} — element screenshot extraction from images</li>
+ *   <li>{@link com.looksee.utils.ElementUtils} — label finding, coordinate calculations</li>
+ *   <li>{@link com.looksee.utils.NetworkUtils} — URL reading with SSL/GZIP support</li>
+ *   <li>{@link BrowserFactory} — WebDriver and Browser creation</li>
+ * </ul>
  *
  * <p><b>Class Invariants:</b>
  * <ul>
- *   <li>invariant: platformName is not null after parameterized construction</li>
+ *   <li>invariant: browserName is not null after parameterized construction</li>
  *   <li>invariant: driver is not null after parameterized construction</li>
  *   <li>invariant: viewportSize is not null after parameterized construction</li>
  *   <li>invariant: yScrollOffset >= 0</li>
@@ -48,11 +61,11 @@ import org.slf4j.LoggerFactory;
 @NoArgsConstructor
 @Getter
 @Setter
-public class MobileDevice {
+public class Browser {
 
-	private static Logger log = LoggerFactory.getLogger(MobileDevice.class);
+	private static Logger log = LoggerFactory.getLogger(Browser.class);
 	private WebDriver driver = null;
-	private String platformName;
+	private String browserName;
 	private long yScrollOffset;
 	private long xScrollOffset;
 	private Dimension viewportSize;
@@ -60,51 +73,55 @@ public class MobileDevice {
 	private static final String JS_GET_VIEWPORT_HEIGHT = "var height = undefined;  if (window.innerHeight) {height = window.innerHeight;}  else if (document.documentElement && document.documentElement.clientHeight) {height = document.documentElement.clientHeight;}  else { var b = document.getElementsByTagName('body')[0]; if (b.clientHeight) {height = b.clientHeight;}};return height;";
 
 	/**
-	 * Constructor for {@link MobileDevice} that dispatches to {@link MobileFactory}
+	 * Constructor for {@link Browser} that dispatches to {@link BrowserFactory}
 	 * for driver creation.
 	 *
-	 * @param platformType the mobile platform ("android", "ios")
-	 * @param serverUrl the URL of the Appium server
+	 * @param browser the name of the browser to use (chrome, firefox)
+	 * @param hub_node_url the url of the selenium hub node
 	 *
-	 * precondition: platformType != null
-	 * precondition: serverUrl != null
+	 * @throws MalformedURLException if the url is malformed
+	 *
+	 * precondition: hub_node_url != null
+	 * precondition: browser != null
 	 */
-	public MobileDevice(String platformType, URL serverUrl) {
-		assert platformType != null;
-		assert serverUrl != null;
+	public Browser(String browser, URL hub_node_url) throws MalformedURLException {
+		assert browser != null;
+		assert hub_node_url != null;
 
-		this.setPlatformName(platformType);
-		this.driver = MobileFactory.createDriver(platformType, serverUrl);
+		this.setBrowserName(browser);
+		this.driver = BrowserFactory.createDriver(browser, hub_node_url);
 
 		setYScrollOffset(0);
 		setXScrollOffset(0);
-		setViewportSize(getViewportDimensions(driver));
+		setViewportSize(getViewportSize(driver));
 	}
 
 	/**
-	 * Constructor for {@link MobileDevice} that accepts a pre-built WebDriver.
+	 * Constructor for {@link Browser} that accepts a pre-built WebDriver.
 	 *
-	 * @param driver the WebDriver instance (AndroidDriver or IOSDriver)
-	 * @param platformName the platform name ("android", "ios")
+	 * @param driver the WebDriver instance
+	 * @param browserName the name of the browser
 	 *
 	 * precondition: driver != null
-	 * precondition: platformName != null
+	 * precondition: browserName != null
 	 */
-	public MobileDevice(WebDriver driver, String platformName) {
+	public Browser(WebDriver driver, String browserName) {
 		assert driver != null;
-		assert platformName != null;
+		assert browserName != null;
 
 		this.driver = driver;
-		this.setPlatformName(platformName);
+		this.setBrowserName(browserName);
 		setYScrollOffset(0);
 		setXScrollOffset(0);
-		setViewportSize(getViewportDimensions(driver));
+		setViewportSize(getViewportSize(driver));
 	}
 
 	/**
 	 * Gets the current {@link WebDriver driver}
 	 *
 	 * @return the current {@link WebDriver driver}
+	 *
+	 * precondition: driver != null
 	 */
 	public WebDriver getDriver() {
 		return this.driver;
@@ -113,7 +130,7 @@ public class MobileDevice {
 	/**
 	 * Navigates to a given url and waits for the readyState to be complete
 	 *
-	 * @param url the URL to navigate to
+	 * @param url the {@link URL}
 	 *
 	 * precondition: url != null
 	 */
@@ -129,52 +146,74 @@ public class MobileDevice {
 	}
 
 	/**
-	 * Closes the mobile session.
+	 * Closes the browser opened by the current driver.
 	 */
 	public void close() {
 		try {
 			driver.quit();
 		} catch (Exception e) {
-			log.debug("Exception occurred when closing mobile session: " + e.getMessage());
+			log.debug("Unknown exception occurred when closing browser" + e.getMessage());
 		}
 	}
 
 	// ==================== Screenshots ====================
 
 	/**
-	 * Takes a viewport screenshot using the native Appium screenshot capability.
+	 * Takes a viewport-only screenshot.
 	 *
 	 * @return BufferedImage of the viewport
 	 * @throws IOException if an error occurs while getting the screenshot
+	 *
+	 * precondition: driver != null
 	 */
 	public BufferedImage getViewportScreenshot() throws IOException {
 		return ImageIO.read(((TakesScreenshot) driver).getScreenshotAs(OutputType.FILE));
 	}
 
 	/**
-	 * Takes a full-page screenshot. On mobile, this falls back to a viewport
-	 * screenshot since Shutterbug/AShot are not compatible with Appium drivers.
+	 * Takes a full-page screenshot using Shutterbug (basic scroll capture).
 	 *
-	 * @return BufferedImage of the viewport
+	 * @return BufferedImage of the full page
 	 * @throws IOException if an error occurs while getting the screenshot
 	 */
 	public BufferedImage getFullPageScreenshot() throws IOException {
-		return getViewportScreenshot();
+		return Shutterbug.shootPage(driver, Capture.FULL_SCROLL).getImage();
 	}
 
 	/**
-	 * Takes a screenshot of a specific WebElement using Appium's native
-	 * element screenshot capability.
+	 * Takes a full-page screenshot using AShot with viewport pasting strategy.
 	 *
-	 * @param element the element to capture
-	 * @return the screenshot
+	 * @return the full page screenshot
 	 * @throws IOException if an error occurs while getting the screenshot
+	 */
+	public BufferedImage getFullPageScreenshotAshot() throws IOException {
+		ru.yandex.qatools.ashot.Screenshot screenshot = new AShot().shootingStrategy(ShootingStrategies.viewportPasting(1000)).takeScreenshot(driver);
+		return screenshot.getImage();
+	}
+
+	/**
+	 * Takes a full-page screenshot using Shutterbug with scroll pause.
+	 * Works best in Chrome.
+	 *
+	 * @return the full page screenshot
+	 * @throws IOException if an error occurs while getting the screenshot
+	 */
+	public BufferedImage getFullPageScreenshotShutterbug() throws IOException {
+		return Shutterbug.shootPage(driver, Capture.FULL, 1000, true).getImage();
+	}
+
+	/**
+	 * Takes a screenshot of a specific WebElement.
+	 *
+	 * @param element the element to get a screenshot of
+	 * @return the screenshot
+	 * @throws Exception if an error occurs while getting the screenshot
 	 *
 	 * precondition: element != null
 	 */
-	public BufferedImage getElementScreenshot(WebElement element) throws IOException {
+	public BufferedImage getElementScreenshot(WebElement element) throws Exception {
 		assert element != null;
-		return ImageIO.read(element.getScreenshotAs(OutputType.FILE));
+		return Shutterbug.shootElementVerticallyCentered(driver, element).getImage();
 	}
 
 	// ==================== Element Finding ====================
@@ -270,7 +309,7 @@ public class MobileDevice {
 	// ==================== DOM Manipulation ====================
 
 	/**
-	 * Removes element from DOM by class name.
+	 * Removes element from browser DOM by class name.
 	 *
 	 * @param class_name the class name of the element to remove
 	 *
@@ -286,7 +325,54 @@ public class MobileDevice {
 		}
 	}
 
+	/**
+	 * Remove Drift.com chat app widget from the DOM.
+	 */
+	public void removeDriftChat() {
+		((JavascriptExecutor) driver).executeScript("var element=document.getElementById(\"drift-frame-chat\");if(typeof(element)!='undefined' && element != null){document.getElementById(\"drift-frame-chat\").remove();document.getElementById(\"drift-frame-controller\").remove();}");
+	}
+
+	/**
+	 * Remove GDPR modal by id "gdprModal".
+	 */
+	public void removeGDPRmodals() {
+		((JavascriptExecutor) driver).executeScript("var element=document.getElementById(\"gdprModal\");if(typeof(element)!='undefined' && element != null){element.remove();}	");
+	}
+
+	/**
+	 * Remove GDPR element by id "gdpr".
+	 */
+	public void removeGDPR() {
+		((JavascriptExecutor) driver).executeScript("var element=document.getElementById(\"gdpr\");if(typeof(element)!='undefined' && element != null){element.remove();} ");
+	}
+
 	// ==================== Scrolling ====================
+
+	/**
+	 * Scrolls to an element using xpath navigation hints and offset tracking.
+	 *
+	 * @param xpath the xpath of the element to scroll to
+	 * @param elem the element to scroll to
+	 *
+	 * precondition: xpath != null
+	 * precondition: elem != null
+	 */
+	public void scrollToElement(String xpath, WebElement elem) {
+		assert xpath != null;
+		assert elem != null;
+
+		if (xpath.contains("nav") || xpath.startsWith("//body/header")) {
+			scrollToTopOfPage();
+			return;
+		}
+
+		Point element_offset = elem.getLocation();
+		while (this.getYScrollOffset() != element_offset.getY()) {
+			scrollDownFull();
+		}
+
+		getViewportScrollOffset();
+	}
 
 	/**
 	 * Scrolls to center an element in the viewport.
@@ -299,6 +385,20 @@ public class MobileDevice {
 		assert element != null;
 
 		((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block: 'center'});", element);
+		getViewportScrollOffset();
+	}
+
+	/**
+	 * Scrolls to an element centered in the viewport.
+	 *
+	 * @param element the element to scroll to
+	 *
+	 * precondition: element != null
+	 */
+	public void scrollToElementCentered(WebElement element) {
+		assert element != null;
+		((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block: 'center'});", element);
+
 		getViewportScrollOffset();
 	}
 
@@ -375,6 +475,48 @@ public class MobileDevice {
 						.equals("complete"));
 	}
 
+	// ==================== Mouse & Alerts ====================
+
+	/**
+	 * Moves the mouse out of the frame to a non-interactive position.
+	 */
+	public void moveMouseOutOfFrame() {
+		try {
+			Actions mouseMoveAction = new Actions(driver).moveByOffset(-(getViewportSize().getWidth() / 3), -(getViewportSize().getHeight() / 3));
+			mouseMoveAction.build().perform();
+		} catch (Exception e) {
+		}
+	}
+
+	/**
+	 * Moves the mouse to a specific point.
+	 *
+	 * @param point the point to move the mouse to
+	 *
+	 * precondition: point != null
+	 */
+	public void moveMouseToNonInteractive(Point point) {
+		assert point != null;
+		try {
+			Actions mouseMoveAction = new Actions(driver).moveByOffset(point.getX(), point.getY());
+			mouseMoveAction.build().perform();
+		} catch (Exception e) {
+		}
+	}
+
+	/**
+	 * Checks if an alert is present.
+	 *
+	 * @return {@link Alert} if present, otherwise {@code null}
+	 */
+	public Alert isAlertPresent() {
+		try {
+			return driver.switchTo().alert();
+		} catch (NoAlertPresentException Ex) {
+			return null;
+		}
+	}
+
 	// ==================== Page Source & Error Checking ====================
 
 	/**
@@ -403,10 +545,21 @@ public class MobileDevice {
 	 * @param driver the driver
 	 * @return the viewport size
 	 */
-	private static Dimension getViewportDimensions(WebDriver driver) {
+	private static Dimension getViewportSize(WebDriver driver) {
 		int width = extractViewportWidth(driver);
 		int height = extractViewportHeight(driver);
 		return new Dimension(width, height);
+	}
+
+	/**
+	 * Extracts the page Y scroll offset.
+	 *
+	 * @param driver the driver
+	 * @return the Y offset
+	 */
+	private static long extractYOffset(WebDriver driver) {
+		JavascriptExecutor executor = (JavascriptExecutor) driver;
+		return (Long) executor.executeScript("return window.pageYOffset;");
 	}
 
 	/**
