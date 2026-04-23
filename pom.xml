@@ -30,7 +30,7 @@
         <!-- Dependencies -->
         <selenium.version>4.27.0</selenium.version>
         <appium.version>9.3.0</appium.version>
-        <shutterbug.version>1.9</shutterbug.version>
+        <shutterbug.version>1.6</shutterbug.version>
         <ashot.version>1.5.4</ashot.version>
         <jackson.version>2.18.2</jackson.version>
         <commons-codec.version>1.17.1</commons-codec.version>

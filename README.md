@@ -1,8 +1,4 @@
-# Browser Service — Design Draft
-
-> **Status:** design draft on Look-see branch `claude/extract-browsing-service-MgOw3`. Nothing in this directory is shipped yet. The contract below is the first thing up for review; once accepted, these artifacts move to the new repo `brandonkindred/browser-service` and implementation begins.
-
-## What this is
+# What is browser-service?
 
 A standalone HTTP service that exposes Selenium/Appium browser sessions to remote callers. Agents, audit services, and anything else that needs a browser can open a session, drive it, and close it — without embedding a WebDriver library.
 
