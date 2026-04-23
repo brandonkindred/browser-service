@@ -1,0 +1,15 @@
+# Redocly lint config for the Browser Service API draft.
+#
+# Starts from Redocly's recommended ruleset and relaxes rules that don't
+# apply to MVP (see README.md "Explicitly out of MVP").
+extends:
+  - recommended
+
+rules:
+  # Authentication is explicitly deferred for MVP — service runs on a private
+  # network. Re-enable this rule when auth lands.
+  security-defined: off
+
+  # Ops endpoints (/healthz, /readyz, /metrics) legitimately expose only 2xx
+  # (and 503 for /readyz). Keep the rule informational, not blocking.
+  operation-4xx-response: warn

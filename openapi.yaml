@@ -1,0 +1,1009 @@
+openapi: 3.1.0
+info:
+  title: Browser Service
+  version: 0.1.0-draft
+  summary: Remote browser sessions for programmatic web interaction.
+  description: |
+    Standalone service that exposes Selenium/Appium browser sessions over HTTP
+    so agents, audit services, and other clients can drive a browser without
+    embedding a WebDriver library.
+
+    This spec is a **design draft** being developed on Look-see branch
+    `claude/extract-browsing-service-MgOw3`. It will be moved to the
+    `brandonkindred/browser-service` repo once that repo is created.
+
+    ## Session model
+
+    Browser interactions are stateful. A caller creates a session, performs
+    one or more actions against it, then closes it. Sessions are identified
+    by an opaque `session_id` embedded in each URL path after creation.
+
+    Idle sessions are closed automatically after the configured idle TTL
+    (default 5 minutes); all sessions are closed after the absolute TTL
+    (default 30 minutes) regardless of activity.
+
+    ## Not in MVP
+
+    - Authentication (service runs on a private network)
+    - Rate limits and per-tenant quotas
+    - Streaming events (WebSocket/SSE)
+    - Screenshot upload to cloud storage (caller uploads)
+    - MCP server (endpoints are named to map 1:1 to future MCP tools)
+
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://browser-service.internal/v1
+    description: Internal VPC endpoint
+  - url: http://localhost:8080/v1
+    description: Local development
+
+tags:
+  - name: Sessions
+    description: Session lifecycle
+  - name: Navigation
+    description: Page navigation and source
+  - name: Screenshots
+    description: Viewport, full-page, and element screenshots
+  - name: Elements
+    description: Find elements and perform actions on them
+  - name: Scrolling
+    description: Viewport scrolling operations
+  - name: DOM
+    description: Direct DOM manipulation helpers
+  - name: Alerts
+    description: Browser alert detection and response
+  - name: Mouse
+    description: Desktop mouse operations (desktop sessions only)
+  - name: Touch
+    description: Mobile touch gestures (mobile sessions only)
+  - name: Capture
+    description: One-shot navigate + capture + close
+  - name: Ops
+    description: Health, readiness, metrics
+
+paths:
+  /sessions:
+    post:
+      tags: [Sessions]
+      summary: Create a new browser session
+      operationId: createSession
+      description: |
+        Creates a new Selenium or Appium session via the configured upstream
+        hub. For desktop browsers (`chrome`, `firefox`), the service connects
+        to a Selenium Grid. For `android`/`ios`, it connects to an Appium
+        server. If BrowserStack is configured, all browser types are routed
+        there instead.
+
+        Returns the new `session_id` that must be used in subsequent path
+        parameters.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CreateSessionRequest" }
+      responses:
+        "201":
+          description: Session created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Session" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManySessions" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
+    get:
+      tags: [Sessions]
+      summary: List active sessions (ops/debug)
+      operationId: listSessions
+      responses:
+        "200":
+          description: List of currently-open sessions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessions:
+                    type: array
+                    items: { $ref: "#/components/schemas/Session" }
+
+  /sessions/{id}:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    get:
+      tags: [Sessions]
+      summary: Get session state
+      operationId: getSession
+      responses:
+        "200":
+          description: Session state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SessionState" }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+    delete:
+      tags: [Sessions]
+      summary: Close a session
+      operationId: deleteSession
+      description: Calls `driver.quit()` on the underlying WebDriver and removes the session from the registry.
+      responses:
+        "204": { description: Closed }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+
+  /sessions/{id}/navigate:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      tags: [Navigation]
+      summary: Navigate to a URL
+      operationId: navigate
+      description: |
+        Calls `driver.get(url)` and waits for `document.readyState === "complete"`
+        (subject to `wait_for`). Mirrors engine `Browser.navigateTo`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/NavigateRequest" }
+      responses:
+        "200":
+          description: Navigation complete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  current_url: { type: string, format: uri }
+                  status: { type: string, enum: [loaded, timeout, error] }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+        "408": { $ref: "#/components/responses/NavigationTimeout" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
+
+  /sessions/{id}/source:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    get:
+      tags: [Navigation]
+      summary: Get current page HTML source
+      operationId: getSource
+      description: Mirrors engine `Browser.getSource`.
+      responses:
+        "200":
+          description: Page source
+          content:
+            text/html:
+              schema: { type: string }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+
+  /sessions/{id}/status:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    get:
+      tags: [Navigation]
+      summary: Inspect page-level status
+      operationId: getPageStatus
+      description: |
+        Combines `Browser.is503Error()` with `driver.getCurrentUrl()` so
+        callers can tell at a glance whether the page is a 503 error page
+        or otherwise non-usable.
+      responses:
+        "200":
+          description: Page status
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/PageStatus" }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+
+  /sessions/{id}/screenshot:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      tags: [Screenshots]
+      summary: Capture a screenshot
+      operationId: captureScreenshot
+      description: |
+        Maps `strategy` to one of four engine methods:
+        - `viewport` → `Browser.getViewportScreenshot()`
+        - `full_page_shutterbug` → `Browser.getFullPageScreenshot()` (Shutterbug FULL_SCROLL)
+        - `full_page_ashot` → `Browser.getFullPageScreenshotAshot()` (AShot viewport pasting)
+        - `full_page_shutterbug_paused` → `Browser.getFullPageScreenshotShutterbug()` (Shutterbug FULL with scroll pause)
+
+        By default the response body is `image/png` bytes. Pass
+        `encoding: base64` to get a JSON response with a base64-encoded image —
+        useful for MCP tools and other JSON-only consumers.
+
+        Mobile sessions only support `viewport` (Shutterbug/AShot are
+        desktop-only).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScreenshotRequest" }
+      responses:
+        "200":
+          description: Screenshot captured
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+            application/json:
+              schema: { $ref: "#/components/schemas/ScreenshotBase64Response" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+
+  /sessions/{id}/element/screenshot:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      tags: [Screenshots]
+      summary: Capture a screenshot of a single element
+      operationId: captureElementScreenshot
+      description: Mirrors engine `Browser.getElementScreenshot(WebElement)`, which uses Shutterbug's `shootElementVerticallyCentered`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ElementScreenshotRequest" }
+      responses:
+        "200":
+          description: Element screenshot
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+            application/json:
+              schema: { $ref: "#/components/schemas/ScreenshotBase64Response" }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+
+  /sessions/{id}/element/find:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      tags: [Elements]
+      summary: Find an element and return its state
+      operationId: findElement
+      description: |
+        Combines `Browser.findElement`, `Browser.isDisplayed`, and
+        `Browser.extractAttributes` into a single call so the common
+        "look-up-then-inspect" pattern is one round-trip. Returns an opaque
+        `element_handle` usable in follow-up calls (`/element/action`,
+        `/element/screenshot`, `/scroll` with `to_element`).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FindElementRequest" }
+      responses:
+        "200":
+          description: Element state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ElementState" }
+        "404":
+          description: Session or element not found
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /sessions/{id}/element/action:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      tags: [Elements]
+      summary: Perform a desktop action on an element
+      operationId: performElementAction
+      description: |
+        Mirrors engine `ActionFactory.execAction(WebElement, String, Action)`.
+        Desktop sessions only. Mobile sessions must use `/element/touch`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ElementActionRequest" }
+      responses:
+        "204": { description: Action performed }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+        "409":
+          description: Action not valid for session type (e.g., desktop action on mobile)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /sessions/{id}/element/touch:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      tags: [Touch]
+      summary: Perform a touch gesture on an element
+      operationId: performElementTouch
+      description: |
+        Mobile counterpart of `/element/action`. Mirrors engine
+        `MobileActionFactory` behaviors. Mobile sessions only.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ElementTouchRequest" }
+      responses:
+        "204": { description: Gesture performed }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+        "409":
+          description: Gesture not valid for session type
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /sessions/{id}/scroll:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      tags: [Scrolling]
+      summary: Scroll the viewport
+      operationId: scroll
+      description: |
+        Maps `mode` to an engine scroll method:
+        - `to_top` → `Browser.scrollToTopOfPage`
+        - `to_bottom` → `Browser.scrollToBottomOfPage`
+        - `to_element` → `Browser.scrollToElement(xpath, WebElement)` (uses xpath hints for nav/header)
+        - `to_element_centered` → `Browser.scrollToElementCentered(WebElement)`
+        - `down_percent` → `Browser.scrollDownPercent(percent)`
+        - `down_full` → `Browser.scrollDownFull`
+
+        Response returns the new scroll offset.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ScrollRequest" }
+      responses:
+        "200":
+          description: Scroll complete
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ScrollOffset" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+
+  /sessions/{id}/viewport:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    get:
+      tags: [Scrolling]
+      summary: Get current viewport dimensions and scroll offset
+      operationId: getViewport
+      description: Combines engine `Browser.getViewportSize()` and `Browser.getViewportScrollOffset()`.
+      responses:
+        "200":
+          description: Viewport state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ViewportState" }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+
+  /sessions/{id}/dom/remove:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      tags: [DOM]
+      summary: Remove DOM element(s)
+      operationId: removeDomElement
+      description: |
+        Removes DOM nodes via JavaScript. `preset` provides shortcuts for
+        commonly-hidden overlays; `by_class` removes the first match by
+        class name. Engine methods:
+        - `preset: drift_chat` → `Browser.removeDriftChat()`
+        - `preset: gdpr_modal` → `Browser.removeGDPRmodals()`
+        - `preset: gdpr` → `Browser.removeGDPR()`
+        - `by_class + value` → `Browser.removeElement(String)`
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DomRemoveRequest" }
+      responses:
+        "204": { description: Removal attempted (idempotent — no error if absent) }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+
+  /sessions/{id}/alert:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    get:
+      tags: [Alerts]
+      summary: Check for a native alert
+      operationId: getAlert
+      description: "Mirrors engine `Browser.isAlertPresent()`. Returns `{present: false}` when no alert is open."
+      responses:
+        "200":
+          description: Alert state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AlertState" }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+
+  /sessions/{id}/alert/respond:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      tags: [Alerts]
+      summary: Accept or dismiss a native alert
+      operationId: respondToAlert
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AlertRespondRequest" }
+      responses:
+        "204": { description: Alert handled }
+        "404":
+          description: Session not found or no alert present
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /sessions/{id}/mouse/move:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      tags: [Mouse]
+      summary: Move the mouse (desktop only)
+      operationId: moveMouse
+      description: |
+        Desktop-only. Mirrors engine `Browser.moveMouseOutOfFrame()` and
+        `Browser.moveMouseToNonInteractive(Point)`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/MouseMoveRequest" }
+      responses:
+        "204": { description: Mouse moved }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+        "409":
+          description: Session is mobile; use /touch endpoints instead
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /sessions/{id}/execute:
+    parameters:
+      - $ref: "#/components/parameters/SessionId"
+    post:
+      tags: [Elements]
+      summary: Execute arbitrary JavaScript (escape hatch)
+      operationId: executeScript
+      description: |
+        Exists so the client can always reach behaviors not yet modeled as
+        first-class endpoints. Prefer typed endpoints when available.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ExecuteRequest" }
+      responses:
+        "200":
+          description: Script result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result: {}
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "404": { $ref: "#/components/responses/SessionNotFound" }
+
+  /capture:
+    post:
+      tags: [Capture]
+      summary: One-shot navigate + capture + close
+      operationId: capture
+      description: |
+        Sugar endpoint for the most common use case: open a session, navigate
+        to a URL, capture a screenshot (and optionally the page source),
+        close the session. Internally: `createSession` → `navigate` →
+        `screenshot` (+ optional `getSource`) → `deleteSession`.
+
+        Always returns JSON because the response typically combines multiple
+        artifacts. Set `screenshot.encoding` to `base64` to include the image
+        inline; omit it to receive a short-lived URL pointing at
+        `/capture/{capture_id}/screenshot` that the caller fetches as bytes.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/CaptureRequest" }
+      responses:
+        "200":
+          description: Capture complete
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CaptureResponse" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "429": { $ref: "#/components/responses/TooManySessions" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
+
+  /capture/{capture_id}/screenshot:
+    parameters:
+      - name: capture_id
+        in: path
+        required: true
+        schema: { type: string }
+    get:
+      tags: [Capture]
+      summary: Fetch a one-shot capture's screenshot bytes
+      operationId: getCaptureScreenshot
+      description: Short-lived (TTL matches session absolute TTL). Returns `410 Gone` after expiry.
+      responses:
+        "200":
+          description: Screenshot bytes
+          content:
+            image/png:
+              schema: { type: string, format: binary }
+        "404":
+          description: Unknown capture_id
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "410":
+          description: Capture expired
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /healthz:
+    get:
+      tags: [Ops]
+      summary: Liveness probe
+      operationId: healthz
+      responses:
+        "200":
+          description: Live
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string, enum: [ok] }
+
+  /readyz:
+    get:
+      tags: [Ops]
+      summary: Readiness probe
+      operationId: readyz
+      description: Checks upstream Selenium Grid (and Appium, if configured) reachability.
+      responses:
+        "200":
+          description: Ready
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Readiness" }
+        "503":
+          description: One or more upstreams unavailable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Readiness" }
+
+  /metrics:
+    get:
+      tags: [Ops]
+      summary: Prometheus metrics
+      operationId: metrics
+      responses:
+        "200":
+          description: Prometheus text format
+          content:
+            text/plain:
+              schema: { type: string }
+
+components:
+  parameters:
+    SessionId:
+      name: id
+      in: path
+      required: true
+      description: Opaque session identifier returned by `POST /sessions`.
+      schema:
+        type: string
+        minLength: 1
+
+  responses:
+    BadRequest:
+      description: Request was malformed or failed validation
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    SessionNotFound:
+      description: No open session with the given id
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NavigationTimeout:
+      description: Page did not reach readyState complete within the configured window
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    TooManySessions:
+      description: Concurrent-session cap reached for this service instance
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    UpstreamUnavailable:
+      description: Selenium Grid / Appium / BrowserStack unreachable or returned an error
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    # ----- Session lifecycle -----
+    CreateSessionRequest:
+      type: object
+      required: [browser, environment]
+      properties:
+        browser:
+          $ref: "#/components/schemas/BrowserType"
+        environment:
+          $ref: "#/components/schemas/BrowserEnvironment"
+        viewport:
+          $ref: "#/components/schemas/Viewport"
+        user_agent:
+          type: string
+          description: Overrides the default `LookseeBot` UA on Chrome sessions.
+        proxy:
+          type: string
+          description: Optional outbound HTTP proxy URL.
+        idle_ttl_seconds:
+          type: integer
+          minimum: 30
+          maximum: 3600
+          description: Overrides the default idle TTL (default 300).
+
+    Session:
+      type: object
+      required: [session_id, browser, environment, created_at, expires_at]
+      properties:
+        session_id: { type: string }
+        browser: { $ref: "#/components/schemas/BrowserType" }
+        environment: { $ref: "#/components/schemas/BrowserEnvironment" }
+        created_at: { type: string, format: date-time }
+        expires_at: { type: string, format: date-time }
+
+    SessionState:
+      allOf:
+        - $ref: "#/components/schemas/Session"
+        - type: object
+          properties:
+            current_url: { type: string }
+            viewport: { $ref: "#/components/schemas/Viewport" }
+            scroll_offset: { $ref: "#/components/schemas/ScrollOffset" }
+
+    # ----- Enums mirroring engine -----
+    BrowserType:
+      type: string
+      description: Mirrors engine enum `com.looksee.browser.enums.BrowserType`.
+      enum: [chrome, firefox, safari, ie, android, ios]
+
+    BrowserEnvironment:
+      type: string
+      description: Mirrors engine enum `com.looksee.browser.enums.BrowserEnvironment`.
+      enum: [test, discovery]
+
+    ElementAction:
+      type: string
+      description: Mirrors engine enum `com.looksee.browser.enums.Action` (desktop).
+      enum: [click, doubleClick, hover, clickAndHold, contextClick, release, sendKeys, mouseover]
+
+    TouchAction:
+      type: string
+      description: Mirrors engine enum `com.looksee.browser.enums.MobileAction`.
+      enum: [tap, doubleTap, longPress, swipeUp, swipeDown, swipeLeft, swipeRight, scrollUp, scrollDown, pinch, zoom, sendKeys]
+
+    AlertChoice:
+      type: string
+      description: Mirrors engine enum `com.looksee.browser.enums.AlertChoice`.
+      enum: [accept, dismiss]
+
+    ScreenshotStrategy:
+      type: string
+      enum: [viewport, full_page_shutterbug, full_page_ashot, full_page_shutterbug_paused]
+
+    ScreenshotEncoding:
+      type: string
+      enum: [binary, base64]
+      default: binary
+
+    ScrollMode:
+      type: string
+      enum: [to_top, to_bottom, to_element, to_element_centered, down_percent, down_full]
+
+    MouseMoveMode:
+      type: string
+      enum: [out_of_frame, to_non_interactive]
+
+    DomRemovePreset:
+      type: string
+      description: Named helpers for commonly-hidden overlays.
+      enum: [drift_chat, gdpr_modal, gdpr, by_class]
+
+    # ----- Geometry -----
+    Viewport:
+      type: object
+      required: [width, height]
+      properties:
+        width: { type: integer, minimum: 1 }
+        height: { type: integer, minimum: 1 }
+
+    ScrollOffset:
+      type: object
+      required: [x, y]
+      properties:
+        x: { type: integer, minimum: 0 }
+        y: { type: integer, minimum: 0 }
+
+    Rect:
+      type: object
+      required: [x, y, width, height]
+      properties:
+        x: { type: integer }
+        y: { type: integer }
+        width: { type: integer }
+        height: { type: integer }
+
+    ViewportState:
+      type: object
+      required: [viewport, scroll_offset]
+      properties:
+        viewport: { $ref: "#/components/schemas/Viewport" }
+        scroll_offset: { $ref: "#/components/schemas/ScrollOffset" }
+
+    # ----- Navigation -----
+    NavigateRequest:
+      type: object
+      required: [url]
+      properties:
+        url: { type: string, format: uri }
+        wait_for:
+          type: string
+          description: |
+            What to wait for before returning:
+            - `load` (default): `document.readyState === "complete"`
+            - `networkidle`: no in-flight requests for 500ms
+            - Any XPath string: waits until that element exists
+        timeout_ms:
+          type: integer
+          minimum: 1000
+          maximum: 120000
+          default: 30000
+
+    PageStatus:
+      type: object
+      required: [current_url, is_503]
+      properties:
+        current_url: { type: string }
+        is_503: { type: boolean }
+
+    # ----- Screenshots -----
+    ScreenshotRequest:
+      type: object
+      required: [strategy]
+      properties:
+        strategy: { $ref: "#/components/schemas/ScreenshotStrategy" }
+        encoding: { $ref: "#/components/schemas/ScreenshotEncoding" }
+
+    ElementScreenshotRequest:
+      type: object
+      required: [element_handle]
+      properties:
+        element_handle:
+          type: string
+          description: Handle returned by `/element/find`.
+        encoding: { $ref: "#/components/schemas/ScreenshotEncoding" }
+
+    ScreenshotBase64Response:
+      type: object
+      required: [image_base64, width, height]
+      properties:
+        image_base64: { type: string, contentEncoding: base64, contentMediaType: image/png }
+        width: { type: integer }
+        height: { type: integer }
+
+    # ----- Elements -----
+    FindElementRequest:
+      type: object
+      required: [xpath]
+      properties:
+        xpath: { type: string, minLength: 1 }
+
+    ElementState:
+      type: object
+      required: [element_handle, found]
+      properties:
+        element_handle:
+          type: string
+          description: Opaque handle for use in follow-up calls. Valid for the life of the session.
+        found: { type: boolean }
+        displayed: { type: boolean }
+        attributes:
+          type: object
+          additionalProperties: { type: string }
+          description: From engine `Browser.extractAttributes` — flattened `name -> value` map.
+        rect: { $ref: "#/components/schemas/Rect" }
+
+    ElementActionRequest:
+      type: object
+      required: [element_handle, action]
+      properties:
+        element_handle: { type: string }
+        action: { $ref: "#/components/schemas/ElementAction" }
+        input:
+          type: string
+          description: Required for `sendKeys`.
+
+    ElementTouchRequest:
+      type: object
+      required: [element_handle, action]
+      properties:
+        element_handle: { type: string }
+        action: { $ref: "#/components/schemas/TouchAction" }
+        input:
+          type: string
+          description: Required for `sendKeys`.
+
+    # ----- Scrolling -----
+    ScrollRequest:
+      type: object
+      required: [mode]
+      properties:
+        mode: { $ref: "#/components/schemas/ScrollMode" }
+        element_handle:
+          type: string
+          description: Required when `mode` is `to_element` or `to_element_centered`.
+        xpath:
+          type: string
+          description: Optional hint for `to_element` (engine uses xpath to short-circuit nav/header cases).
+        percent:
+          type: number
+          minimum: 0
+          maximum: 10
+          description: Required when `mode` is `down_percent`. 1.0 = one full viewport height.
+
+    # ----- DOM -----
+    DomRemoveRequest:
+      type: object
+      required: [preset]
+      properties:
+        preset: { $ref: "#/components/schemas/DomRemovePreset" }
+        value:
+          type: string
+          description: Required when `preset` is `by_class` — the class name to remove.
+
+    # ----- Alerts -----
+    AlertState:
+      type: object
+      required: [present]
+      properties:
+        present: { type: boolean }
+        text:
+          type: string
+          description: Present iff `present` is true.
+
+    AlertRespondRequest:
+      type: object
+      required: [choice]
+      properties:
+        choice: { $ref: "#/components/schemas/AlertChoice" }
+        input:
+          type: string
+          description: Optional text for prompt-style alerts.
+
+    # ----- Mouse -----
+    MouseMoveRequest:
+      type: object
+      required: [mode]
+      properties:
+        mode: { $ref: "#/components/schemas/MouseMoveMode" }
+        x:
+          type: integer
+          description: Required for `to_non_interactive`.
+        y:
+          type: integer
+          description: Required for `to_non_interactive`.
+
+    # ----- Script -----
+    ExecuteRequest:
+      type: object
+      required: [script]
+      properties:
+        script:
+          type: string
+          description: JavaScript source to run via `JavascriptExecutor.executeScript`.
+        args:
+          type: array
+          items: {}
+          description: Positional arguments passed to the script.
+
+    # ----- Capture (sugar) -----
+    CaptureRequest:
+      type: object
+      required: [url, browser]
+      properties:
+        url: { type: string, format: uri }
+        browser: { $ref: "#/components/schemas/BrowserType" }
+        environment:
+          $ref: "#/components/schemas/BrowserEnvironment"
+        viewport: { $ref: "#/components/schemas/Viewport" }
+        screenshot:
+          type: object
+          properties:
+            strategy: { $ref: "#/components/schemas/ScreenshotStrategy" }
+            encoding: { $ref: "#/components/schemas/ScreenshotEncoding" }
+        extract:
+          type: array
+          items:
+            type: string
+            enum: [source, attributes_for_xpath]
+        xpath:
+          type: string
+          description: Required when `extract` contains `attributes_for_xpath`.
+
+    CaptureResponse:
+      type: object
+      required: [capture_id, current_url]
+      properties:
+        capture_id: { type: string }
+        current_url: { type: string }
+        screenshot:
+          oneOf:
+            - $ref: "#/components/schemas/ScreenshotBase64Response"
+            - type: object
+              properties:
+                href:
+                  type: string
+                  description: URL to `/capture/{capture_id}/screenshot`.
+                width: { type: integer }
+                height: { type: integer }
+        source: { type: string, description: Page HTML when `extract` contains `source`. }
+        attributes:
+          type: object
+          additionalProperties: { type: string }
+
+    # ----- Ops -----
+    Readiness:
+      type: object
+      required: [status]
+      properties:
+        status: { type: string, enum: [ready, degraded] }
+        selenium_hubs:
+          type: array
+          items:
+            type: object
+            properties:
+              url: { type: string }
+              reachable: { type: boolean }
+        appium_servers:
+          type: array
+          items:
+            type: object
+            properties:
+              url: { type: string }
+              reachable: { type: boolean }
+
+    # ----- Errors -----
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              description: Stable machine-readable code (e.g., `session_not_found`, `upstream_unreachable`).
+            message: { type: string }
+            details:
+              type: object
+              additionalProperties: true
+            request_id: { type: string }
