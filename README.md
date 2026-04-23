@@ -79,16 +79,21 @@ Listed here so nothing gets forgotten:
 - **Cloud-storage backends.** Service never uploads to GCS/S3; callers handle storage.
 - **Chrome extension loading.** `LookseeChromeExtension` is a user-facing product unrelated to this service and is not bundled.
 
-## Files in this directory
+## Repo layout
 
-- `openapi.yaml` — the full API contract. **Source of truth.** Each endpoint includes a pointer back to the engine method it wraps.
-- `README.md` — this file.
+- `pom.xml` — parent aggregator.
+- `engine/` — framework-free Selenium/Appium engine (artifactId `browser-service-engine`). Consumable as a plain jar by downstream callers that want the engine in-process.
+- `api/` — Spring Boot 3 REST layer (artifactId `browser-service-api`). Wraps the engine with `/v1/...` endpoints, session registry, screenshot caching, and ops probes.
+- `openapi/generated.yaml` — **source of truth for consumers.** Generated from the hand-written controllers + DTOs by `SpecExportTest` at build time. Regenerate with `mvn test -pl api -Dtest=SpecExportTest -Dopenapi.update=true`.
+- `docs/design/openapi-draft-v1.yaml` — archived pre-implementation design draft.
+- `Dockerfile` — multi-stage image (maven → layertools → eclipse-temurin:21-jre).
 
 ## How to review
 
-1. **Render the spec.** Paste `openapi.yaml` into <https://editor.swagger.io> or run `npx @redocly/cli preview-docs openapi.yaml` for a browsable view.
-2. **Lint.** `npx @redocly/cli lint openapi.yaml` — must be clean.
-3. **Coverage walk.** Open `LookseeCore/looksee-browser/src/main/java/com/looksee/browser/Browser.java` and `MobileDevice.java`. Every `public` method should map to an endpoint — or be intentionally collapsed (e.g., the four screenshot variants live under one endpoint with a `strategy` field).
+1. **Build everything.** `mvn clean verify` from the repo root — both modules build, tests pass, and `SpecExportTest` enforces that `openapi/generated.yaml` matches the current controller annotations.
+2. **Render the spec.** Open `openapi/generated.yaml` in <https://editor.swagger.io>, or run `npx @redocly/cli preview-docs openapi/generated.yaml` for a browsable view. During development, `/swagger-ui.html` on a running instance offers the same view.
+3. **Lint.** `npx @redocly/cli lint openapi/generated.yaml` — should be clean.
+4. **Coverage walk.** Open `engine/src/main/java/com/looksee/browser/Browser.java` and `MobileDevice.java`. Every `public` method should map to an endpoint — or be intentionally collapsed (e.g., the four screenshot variants live under one endpoint with a `strategy` field).
 
 ## Engine → endpoint map (for the coverage walk)
 

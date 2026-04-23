@@ -1,0 +1,54 @@
+package io.browserservice.api.config;
+
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
+
+@ConfigurationProperties(prefix = "browserservice")
+public record EngineProperties(
+        @DefaultValue SessionProps session,
+        @DefaultValue SeleniumProps selenium,
+        @DefaultValue AppiumProps appium,
+        @DefaultValue BrowserStackProps browserstack) {
+
+    public record SessionProps(
+            @DefaultValue("300") int idleTtlSeconds,
+            @DefaultValue("1800") int absoluteTtlSeconds,
+            @DefaultValue("20") int maxConcurrent,
+            @DefaultValue("5000") long lockAcquireTimeoutMs) {
+    }
+
+    public record SeleniumProps(
+            @DefaultValue("http://localhost:4444/wd/hub") String urls,
+            @DefaultValue("15000") int connectTimeoutMs,
+            @DefaultValue("60000") int readTimeoutMs,
+            @DefaultValue("3") int maxRetries,
+            @DefaultValue("false") boolean implicitWaitEnabled,
+            @DefaultValue("10") int implicitWaitSeconds) {
+    }
+
+    public record AppiumProps(
+            @DefaultValue("") String urls,
+            @DefaultValue("ANDROID") String platform,
+            @DefaultValue("") String deviceName,
+            @DefaultValue("60000") int connectTimeoutMs,
+            @DefaultValue("3") int maxRetries) {
+    }
+
+    public record BrowserStackProps(
+            @DefaultValue("false") boolean enabled,
+            @DefaultValue("") String hubUrl,
+            @DefaultValue("") String username,
+            @DefaultValue("") String accessKey,
+            @DefaultValue("") String os,
+            @DefaultValue("") String osVersion,
+            @DefaultValue("") String browser,
+            @DefaultValue("") String browserVersion,
+            @DefaultValue("") String project,
+            @DefaultValue("") String build,
+            @DefaultValue("") String name,
+            @DefaultValue("") String deviceName,
+            @DefaultValue("true") boolean realMobile,
+            @DefaultValue("false") boolean local,
+            @DefaultValue("true") boolean debug) {
+    }
+}

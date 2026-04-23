@@ -1,0 +1,1276 @@
+components:
+  schemas:
+    AlertRespondRequest:
+      description: Respond to the current browser alert.
+      properties:
+        choice:
+          description: Alert choice
+          enum:
+          - dismiss
+          - accept
+          type: string
+        input:
+          description: Optional input for prompt alerts
+          nullable: true
+          type: string
+      required:
+      - choice
+      type: object
+    AlertStateResponse:
+      description: Browser alert state.
+      properties:
+        present:
+          description: Whether an alert is currently visible
+          type: boolean
+        text:
+          description: Alert text when present
+          nullable: true
+          type: string
+      type: object
+    CaptureRequest:
+      description: One-shot navigate + capture + close request.
+      properties:
+        browserType:
+          description: Browser type
+          enum:
+          - chrome
+          - firefox
+          - safari
+          - ie
+          - android
+          - ios
+          type: string
+        encoding:
+          description: Screenshot output encoding.
+          enum:
+          - BINARY
+          - BASE64
+          nullable: true
+          type: string
+        environment:
+          description: Environment (defaults to TEST)
+          enum:
+          - test
+          - discovery
+          nullable: true
+          type: string
+        includeSource:
+          description: Include the page HTML source in the response
+          nullable: true
+          type: boolean
+        strategy:
+          description: Screenshot capture strategy.
+          enum:
+          - VIEWPORT
+          - FULL_PAGE_SHUTTERBUG
+          - FULL_PAGE_ASHOT
+          - FULL_PAGE_SHUTTERBUG_PAUSED
+          nullable: true
+          type: string
+        url:
+          description: Target URL
+          type: string
+        xpath:
+          description: Optional XPath to locate and describe a single element
+          nullable: true
+          type: string
+      required:
+      - browserType
+      - url
+      type: object
+    CaptureResponse:
+      description: One-shot capture result.
+      properties:
+        captureId:
+          description: Capture identifier usable to fetch the bytes later
+          format: uuid
+          type: string
+        currentUrl:
+          description: URL after the load completed
+          type: string
+        element:
+          $ref: '#/components/schemas/ElementStateResponse'
+        screenshot:
+          $ref: '#/components/schemas/CaptureScreenshotRef'
+        source:
+          description: Page HTML source (when include_source=true)
+          nullable: true
+          type: string
+      type: object
+    CaptureScreenshotRef:
+      description: Screenshot reference — either inlined base64 or an href to fetch the PNG bytes.
+      properties:
+        height:
+          description: Height in px
+          format: int32
+          type: integer
+        href:
+          description: GET href to fetch the PNG bytes (present when encoding=BINARY)
+          nullable: true
+          type: string
+        imageBase64:
+          description: Base64-encoded PNG (present when encoding=BASE64)
+          nullable: true
+          type: string
+        width:
+          description: Width in px
+          format: int32
+          type: integer
+      type: object
+    CreateSessionRequest:
+      description: Request to create a new browser session.
+      properties:
+        browserType:
+          description: Browser type
+          enum:
+          - chrome
+          - firefox
+          - safari
+          - ie
+          - android
+          - ios
+          - CHROME
+          - FIREFOX
+          - SAFARI
+          - IE
+          - ANDROID
+          - IOS
+          example: CHROME
+          type: string
+        environment:
+          description: Session environment
+          enum:
+          - test
+          - discovery
+          - TEST
+          - DISCOVERY
+          example: TEST
+          type: string
+        idleTtlSeconds:
+          description: Optional idle TTL override (seconds). Falls back to service default when omitted.
+          format: int32
+          minimum: 1
+          nullable: true
+          type: integer
+      required:
+      - browserType
+      - environment
+      type: object
+    DomRemoveRequest:
+      description: Remove one or more DOM overlays by preset or class name.
+      properties:
+        preset:
+          description: DOM removal preset.
+          enum:
+          - DRIFT_CHAT
+          - GDPR_MODAL
+          - GDPR
+          - BY_CLASS
+          type: string
+        value:
+          description: Class name (required when preset == BY_CLASS)
+          nullable: true
+          type: string
+      required:
+      - preset
+      type: object
+    ElementActionRequest:
+      description: Perform a desktop action on an element.
+      properties:
+        action:
+          description: Desktop action to perform
+          enum:
+          - click
+          - doubleClick
+          - hover
+          - clickAndHold
+          - contextClick
+          - release
+          - sendKeys
+          - mouseover
+          - unknown
+          type: string
+        elementHandle:
+          description: Element handle to act on
+          type: string
+        input:
+          description: Optional input (used by SEND_KEYS)
+          nullable: true
+          type: string
+      required:
+      - action
+      - elementHandle
+      type: object
+    ElementScreenshotRequest:
+      description: Request to capture a screenshot of a single element.
+      properties:
+        elementHandle:
+          description: Opaque handle previously returned by /element/find
+          type: string
+        encoding:
+          description: Screenshot output encoding.
+          enum:
+          - BINARY
+          - BASE64
+          nullable: true
+          type: string
+      required:
+      - elementHandle
+      type: object
+    ElementStateResponse:
+      description: Resolved element state including handle, visibility, attributes, and rect.
+      nullable: true
+      properties:
+        attributes:
+          additionalProperties:
+            description: Flattened attribute map
+            type: string
+          description: Flattened attribute map
+          type: object
+        displayed:
+          description: Whether the element is displayed to the user
+          type: boolean
+        elementHandle:
+          description: Opaque handle for subsequent calls
+          type: string
+        found:
+          description: Whether the element exists in the DOM
+          type: boolean
+        rect:
+          $ref: '#/components/schemas/Rect'
+      type: object
+    ElementTouchRequest:
+      description: Perform a mobile touch gesture on an element.
+      properties:
+        action:
+          description: Mobile action to perform
+          enum:
+          - tap
+          - doubleTap
+          - longPress
+          - swipeUp
+          - swipeDown
+          - swipeLeft
+          - swipeRight
+          - scrollUp
+          - scrollDown
+          - pinch
+          - zoom
+          - sendKeys
+          - unknown
+          type: string
+        elementHandle:
+          description: Element handle to act on
+          type: string
+        input:
+          description: Optional input (used by SEND_KEYS)
+          nullable: true
+          type: string
+      required:
+      - action
+      - elementHandle
+      type: object
+    ErrorDetail:
+      description: Error detail envelope.
+      properties:
+        code:
+          description: Machine-readable error code (stable).
+          example: session_not_found
+          type: string
+        details:
+          additionalProperties:
+            description: Optional structured details keyed by field name.
+            type: object
+          description: Optional structured details keyed by field name.
+          type: object
+        message:
+          description: Human-readable error message.
+          type: string
+        requestId:
+          description: Correlating request identifier echoed back to the caller.
+          type: string
+      type: object
+    ErrorResponse:
+      description: Uniform error envelope returned for non-2xx responses.
+      properties:
+        error:
+          $ref: '#/components/schemas/ErrorDetail'
+      type: object
+    ExecuteRequest:
+      description: Execute arbitrary JavaScript inside the session.
+      properties:
+        args:
+          description: Optional positional arguments passed to the script
+          items:
+            description: Optional positional arguments passed to the script
+            nullable: true
+            type: object
+          nullable: true
+          type: array
+        script:
+          description: JavaScript source to run
+          type: string
+      required:
+      - script
+      type: object
+    ExecuteResponse:
+      description: Result of a JavaScript execution.
+      properties:
+        result:
+          description: JSON-serialized result of the script
+          nullable: true
+          type: object
+      type: object
+    FindElementRequest:
+      description: Locate a single element by XPath.
+      properties:
+        xpath:
+          description: XPath expression to resolve
+          type: string
+      required:
+      - xpath
+      type: object
+    HealthResponse:
+      description: Liveness probe response.
+      properties:
+        status:
+          description: Always "ok" when the process is alive
+          enum:
+          - ok
+          type: string
+      type: object
+    HubStatus:
+      description: Reachability probe for a single upstream URL.
+      properties:
+        reachable:
+          description: Whether the probe succeeded
+          type: boolean
+        url:
+          description: URL that was probed
+          type: string
+      type: object
+    MouseMoveRequest:
+      description: Move the mouse to a predefined destination.
+      properties:
+        mode:
+          description: Mouse move destination mode.
+          enum:
+          - OUT_OF_FRAME
+          - TO_NON_INTERACTIVE
+          type: string
+        x:
+          description: Target x (required when mode == TO_NON_INTERACTIVE)
+          format: int32
+          nullable: true
+          type: integer
+        y:
+          description: Target y (required when mode == TO_NON_INTERACTIVE)
+          format: int32
+          nullable: true
+          type: integer
+      required:
+      - mode
+      type: object
+    NavigateRequest:
+      description: Navigate the session to a URL.
+      properties:
+        timeoutMs:
+          description: Navigation timeout (ms)
+          format: int32
+          minimum: 1
+          nullable: true
+          type: integer
+        url:
+          description: Target URL
+          type: string
+      required:
+      - url
+      type: object
+    NavigateResponse:
+      description: Result of a navigate call.
+      properties:
+        currentUrl:
+          description: Current URL after navigation
+          type: string
+        status:
+          description: Result of a navigation attempt.
+          enum:
+          - LOADED
+          - TIMEOUT
+          - ERROR
+          type: string
+      type: object
+    PageSourceResponse:
+      description: Current page source (HTML).
+      properties:
+        currentUrl:
+          description: Current URL
+          type: string
+        source:
+          description: HTML source of the current page
+          type: string
+      type: object
+    PageStatusResponse:
+      description: Derived page health status.
+      properties:
+        currentUrl:
+          description: Current URL
+          type: string
+        is503:
+          description: Whether the page appears to be a 503 error page
+          type: boolean
+      type: object
+    ReadinessResponse:
+      description: Readiness probe result including reachability of each upstream hub/server.
+      properties:
+        appiumServers:
+          description: Reachability of each configured Appium server URL
+          items:
+            $ref: '#/components/schemas/HubStatus'
+          type: array
+        seleniumHubs:
+          description: Reachability of each configured Selenium Grid URL
+          items:
+            $ref: '#/components/schemas/HubStatus'
+          type: array
+        status:
+          description: Aggregate readiness status
+          enum:
+          - ready
+          - degraded
+          type: string
+      type: object
+    Rect:
+      description: Axis-aligned bounding rectangle in CSS pixels.
+      nullable: true
+      properties:
+        height:
+          description: Rect height
+          format: int32
+          type: integer
+        width:
+          description: Rect width
+          format: int32
+          type: integer
+        x:
+          description: Left offset
+          format: int32
+          type: integer
+        y:
+          description: Top offset
+          format: int32
+          type: integer
+      type: object
+    ScreenshotRequest:
+      description: Request to capture a page screenshot.
+      properties:
+        encoding:
+          description: Screenshot output encoding.
+          enum:
+          - BINARY
+          - BASE64
+          nullable: true
+          type: string
+        strategy:
+          description: Screenshot capture strategy.
+          enum:
+          - VIEWPORT
+          - FULL_PAGE_SHUTTERBUG
+          - FULL_PAGE_ASHOT
+          - FULL_PAGE_SHUTTERBUG_PAUSED
+          type: string
+      required:
+      - strategy
+      type: object
+    ScrollOffset:
+      description: Current page scroll offset in CSS pixels.
+      properties:
+        x:
+          description: Horizontal scroll offset
+          example: 0
+          format: int32
+          type: integer
+        y:
+          description: Vertical scroll offset
+          example: 1200
+          format: int32
+          type: integer
+      type: object
+    ScrollRequest:
+      description: Scroll the viewport.
+      properties:
+        elementHandle:
+          description: Element handle (required for TO_ELEMENT and TO_ELEMENT_CENTERED)
+          nullable: true
+          type: string
+        mode:
+          description: Scroll mode.
+          enum:
+          - TO_TOP
+          - TO_BOTTOM
+          - TO_ELEMENT
+          - TO_ELEMENT_CENTERED
+          - DOWN_PERCENT
+          - DOWN_FULL
+          type: string
+        percent:
+          description: Percent (0-1) of viewport to scroll down (required for DOWN_PERCENT)
+          format: double
+          nullable: true
+          type: number
+      required:
+      - mode
+      type: object
+    SessionListResponse:
+      description: List of active sessions.
+      properties:
+        sessions:
+          description: All currently open sessions
+          items:
+            $ref: '#/components/schemas/SessionResponse'
+          type: array
+      type: object
+    SessionResponse:
+      description: Summary of an active browser session.
+      properties:
+        browserType:
+          description: Browser type
+          enum:
+          - chrome
+          - firefox
+          - safari
+          - ie
+          - android
+          - ios
+          type: string
+        createdAt:
+          description: Instant the session was created
+          format: date-time
+          type: string
+        environment:
+          description: Session environment
+          enum:
+          - test
+          - discovery
+          type: string
+        expiresAt:
+          description: Instant at which the session will be reaped
+          format: date-time
+          type: string
+        sessionId:
+          description: Session identifier
+          format: uuid
+          type: string
+      type: object
+    SessionStateResponse:
+      description: Session state snapshot including current URL, viewport, and scroll offset.
+      properties:
+        browserType:
+          description: Browser type
+          enum:
+          - chrome
+          - firefox
+          - safari
+          - ie
+          - android
+          - ios
+          type: string
+        createdAt:
+          description: Instant the session was created
+          format: date-time
+          type: string
+        currentUrl:
+          description: Current URL as reported by the driver
+          nullable: true
+          type: string
+        environment:
+          description: Session environment
+          enum:
+          - test
+          - discovery
+          type: string
+        expiresAt:
+          description: Instant at which the session will be reaped
+          format: date-time
+          type: string
+        scrollOffset:
+          $ref: '#/components/schemas/ScrollOffset'
+        sessionId:
+          description: Session identifier
+          format: uuid
+          type: string
+        viewport:
+          $ref: '#/components/schemas/Viewport'
+      type: object
+    Viewport:
+      description: Browser viewport size in CSS pixels.
+      properties:
+        height:
+          description: Viewport height (px)
+          example: 720
+          format: int32
+          type: integer
+        width:
+          description: Viewport width (px)
+          example: 1280
+          format: int32
+          type: integer
+      type: object
+    ViewportStateResponse:
+      description: Current viewport size and scroll offset.
+      properties:
+        scrollOffset:
+          $ref: '#/components/schemas/ScrollOffset'
+        viewport:
+          $ref: '#/components/schemas/Viewport'
+      type: object
+info:
+  description: Standalone service that exposes Selenium/Appium browser sessions over HTTP.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  title: Browser Service
+  version: v1
+openapi: 3.0.1
+paths:
+  /healthz:
+    get:
+      operationId: healthz
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+          description: OK
+      summary: Liveness probe
+      tags:
+      - Ops
+  /readyz:
+    get:
+      operationId: readyz
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+          description: OK
+      summary: Readiness probe
+      tags:
+      - Ops
+  /v1/capture:
+    post:
+      operationId: capture
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CaptureRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/CaptureResponse'
+          description: OK
+        '400':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed
+        '429':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Concurrent session cap exceeded
+        '502':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Upstream unavailable
+      summary: Capture a URL end-to-end in a single call
+      tags:
+      - Capture
+  /v1/capture/{captureId}/screenshot:
+    get:
+      operationId: getCaptureScreenshot
+      parameters: [
+        ]
+      responses:
+        '200':
+          content:
+            image/png:
+              schema:
+                format: byte
+                type: string
+          description: PNG bytes
+        '404':
+          content:
+            image/png:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Capture not found
+        '410':
+          content:
+            image/png:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Capture expired
+      summary: Fetch a deferred capture screenshot
+      tags:
+      - Capture
+  /v1/sessions:
+    get:
+      operationId: listSessions
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+          description: Session list
+      summary: List active sessions
+      tags:
+      - Sessions
+    post:
+      operationId: createSession
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+        required: true
+      responses:
+        '201':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+          description: Created
+        '400':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed
+        '429':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Concurrent session cap exceeded
+        '502':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Upstream hub unavailable
+      summary: Create a browser session
+      tags:
+      - Sessions
+  /v1/sessions/{id}:
+    delete:
+      operationId: deleteSession
+      parameters: [
+        ]
+      responses:
+        '204':
+          description: Closed
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session not found
+      summary: Close a session
+      tags:
+      - Sessions
+    get:
+      operationId: getSession
+      parameters: [
+        ]
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SessionStateResponse'
+          description: Session state
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session not found
+      summary: Describe a session
+      tags:
+      - Sessions
+  /v1/sessions/{id}/alert:
+    get:
+      operationId: getAlert
+      parameters: [
+        ]
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/AlertStateResponse'
+          description: OK
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session not found
+      summary: Detect the current alert, if any
+      tags:
+      - Alerts
+  /v1/sessions/{id}/alert/respond:
+    post:
+      operationId: respondToAlert
+      parameters: [
+        ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlertRespondRequest'
+        required: true
+      responses:
+        '204':
+          description: Alert handled (idempotent)
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session not found
+      summary: Respond to the current alert
+      tags:
+      - Alerts
+  /v1/sessions/{id}/dom/remove:
+    post:
+      operationId: removeDomElement
+      parameters: [
+        ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DomRemoveRequest'
+        required: true
+      responses:
+        '204':
+          description: Removed (idempotent)
+        '400':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session not found
+        '409':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Mobile session (desktop required)
+      summary: Remove DOM overlays by preset or class name
+      tags:
+      - DOM
+  /v1/sessions/{id}/element/action:
+    post:
+      operationId: performElementAction
+      parameters: [
+        ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ElementActionRequest'
+        required: true
+      responses:
+        '204':
+          description: Action performed
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session or element handle not found
+        '409':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Mobile session (desktop required)
+      summary: Perform a desktop action on an element
+      tags:
+      - Elements
+  /v1/sessions/{id}/element/find:
+    post:
+      operationId: findElement
+      parameters: [
+        ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FindElementRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ElementStateResponse'
+          description: OK
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session not found
+      summary: Locate an element by XPath
+      tags:
+      - Elements
+  /v1/sessions/{id}/element/screenshot:
+    post:
+      operationId: captureElementScreenshot
+      parameters: [
+        ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ElementScreenshotRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+            image/png:
+              schema:
+                type: object
+          description: PNG bytes or base64 JSON
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            image/png:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session or element handle not found
+      summary: Capture a screenshot of a single element
+      tags:
+      - Screenshots
+  /v1/sessions/{id}/element/touch:
+    post:
+      operationId: performElementTouch
+      parameters: [
+        ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ElementTouchRequest'
+        required: true
+      responses:
+        '204':
+          description: Gesture performed
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session or element handle not found
+        '409':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Desktop session (mobile required)
+      summary: Perform a mobile touch gesture on an element
+      tags:
+      - Touch
+  /v1/sessions/{id}/execute:
+    post:
+      operationId: executeScript
+      parameters: [
+        ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ExecuteRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ExecuteResponse'
+          description: OK
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session not found
+      summary: Execute arbitrary JavaScript
+      tags:
+      - Script
+  /v1/sessions/{id}/mouse/move:
+    post:
+      operationId: moveMouse
+      parameters: [
+        ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MouseMoveRequest'
+        required: true
+      responses:
+        '204':
+          description: Moved
+        '400':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session not found
+        '409':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Mobile session (desktop required)
+      summary: Move the mouse
+      tags:
+      - Mouse
+  /v1/sessions/{id}/navigate:
+    post:
+      operationId: navigate
+      parameters: [
+        ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NavigateRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/NavigateResponse'
+          description: Navigation complete
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session not found
+        '502':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Upstream error
+      summary: Navigate to a URL
+      tags:
+      - Navigation
+  /v1/sessions/{id}/screenshot:
+    post:
+      operationId: captureScreenshot
+      parameters: [
+        ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScreenshotRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+            image/png:
+              schema:
+                type: object
+          description: PNG bytes or base64 JSON
+        '400':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            image/png:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+            image/png:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session not found
+      summary: Capture a page screenshot
+      tags:
+      - Screenshots
+  /v1/sessions/{id}/scroll:
+    post:
+      operationId: scroll
+      parameters: [
+        ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScrollRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ScrollOffset'
+          description: OK
+        '400':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Validation failed
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session or element handle not found
+      summary: Scroll the viewport
+      tags:
+      - Scrolling
+  /v1/sessions/{id}/source:
+    get:
+      operationId: getSource
+      parameters: [
+        ]
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageSourceResponse'
+          description: OK
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session not found
+      summary: Get the current page source (HTML)
+      tags:
+      - Navigation
+  /v1/sessions/{id}/status:
+    get:
+      operationId: getPageStatus
+      parameters: [
+        ]
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PageStatusResponse'
+          description: OK
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session not found
+      summary: Get derived page status (current URL + 503 detection)
+      tags:
+      - Navigation
+  /v1/sessions/{id}/viewport:
+    get:
+      operationId: getViewport
+      parameters: [
+        ]
+      responses:
+        '200':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ViewportStateResponse'
+          description: OK
+        '404':
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+          description: Session not found
+      summary: Get current viewport size and scroll offset
+      tags:
+      - Scrolling
+servers:
+- description: Internal VPC endpoint
+  url: http://browser-service.internal/v1
+- description: Local development
+  url: http://localhost:8080/v1
+tags:
+- description: Page navigation and source
+  name: Navigation
+- description: One-shot navigate + capture + close
+  name: Capture
+- description: Direct DOM manipulation helpers
+  name: DOM
+- description: Desktop mouse operations
+  name: Mouse
+- description: Viewport scrolling operations
+  name: Scrolling
+- description: Health, readiness, metrics
+  name: Ops
+- description: Find elements and perform actions on them
+  name: Elements
+- description: Arbitrary JavaScript execution
+  name: Script
+- description: Session lifecycle
+  name: Sessions
+- description: Mobile touch gestures
+  name: Touch
+- description: Find elements and perform desktop actions
+  name: Elements
+- description: Viewport, full-page, and element screenshots
+  name: Screenshots
+- description: Page and element screenshots
+  name: Screenshots
+- description: Browser alert detection and response
+  name: Alerts

@@ -1,0 +1,69 @@
+server:
+  port: 8080
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: browser-service-api
+  threads:
+    virtual:
+      enabled: true
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+browserservice:
+  session:
+    idle-ttl-seconds: 300
+    absolute-ttl-seconds: 1800
+    max-concurrent: 20
+    lock-acquire-timeout-ms: 5000
+  selenium:
+    urls: ${SELENIUM_GRID_URLS:http://localhost:4444/wd/hub}
+    connect-timeout-ms: 15000
+    read-timeout-ms: 60000
+    max-retries: 3
+    implicit-wait-enabled: false
+    implicit-wait-seconds: 10
+  appium:
+    urls: ${APPIUM_URLS:}
+    platform: ANDROID
+    device-name: ""
+    connect-timeout-ms: 60000
+    max-retries: 3
+  browserstack:
+    enabled: false
+    hub-url: ""
+    username: ${BROWSERSTACK_USERNAME:}
+    access-key: ${BROWSERSTACK_ACCESS_KEY:}
+    real-mobile: true
+    local: false
+    debug: true
+
+management:
+  endpoints:
+    web:
+      base-path: /
+      exposure:
+        include: prometheus
+      path-mapping:
+        prometheus: metrics
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  metrics:
+    tags:
+      application: browser-service-api
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+  paths-to-exclude:
+    - /metrics
