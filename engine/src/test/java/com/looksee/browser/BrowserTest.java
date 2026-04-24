@@ -48,8 +48,18 @@ public class BrowserTest {
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        when(driver.executeScript(contains("innerWidth"), any())).thenReturn("1920");
-        when(driver.executeScript(contains("innerHeight"), any())).thenReturn("1080");
+        when(driver.executeScript(anyString(), any(Object[].class))).thenAnswer(inv -> {
+            String script = inv.getArgument(0);
+            if (script.contains("innerWidth")) return "1920";
+            if (script.contains("innerHeight")) return "1080";
+            return null;
+        });
+        when(driver.executeScript(anyString())).thenAnswer(inv -> {
+            String script = inv.getArgument(0);
+            if (script.contains("innerWidth")) return "1920";
+            if (script.contains("innerHeight")) return "1080";
+            return null;
+        });
         browser = new Browser(driver, "chrome");
     }
 

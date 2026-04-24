@@ -699,8 +699,13 @@ paths:
   /v1/capture/{captureId}/screenshot:
     get:
       operationId: getCaptureScreenshot
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: captureId
+        required: true
+        schema:
+          format: uuid
+          type: string
       responses:
         '200':
           content:
@@ -776,8 +781,13 @@ paths:
   /v1/sessions/{id}:
     delete:
       operationId: deleteSession
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       responses:
         '204':
           description: Closed
@@ -792,8 +802,13 @@ paths:
       - Sessions
     get:
       operationId: getSession
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       responses:
         '200':
           content:
@@ -813,8 +828,13 @@ paths:
   /v1/sessions/{id}/alert:
     get:
       operationId: getAlert
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       responses:
         '200':
           content:
@@ -834,8 +854,13 @@ paths:
   /v1/sessions/{id}/alert/respond:
     post:
       operationId: respondToAlert
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       requestBody:
         content:
           application/json:
@@ -857,8 +882,13 @@ paths:
   /v1/sessions/{id}/dom/remove:
     post:
       operationId: removeDomElement
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       requestBody:
         content:
           application/json:
@@ -892,8 +922,13 @@ paths:
   /v1/sessions/{id}/element/action:
     post:
       operationId: performElementAction
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       requestBody:
         content:
           application/json:
@@ -921,8 +956,13 @@ paths:
   /v1/sessions/{id}/element/find:
     post:
       operationId: findElement
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       requestBody:
         content:
           application/json:
@@ -948,8 +988,13 @@ paths:
   /v1/sessions/{id}/element/screenshot:
     post:
       operationId: captureElementScreenshot
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       requestBody:
         content:
           application/json:
@@ -981,8 +1026,13 @@ paths:
   /v1/sessions/{id}/element/touch:
     post:
       operationId: performElementTouch
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       requestBody:
         content:
           application/json:
@@ -1010,8 +1060,13 @@ paths:
   /v1/sessions/{id}/execute:
     post:
       operationId: executeScript
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       requestBody:
         content:
           application/json:
@@ -1037,8 +1092,13 @@ paths:
   /v1/sessions/{id}/mouse/move:
     post:
       operationId: moveMouse
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       requestBody:
         content:
           application/json:
@@ -1072,8 +1132,13 @@ paths:
   /v1/sessions/{id}/navigate:
     post:
       operationId: navigate
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       requestBody:
         content:
           application/json:
@@ -1105,8 +1170,13 @@ paths:
   /v1/sessions/{id}/screenshot:
     post:
       operationId: captureScreenshot
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       requestBody:
         content:
           application/json:
@@ -1147,8 +1217,13 @@ paths:
   /v1/sessions/{id}/scroll:
     post:
       operationId: scroll
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       requestBody:
         content:
           application/json:
@@ -1180,8 +1255,13 @@ paths:
   /v1/sessions/{id}/source:
     get:
       operationId: getSource
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       responses:
         '200':
           content:
@@ -1201,8 +1281,13 @@ paths:
   /v1/sessions/{id}/status:
     get:
       operationId: getPageStatus
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       responses:
         '200':
           content:
@@ -1222,8 +1307,13 @@ paths:
   /v1/sessions/{id}/viewport:
     get:
       operationId: getViewport
-      parameters: [
-        ]
+      parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          format: uuid
+          type: string
       responses:
         '200':
           content:

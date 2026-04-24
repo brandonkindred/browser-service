@@ -44,8 +44,18 @@ public class MobileDeviceTest {
     @BeforeEach
     public void setUp() {
         MockitoAnnotations.openMocks(this);
-        when(driver.executeScript(contains("innerWidth"), any())).thenReturn("375");
-        when(driver.executeScript(contains("innerHeight"), any())).thenReturn("812");
+        when(driver.executeScript(anyString(), any(Object[].class))).thenAnswer(inv -> {
+            String script = inv.getArgument(0);
+            if (script.contains("innerWidth")) return "375";
+            if (script.contains("innerHeight")) return "812";
+            return null;
+        });
+        when(driver.executeScript(anyString())).thenAnswer(inv -> {
+            String script = inv.getArgument(0);
+            if (script.contains("innerWidth")) return "375";
+            if (script.contains("innerHeight")) return "812";
+            return null;
+        });
         device = new MobileDevice(driver, "android");
     }
 

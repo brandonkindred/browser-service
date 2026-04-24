@@ -15,7 +15,7 @@ public class BrowserConnectionHelperDriverFactory implements DriverFactory {
     public Browser createDesktop(BrowserType type, BrowserEnvironment env) {
         try {
             return BrowserConnectionHelper.getConnection(type, env);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw new UpstreamUnavailableException(
                     "could not allocate desktop session: " + e.getMessage(), e);
         }
@@ -25,7 +25,7 @@ public class BrowserConnectionHelperDriverFactory implements DriverFactory {
     public MobileDevice createMobile(BrowserType type, BrowserEnvironment env) {
         try {
             return BrowserConnectionHelper.getMobileConnection(type, env);
-        } catch (Exception e) {
+        } catch (Throwable e) {
             throw new UpstreamUnavailableException(
                     "could not allocate mobile session: " + e.getMessage(), e);
         }
