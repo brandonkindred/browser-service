@@ -23,7 +23,14 @@ public record EngineProperties(
             @DefaultValue("32") int commandQueueDepth,
             @DefaultValue("300") int idleCloseSeconds,
             @DefaultValue("64") int outboundBufferKiB,
-            @DefaultValue("10000") int sendTimeLimitMs) {
+            @DefaultValue("10000") int sendTimeLimitMs,
+            @DefaultValue("true") boolean alertPushEnabled,
+            @DefaultValue("250") int alertPollMs,
+            @DefaultValue("true") boolean consolePushEnabled,
+            @DefaultValue("1000") int consolePollMs,
+            @DefaultValue("true") boolean navigationPushEnabled,
+            @DefaultValue("2000") int navigationPollMs,
+            @DefaultValue("50") int watcherLockTimeoutMs) {
     }
 
     public record SeleniumProps(

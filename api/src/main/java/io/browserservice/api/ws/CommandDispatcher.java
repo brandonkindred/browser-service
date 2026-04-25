@@ -27,6 +27,7 @@ import io.browserservice.api.service.BrowserOperationsService;
 import io.browserservice.api.service.CaptureService;
 import io.browserservice.api.service.ElementOperationsService;
 import io.browserservice.api.service.SessionService;
+import io.browserservice.api.ws.push.WatcherCoordinator;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
 import java.io.ByteArrayInputStream;
@@ -59,6 +60,7 @@ public class CommandDispatcher {
     private final AlertService alertService;
     private final CaptureService captureService;
     private final WsSessionOwnership ownership;
+    private final WatcherCoordinator watchers;
     private final Validator validator;
     private final ObjectMapper mapper;
 
@@ -70,6 +72,7 @@ public class CommandDispatcher {
                              AlertService alertService,
                              CaptureService captureService,
                              WsSessionOwnership ownership,
+                             WatcherCoordinator watchers,
                              Validator validator,
                              ObjectMapper mapper) {
         this.sessionService = sessionService;
@@ -78,6 +81,7 @@ public class CommandDispatcher {
         this.alertService = alertService;
         this.captureService = captureService;
         this.ownership = ownership;
+        this.watchers = watchers;
         this.validator = validator;
         this.mapper = mapper;
         this.handlers = buildHandlers();
@@ -101,6 +105,7 @@ public class CommandDispatcher {
             SessionResponse resp = sessionService.create(req);
             ownership.claim(resp.sessionId(), conn.caller());
             conn.bind(resp.sessionId());
+            watchers.onSessionAttached(resp.sessionId(), conn);
             return resp;
         });
         h.put("session.attach", (conn, params) -> {
@@ -114,12 +119,14 @@ public class CommandDispatcher {
             // and fail every subsequent session.create / session.attach with already_bound.
             Object state = sessionService.describe(sessionId);
             conn.bind(sessionId);
+            watchers.onSessionAttached(sessionId, conn);
             return state;
         });
         h.put("session.describe", (conn, params) -> sessionService.describe(requireBound(conn)));
         h.put("session.close", (conn, params) -> {
             UUID id = requireBound(conn);
             sessionService.close(id);
+            watchers.onSessionDetached(id, conn);
             ownership.release(id);
             conn.unbind();
             return null;
