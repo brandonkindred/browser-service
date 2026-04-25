@@ -109,8 +109,12 @@ public class CommandDispatcher {
             if (!ownership.isOwnedBy(sessionId, conn.caller())) {
                 throw new OwnershipMismatchException(sessionId);
             }
+            // Resolve state first; only bind once we've confirmed the session is still alive.
+            // Otherwise a SessionNotFoundException would leave the connection bound to a dead id
+            // and fail every subsequent session.create / session.attach with already_bound.
+            Object state = sessionService.describe(sessionId);
             conn.bind(sessionId);
-            return sessionService.describe(sessionId);
+            return state;
         });
         h.put("session.describe", (conn, params) -> sessionService.describe(requireBound(conn)));
         h.put("session.close", (conn, params) -> {
@@ -143,7 +147,7 @@ public class CommandDispatcher {
         h.put("capture.run", (conn, params) ->
                 captureService.capture(parseAndValidate(params, CaptureRequest.class)));
         h.put("capture.fetchScreenshot", (conn, params) -> {
-            UUID captureId = readUuid(params, "captureId");
+            UUID captureId = readUuid(params, "capture_id");
             byte[] png = captureService.fetchScreenshot(captureId).pngBytes();
             return toBase64Response(png);
         });
@@ -222,7 +226,7 @@ public class CommandDispatcher {
     }
 
     private static UUID readSessionId(JsonNode params) {
-        return readUuid(params, "sessionId");
+        return readUuid(params, "session_id");
     }
 
     private static UUID readUuid(JsonNode params, String field) {

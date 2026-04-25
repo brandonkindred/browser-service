@@ -173,6 +173,6 @@ class AlertServiceTest {
                 new EngineProperties.SeleniumProps("", 0, 0, 0, false, 0),
                 new EngineProperties.AppiumProps("", "", "", 0, 0),
                 new EngineProperties.BrowserStackProps(false, "", "", "", "", "", "", "", "", "", "", "", false, false, false),
-                new EngineProperties.WebSocketProps("/v1/ws/sessions", 32, 300, 64));
+                new EngineProperties.WebSocketProps("/v1/ws/sessions", 32, 300, 64, 10000));
     }
 }

@@ -82,6 +82,6 @@ class ReadinessServiceTest {
                 new EngineProperties.SeleniumProps(selenium, 1000, 1000, 0, false, 0),
                 new EngineProperties.AppiumProps(appium, "", "", 1000, 0),
                 new EngineProperties.BrowserStackProps(false, "", "", "", "", "", "", "", "", "", "", "", false, false, false),
-                new EngineProperties.WebSocketProps("/v1/ws/sessions", 32, 300, 64));
+                new EngineProperties.WebSocketProps("/v1/ws/sessions", 32, 300, 64, 10000));
     }
 }

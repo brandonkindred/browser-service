@@ -22,7 +22,8 @@ public record EngineProperties(
             @DefaultValue("/v1/ws/sessions") String path,
             @DefaultValue("32") int commandQueueDepth,
             @DefaultValue("300") int idleCloseSeconds,
-            @DefaultValue("64") int outboundBufferKiB) {
+            @DefaultValue("64") int outboundBufferKiB,
+            @DefaultValue("10000") int sendTimeLimitMs) {
     }
 
     public record SeleniumProps(

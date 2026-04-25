@@ -46,6 +46,7 @@ browserservice:
     command-queue-depth: 32
     idle-close-seconds: 300
     outbound-buffer-ki-b: 64
+    send-time-limit-ms: 10000
 
 management:
   endpoints:

@@ -19,6 +19,7 @@ import io.browserservice.api.service.AlertService;
 import io.browserservice.api.service.BrowserOperationsService;
 import io.browserservice.api.service.CaptureService;
 import io.browserservice.api.service.ElementOperationsService;
+import io.browserservice.api.error.SessionNotFoundException;
 import io.browserservice.api.service.ReadinessService;
 import io.browserservice.api.service.SessionService;
 import java.net.URI;
@@ -127,7 +128,7 @@ class SessionWebSocketHandlerTest {
         TestHandler bobH = new TestHandler();
         WebSocketSession bob = client.execute(bobH, headers("bob"), uri()).get(5, TimeUnit.SECONDS);
         bob.sendMessage(text("{\"type\":\"command\",\"id\":\"c2\",\"op\":\"session.attach\","
-                + "\"params\":{\"sessionId\":\"" + sid + "\"}}"));
+                + "\"params\":{\"session_id\":\"" + sid + "\"}}"));
 
         CloseStatus status = bobH.takeClose();
         assertThat(status.getCode()).isEqualTo(4403);
@@ -294,6 +295,72 @@ class SessionWebSocketHandlerTest {
             JsonNode resp = handler.takeJson(json);
             assertThat(resp.get("ok").asBoolean()).isTrue();
             assertThat(resp.get("result").get("session_id").asText()).isEqualTo(second.toString());
+        } finally {
+            ws.close();
+        }
+    }
+
+    @Test
+    void attachDoesNotBindIfDescribeFails() throws Exception {
+        UUID sid = UUID.randomUUID();
+        // Alice creates the session so ownership is recorded.
+        when(sessionService.create(any())).thenReturn(new SessionResponse(
+                sid, BrowserType.CHROME, BrowserEnvironment.TEST,
+                Instant.now(), Instant.now().plusSeconds(60)));
+        TestHandler creator = new TestHandler();
+        WebSocketSession a1 = client.execute(creator, headers("alice"), uri()).get(5, TimeUnit.SECONDS);
+        a1.sendMessage(text("{\"type\":\"command\",\"id\":\"c1\",\"op\":\"session.create\","
+                + "\"params\":{\"browser_type\":\"CHROME\",\"environment\":\"TEST\"}}"));
+        creator.takeJson(json);
+        a1.close();
+
+        // Now alice opens a fresh connection and the session has been reaped.
+        when(sessionService.describe(sid)).thenThrow(new SessionNotFoundException(sid));
+        when(sessionService.create(any())).thenReturn(new SessionResponse(
+                UUID.randomUUID(), BrowserType.CHROME, BrowserEnvironment.TEST,
+                Instant.now(), Instant.now().plusSeconds(60)));
+
+        TestHandler handler = new TestHandler();
+        WebSocketSession ws = client.execute(handler, headers("alice"), uri()).get(5, TimeUnit.SECONDS);
+        try {
+            ws.sendMessage(text("{\"type\":\"command\",\"id\":\"c2\",\"op\":\"session.attach\","
+                    + "\"params\":{\"session_id\":\"" + sid + "\"}}"));
+            JsonNode attachResp = handler.takeJson(json);
+            assertThat(attachResp.get("ok").asBoolean()).isFalse();
+            assertThat(attachResp.get("error").get("code").asText()).isEqualTo("session_not_found");
+
+            // Connection must NOT be bound — a fresh session.create must succeed.
+            ws.sendMessage(text("{\"type\":\"command\",\"id\":\"c3\",\"op\":\"session.create\","
+                    + "\"params\":{\"browser_type\":\"CHROME\",\"environment\":\"TEST\"}}"));
+            JsonNode createResp = handler.takeJson(json);
+            assertThat(createResp.get("ok").asBoolean())
+                    .as("connection should be unbound after a failed attach")
+                    .isTrue();
+        } finally {
+            ws.close();
+        }
+    }
+
+    @Test
+    void messageLargerThanOneByteIsAcceptedByOutboundDecorator() throws Exception {
+        // Regression for buffer-size confusion: any payload > 1 byte must not blow up the
+        // outbound ConcurrentWebSocketSessionDecorator. Round-tripping a normal create
+        // confirms the decorator's buffer accommodates real frames.
+        UUID sid = UUID.randomUUID();
+        when(sessionService.create(any())).thenReturn(new SessionResponse(
+                sid, BrowserType.CHROME, BrowserEnvironment.TEST,
+                Instant.now(), Instant.now().plusSeconds(60)));
+
+        TestHandler handler = new TestHandler();
+        WebSocketSession ws = client.execute(handler, headers("alice"), uri()).get(5, TimeUnit.SECONDS);
+        try {
+            ws.sendMessage(text("{\"type\":\"command\",\"id\":\"c1\",\"op\":\"session.create\","
+                    + "\"params\":{\"browser_type\":\"CHROME\",\"environment\":\"TEST\"}}"));
+            JsonNode resp = handler.takeJson(json);
+            assertThat(resp.get("ok").asBoolean()).isTrue();
+            // Payload was well over 1 byte; if buffer-size limit were 1, the decorator would
+            // have closed the session before we could read the response.
+            assertThat(ws.isOpen()).isTrue();
         } finally {
             ws.close();
         }

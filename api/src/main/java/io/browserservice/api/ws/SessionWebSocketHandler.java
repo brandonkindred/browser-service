@@ -64,7 +64,7 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
             return;
         }
         ConcurrentWebSocketSessionDecorator out = new ConcurrentWebSocketSessionDecorator(
-                session, props.outboundBufferKiB() * 1024, 1);
+                session, props.sendTimeLimitMs(), props.outboundBufferKiB() * 1024);
         ThreadFactory tf = namedThreadFactory("ws-cmd-" + connectionId);
         Connection conn = new Connection(caller, connectionId, out,
                 Executors.newSingleThreadExecutor(tf),
