@@ -2,6 +2,7 @@ package io.browserservice.api.session;
 
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.error.SessionBusyException;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import org.springframework.stereotype.Component;
 
@@ -40,6 +41,32 @@ public class SessionLocks {
         });
     }
 
+    /**
+     * Acquires the session lock with a custom short timeout for server-driven background
+     * observers (the WS event watchers). Returns {@link Optional#empty()} on contention or
+     * interrupt — callers must not block on it.
+     *
+     * <p>Critically, this variant does <strong>not</strong> call {@link SessionHandle#touch()}.
+     * Watcher polling must not refresh idle TTL: only real user operations keep a session alive.
+     */
+    public <T> Optional<T> tryDoWithLock(SessionHandle handle, long timeoutMs, SessionWork<T> work) {
+        boolean locked = false;
+        try {
+            locked = handle.lock().tryLock(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return Optional.empty();
+        }
+        if (!locked) {
+            return Optional.empty();
+        }
+        try {
+            return Optional.ofNullable(work.execute(handle));
+        } finally {
+            handle.lock().unlock();
+        }
+    }
+
     @FunctionalInterface
     public interface SessionWork<T> {
         T execute(SessionHandle handle);
@@ -50,3 +77,4 @@ public class SessionLocks {
         void execute(SessionHandle handle);
     }
 }
+

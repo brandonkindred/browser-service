@@ -9,7 +9,7 @@ import io.browserservice.api.error.RequestIdFilter;
 import io.browserservice.api.error.UnknownFrameTypeException;
 import io.browserservice.api.ws.dto.CommandFrame;
 import io.browserservice.api.ws.dto.ResponseFrame;
-import jakarta.annotation.PreDestroy;
+import io.browserservice.api.ws.push.WatcherCoordinator;
 import java.io.IOException;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -40,19 +40,18 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
     private final CommandDispatcher dispatcher;
     private final ObjectMapper mapper;
     private final ScheduledExecutorService scheduler;
+    private final WatcherCoordinator watchers;
     private final EngineProperties.WebSocketProps props;
 
     public SessionWebSocketHandler(CommandDispatcher dispatcher, ObjectMapper mapper,
+                                   ScheduledExecutorService webSocketScheduler,
+                                   WatcherCoordinator watchers,
                                    EngineProperties props) {
         this.dispatcher = dispatcher;
         this.mapper = mapper;
+        this.scheduler = webSocketScheduler;
+        this.watchers = watchers;
         this.props = props.webSocket();
-        this.scheduler = Executors.newScheduledThreadPool(2, namedThreadFactory("ws-scheduler"));
-    }
-
-    @PreDestroy
-    void shutdown() {
-        scheduler.shutdownNow();
     }
 
     @Override
@@ -152,6 +151,10 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
         }
         Connection conn = (Connection) session.getAttributes().remove(Connection.ATTRIBUTE);
         if (conn != null) {
+            UUID bound = conn.boundSessionId();
+            if (bound != null) {
+                watchers.onSessionDetached(bound, conn);
+            }
             conn.commands().shutdownNow();
             log.debug("ws closed connectionId={} status={}", conn.connectionId(), status);
         }

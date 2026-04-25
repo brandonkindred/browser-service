@@ -24,7 +24,7 @@ class EngineConfigTest {
                 new EngineProperties.AppiumProps("http://c/wd/hub", "ANDROID", "Pixel 7", 60000, 3),
                 new EngineProperties.BrowserStackProps(false, "", "", "", "", "", "", "",
                         "", "", "", "", true, false, true),
-                new EngineProperties.WebSocketProps("/v1/ws/sessions", 32, 300, 64, 10000));
+                new EngineProperties.WebSocketProps("/v1/ws/sessions", 32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50));
 
         EngineConfig cfg = new EngineConfig(props);
         cfg.seedConnectionHelper();
@@ -50,7 +50,7 @@ class EngineConfigTest {
                 new EngineProperties.AppiumProps("", "", "", 0, 0),
                 new EngineProperties.BrowserStackProps(false, "", "", "", "", "", "", "",
                         "", "", "", "", false, false, false),
-                new EngineProperties.WebSocketProps("/v1/ws/sessions", 32, 300, 64, 10000));
+                new EngineProperties.WebSocketProps("/v1/ws/sessions", 32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50));
 
         new EngineConfig(props).seedConnectionHelper();
         // No exception, no URLs set — success is simply not throwing.
@@ -67,7 +67,7 @@ class EngineConfigTest {
                         "https://hub.browserstack.com/wd/hub", "user", "key",
                         "Windows", "11", "chrome", "126", "proj", "build", "name",
                         "Pixel 7", true, false, true),
-                new EngineProperties.WebSocketProps("/v1/ws/sessions", 32, 300, 64, 10000));
+                new EngineProperties.WebSocketProps("/v1/ws/sessions", 32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50));
 
         new EngineConfig(props).seedConnectionHelper();
         assertThat(true).isTrue();
@@ -81,7 +81,7 @@ class EngineConfigTest {
                 new EngineProperties.AppiumProps("", "", "", 0, 0),
                 new EngineProperties.BrowserStackProps(true, "", "u", "k",
                         "", "", "", "", "", "", "", "", true, false, true),
-                new EngineProperties.WebSocketProps("/v1/ws/sessions", 32, 300, 64, 10000));
+                new EngineProperties.WebSocketProps("/v1/ws/sessions", 32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50));
 
         new EngineConfig(props).seedConnectionHelper();
         assertThat(true).isTrue();

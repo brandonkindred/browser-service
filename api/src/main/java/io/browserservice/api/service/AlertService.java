@@ -25,13 +25,21 @@ public class AlertService {
 
     public AlertStateResponse getAlert(UUID sessionId) {
         SessionHandle handle = registry.get(sessionId);
-        return locks.doWithLock(handle, h -> {
-            Alert alert = findAlert(h.driver());
-            if (alert == null) {
-                return new AlertStateResponse(false, null);
-            }
-            return new AlertStateResponse(true, safeAlertText(alert));
-        });
+        return locks.doWithLock(handle, AlertService::peekAlert);
+    }
+
+    /**
+     * Reads the current alert state assuming the caller already holds the session lock.
+     * Used by both the user-facing {@link #getAlert(UUID)} (under {@code doWithLock}) and
+     * by the WS {@code AlertWatcher} (under {@code tryDoWithLock}, which must not refresh
+     * idle TTL).
+     */
+    public static AlertStateResponse peekAlert(SessionHandle handle) {
+        Alert alert = findAlert(handle.driver());
+        if (alert == null) {
+            return new AlertStateResponse(false, null);
+        }
+        return new AlertStateResponse(true, safeAlertText(alert));
     }
 
     public void respond(UUID sessionId, AlertRespondRequest req) {

@@ -47,6 +47,13 @@ browserservice:
     idle-close-seconds: 300
     outbound-buffer-ki-b: 64
     send-time-limit-ms: 10000
+    alert-push-enabled: true
+    alert-poll-ms: 250
+    console-push-enabled: true
+    console-poll-ms: 1000
+    navigation-push-enabled: true
+    navigation-poll-ms: 2000
+    watcher-lock-timeout-ms: 50
 
 management:
   endpoints:
