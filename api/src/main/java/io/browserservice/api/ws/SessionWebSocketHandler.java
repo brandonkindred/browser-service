@@ -7,10 +7,15 @@ import io.browserservice.api.error.CommandQueueFullException;
 import io.browserservice.api.error.ErrorMapper;
 import io.browserservice.api.error.RequestIdFilter;
 import io.browserservice.api.error.UnknownFrameTypeException;
+import io.browserservice.api.error.ScreenshotTooLargeException;
+import io.browserservice.api.ws.dto.BinaryHeaderFrame;
 import io.browserservice.api.ws.dto.CommandFrame;
 import io.browserservice.api.ws.dto.ResponseFrame;
 import io.browserservice.api.ws.push.WatcherCoordinator;
 import java.io.IOException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import org.springframework.web.socket.BinaryMessage;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -129,8 +134,13 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
                 writeFrame(conn, ResponseFrame.failure(frame.id(), m.body()));
                 return;
             }
-            Object result = dispatcher.dispatch(conn, frame.op(), frame.params());
-            writeFrame(conn, ResponseFrame.success(frame.id(), result));
+            DispatchResult result = dispatcher.dispatch(conn, frame.op(), frame.params());
+            switch (result) {
+                case DispatchResult.Json json ->
+                        writeFrame(conn, ResponseFrame.success(frame.id(), json.value()));
+                case DispatchResult.Binary bin ->
+                        writeBinaryPair(conn, frame.id(), bin, requestId);
+            }
         } catch (CommandDispatcher.OwnershipMismatchException ownership) {
             log.info("ws ownership mismatch caller={} sessionId={}", conn.caller(), ownership.sessionId());
             safeClose(conn.out(), SESSION_FORBIDDEN);
@@ -179,6 +189,50 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
             conn.out().sendMessage(new TextMessage(json));
         } catch (IOException e) {
             log.warn("ws write failed connectionId={}: {}", conn.connectionId(), e.toString());
+        }
+    }
+
+    private void writeBinaryPair(Connection conn, String commandId,
+                                 DispatchResult.Binary bin, String requestId) {
+        byte[] bytes = bin.bytes();
+        int limit = props.maxBinaryFrameBytes();
+        if (bytes.length > limit) {
+            ErrorMapper.Mapped m = ErrorMapper.map(
+                    new ScreenshotTooLargeException(bytes.length, limit), requestId);
+            writeFrame(conn, ResponseFrame.failure(commandId, m.body()));
+            return;
+        }
+        BinaryHeaderFrame header = BinaryHeaderFrame.of(commandId, bin.mime(), bytes.length, sha256Hex(bytes));
+        String headerJson;
+        try {
+            headerJson = mapper.writeValueAsString(header);
+        } catch (Exception e) {
+            log.warn("ws binary header serialize failed connectionId={}: {}", conn.connectionId(), e.toString());
+            return;
+        }
+        // Atomic pair: header text frame + binary frame must arrive adjacent on the wire,
+        // never interleaved with watcher events or another command response.
+        synchronized (conn.writeLock()) {
+            try {
+                conn.out().sendMessage(new TextMessage(headerJson));
+                conn.out().sendMessage(new BinaryMessage(bytes));
+            } catch (IOException e) {
+                log.warn("ws binary write failed connectionId={}: {}", conn.connectionId(), e.toString());
+            }
+        }
+    }
+
+    private static String sha256Hex(byte[] bytes) {
+        try {
+            byte[] digest = MessageDigest.getInstance("SHA-256").digest(bytes);
+            StringBuilder sb = new StringBuilder(digest.length * 2);
+            for (byte b : digest) {
+                sb.append(Character.forDigit((b >> 4) & 0xF, 16));
+                sb.append(Character.forDigit(b & 0xF, 16));
+            }
+            return sb.toString();
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 not available", e);
         }
     }
 

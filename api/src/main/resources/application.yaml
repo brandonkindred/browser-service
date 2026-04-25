@@ -54,6 +54,7 @@ browserservice:
     navigation-push-enabled: true
     navigation-poll-ms: 2000
     watcher-lock-timeout-ms: 50
+    max-binary-frame-bytes: 16777216
 
 management:
   endpoints:
