@@ -13,6 +13,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -41,6 +42,13 @@ public class WatcherCoordinator {
     private final EngineProperties.WebSocketProps props;
 
     private final ConcurrentHashMap<UUID, List<ScheduledFuture<?>>> running = new ConcurrentHashMap<>();
+    /**
+     * Per-session lock serializing first-attach and last-detach against each other so a
+     * concurrent {@code last-detach + first-attach} interleaving can't cancel newly started
+     * futures (or leave orphans). Locks live for the lifetime of the JVM — bounded by the
+     * session-cap, so the leak is finite and small.
+     */
+    private final ConcurrentHashMap<UUID, ReentrantLock> sessionLocks = new ConcurrentHashMap<>();
 
     public WatcherCoordinator(WsSessionConnections connections,
                               SessionRegistry registry,
@@ -57,36 +65,48 @@ public class WatcherCoordinator {
     }
 
     public void onSessionAttached(UUID sessionId, Connection conn) {
-        boolean isFirst = connections.attach(sessionId, conn);
-        if (!isFirst) {
-            return;
+        ReentrantLock guard = sessionLocks.computeIfAbsent(sessionId, id -> new ReentrantLock());
+        guard.lock();
+        try {
+            boolean isFirst = connections.attach(sessionId, conn);
+            if (!isFirst) {
+                return;
+            }
+            SessionHandle handle = registry.find(sessionId).orElse(null);
+            if (handle == null) {
+                // Session vanished between bind and watcher start; clean up the entry we just added.
+                connections.detach(sessionId, conn);
+                return;
+            }
+            List<SessionEventWatcher> watchers = buildWatchers(sessionId, handle);
+            if (watchers.isEmpty()) {
+                return;
+            }
+            List<ScheduledFuture<?>> futures = new ArrayList<>(watchers.size());
+            for (SessionEventWatcher w : watchers) {
+                int period = Math.max(50, w.periodMs());
+                ScheduledFuture<?> f = scheduler.scheduleAtFixedRate(
+                        () -> safeTick(sessionId, w),
+                        period, period, TimeUnit.MILLISECONDS);
+                futures.add(f);
+            }
+            running.put(sessionId, futures);
+            log.debug("ws watchers started session={} count={}", sessionId, futures.size());
+        } finally {
+            guard.unlock();
         }
-        SessionHandle handle = registry.find(sessionId).orElse(null);
-        if (handle == null) {
-            // Session vanished between bind and watcher start; clean up the entry we just added.
-            connections.detach(sessionId, conn);
-            return;
-        }
-        List<SessionEventWatcher> watchers = buildWatchers(sessionId, handle);
-        if (watchers.isEmpty()) {
-            return;
-        }
-        List<ScheduledFuture<?>> futures = new ArrayList<>(watchers.size());
-        for (SessionEventWatcher w : watchers) {
-            int period = Math.max(50, w.periodMs());
-            ScheduledFuture<?> f = scheduler.scheduleAtFixedRate(
-                    () -> safeTick(sessionId, w),
-                    period, period, TimeUnit.MILLISECONDS);
-            futures.add(f);
-        }
-        running.put(sessionId, futures);
-        log.debug("ws watchers started session={} count={}", sessionId, futures.size());
     }
 
     public void onSessionDetached(UUID sessionId, Connection conn) {
-        boolean isLast = connections.detach(sessionId, conn);
-        if (isLast) {
-            stopWatchers(sessionId);
+        ReentrantLock guard = sessionLocks.computeIfAbsent(sessionId, id -> new ReentrantLock());
+        guard.lock();
+        try {
+            boolean isLast = connections.detach(sessionId, conn);
+            if (isLast) {
+                stopWatchers(sessionId);
+            }
+        } finally {
+            guard.unlock();
         }
     }
 

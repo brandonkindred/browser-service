@@ -56,31 +56,35 @@ public final class BrowserLogDrain implements SessionEventWatcher {
         if (disabled.get()) {
             return;
         }
-        locks.tryDoWithLock(handle, lockTimeoutMs, this::drain);
+        // Collect entries under the session lock; broadcast OUTSIDE the lock so a slow WS
+        // writer (backpressure, large fan-out) cannot delay user commands that also need
+        // this lock.
+        List<LogEntry> entries = locks.tryDoWithLock(handle, lockTimeoutMs, this::drain).orElse(null);
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        for (LogEntry entry : entries) {
+            broadcaster.broadcast(sessionId, EventFrame.of("console.log", toData(entry)));
+        }
     }
 
     private List<LogEntry> drain(SessionHandle h) {
-        List<LogEntry> entries;
         try {
-            entries = h.driver().manage().logs().get(LogType.BROWSER).getAll();
+            return h.driver().manage().logs().get(LogType.BROWSER).getAll();
         } catch (UnsupportedCommandException e) {
             disable("UnsupportedCommandException");
-            return null;
+            return List.of();
         } catch (WebDriverException e) {
             String msg = e.getMessage() == null ? "" : e.getMessage().toLowerCase();
             if (msg.contains("not implemented")
                     || msg.contains("command not found")
                     || msg.contains("unsupported")) {
                 disable(e.getClass().getSimpleName() + ": " + e.getMessage());
-                return null;
+                return List.of();
             }
             log.debug("browser log read failed for session={}: {}", sessionId, e.toString());
-            return null;
+            return List.of();
         }
-        for (LogEntry entry : entries) {
-            broadcaster.broadcast(sessionId, EventFrame.of("console.log", toData(entry)));
-        }
-        return entries;
     }
 
     private static Map<String, Object> toData(LogEntry entry) {

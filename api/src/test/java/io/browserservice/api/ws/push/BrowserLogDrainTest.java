@@ -71,6 +71,28 @@ class BrowserLogDrainTest {
     }
 
     @Test
+    void broadcastsHappenAfterTheSessionLockIsReleased() {
+        LogEntry entry = new LogEntry(Level.WARNING, 1L, "x");
+        when(driverLogs.get(LogType.BROWSER)).thenReturn(new LogEntries(List.of(entry, entry)));
+
+        // Have the broadcaster try to acquire the session lock during each call. If the
+        // drain were broadcasting from inside its own lock, this would deadlock or fail.
+        java.util.concurrent.atomic.AtomicInteger acquired = new java.util.concurrent.atomic.AtomicInteger();
+        org.mockito.Mockito.doAnswer(inv -> {
+            if (handle.lock().tryLock()) {
+                try { acquired.incrementAndGet(); }
+                finally { handle.lock().unlock(); }
+            }
+            return null;
+        }).when(broadcaster).broadcast(eq(sessionId), any());
+
+        BrowserLogDrain drain = new BrowserLogDrain(sessionId, handle, locks, broadcaster, 1000, 50);
+        drain.tick();
+
+        assertThat(acquired.get()).as("broadcasts must run outside the session lock").isEqualTo(2);
+    }
+
+    @Test
     void selfDisablesOnUnsupportedCommand() {
         when(driverLogs.get(LogType.BROWSER))
                 .thenThrow(new UnsupportedCommandException("not supported"));

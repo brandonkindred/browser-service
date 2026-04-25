@@ -96,6 +96,39 @@ class WatcherCoordinatorTest {
     }
 
     @Test
+    void rapidAttachDetachInterleavingsConvergeCleanly() throws Exception {
+        // Hammer the coordinator with concurrent attach/detach pairs and assert the final
+        // state reconciles: empty connection set => no watchers, non-empty => watchers.
+        int rounds = 200;
+        Connection a = newConnection("alice-1");
+        Connection b = newConnection("alice-2");
+
+        java.util.concurrent.ExecutorService pool = java.util.concurrent.Executors.newFixedThreadPool(2);
+        java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+        pool.submit(() -> {
+            try { start.await(); } catch (InterruptedException ignored) {}
+            for (int i = 0; i < rounds; i++) {
+                coordinator.onSessionAttached(sessionId, a);
+                coordinator.onSessionDetached(sessionId, a);
+            }
+        });
+        pool.submit(() -> {
+            try { start.await(); } catch (InterruptedException ignored) {}
+            for (int i = 0; i < rounds; i++) {
+                coordinator.onSessionAttached(sessionId, b);
+                coordinator.onSessionDetached(sessionId, b);
+            }
+        });
+        start.countDown();
+        pool.shutdown();
+        assertThat(pool.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
+
+        // Final state: no connections, no watchers.
+        assertThat(connections.isTracked(sessionId)).isFalse();
+        assertThat(coordinator.isWatching(sessionId)).isFalse();
+    }
+
+    @Test
     void attachToVanishedSessionIsCleanedUp() {
         Connection a = newConnection("alice-1");
         registry.remove(sessionId);
