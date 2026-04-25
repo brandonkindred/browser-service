@@ -1,18 +1,37 @@
 # What is browser-service?
 
-A standalone HTTP service that exposes Selenium/Appium browser sessions to remote callers. Agents, audit services, and anything else that needs a browser can open a session, drive it, and close it — without embedding a WebDriver library.
+**Browsers as a service.** A standalone service that hands out live, dedicated browser instances to other applications and agents on demand, so they can drive a real browser without embedding a WebDriver library.
 
-The engine is being lifted almost verbatim from `LookseeCore/looksee-browser/` (already a self-contained Java module with zero intra-repo coupling) and wrapped in a Spring Boot REST layer. Selenium 3 / Appium 7 get upgraded to Selenium 4 / Appium 8 during the move.
+The engine is being lifted almost verbatim from `LookseeCore/looksee-browser/` (already a self-contained Java module with zero intra-repo coupling) and wrapped in a Spring Boot service layer. Selenium 3 / Appium 7 get upgraded to Selenium 4 / Appium 8 during the move.
+
+## Goal
+
+Browser interactions are inherently stateful — checking email, filling out a form, completing a checkout flow, etc. all rely on the browser remembering what just happened. A caller can't drive that kind of multi-step task across stateless, ephemeral sessions; the browser needs continuity from one step to the next.
+
+This service provides that continuity:
+
+1. A caller asks the service for a connection.
+2. The service routes them to a specific browser instance and **holds that connection open for the duration of the session**.
+3. Every step the caller performs — navigate, click, extract, screenshot — runs against the same browser instance the connection was opened against.
+4. When the caller is done with their task, they close the connection, which frees the browser for the next caller.
+
+The primary connection is a **socket connection** so the caller can interact with the browser in real time and stream results back. On top of that socket, the service also exposes the full set of asynchronous HTTP endpoints (navigate, click, find element, extract, screenshot, scroll, etc.) so callers that prefer a request/response style can use those instead — provided they include the `session_id` so the operation lands on the right browser.
+
+If a caller goes idle for **5 minutes** the session times out and the browser is closed automatically. If that caller later comes back asking for the same `session_id`, the service responds with a clear "session expired and has been closed" error so the caller knows it has to open a new connection rather than silently resuming on a fresh browser.
+
+Each caller is capped at **10 concurrent sessions**. Beyond that, requests for new sessions are rejected until one is closed (either explicitly by the caller or by the idle timeout).
 
 ## Who this is for
 
-- **LookseeCore** — today's consumer. Existing services (PageBuilder, element-enrichment, journeyExecutor, audits, etc.) migrate behind a compatibility shim: `BrowserService` keeps its public signatures but delegates to an HTTP client instead of an in-process `Browser`.
-- **Khala** ([brandonkindred/Khala-Agentic-AI-Teams](https://github.com/brandonkindred/Khala-Agentic-AI-Teams)) — Python agentic-teams project that needs a browsing capability. Talks to this service over plain HTTP; no Java dependency.
+- **LookseeCore** — today's consumer. Existing services (PageBuilder, element-enrichment, journeyExecutor, audits, etc.) migrate behind a compatibility shim: `BrowserService` keeps its public signatures but delegates to a remote client instead of an in-process `Browser`.
+- **Khala** ([brandonkindred/Khala-Agentic-AI-Teams](https://github.com/brandonkindred/Khala-Agentic-AI-Teams)) — Python agentic-teams project that needs a browsing capability. Talks to this service over the wire; no Java dependency.
 - **Anyone else** — the service is open source (MIT) and intentionally generic. No Look-see domain concepts leak into the public API.
 
 ## Session model
 
-Browser interactions are stateful. The shape is: **create → interact → close**.
+Browser interactions are stateful. The shape is: **open connection → interact → close connection**. Every operation in a session runs against the same dedicated browser instance the connection was opened against.
+
+The HTTP surface below is the asynchronous side of the API. The real-time socket connection (the primary interaction channel) is layered on top of the same `session_id` and is documented in the OpenAPI spec.
 
 ```bash
 # 1. Open a session.
@@ -43,11 +62,11 @@ curl -X POST http://browser-service/v1/sessions/abc123/screenshot \
   -d '{"strategy": "full_page_shutterbug"}' \
   --output page.png
 
-# 6. Close.
+# 6. Close. Frees the browser and counts against the caller's 10-session cap.
 curl -X DELETE http://browser-service/v1/sessions/abc123
 ```
 
-Idle sessions expire after 5 minutes; all sessions expire after 30 minutes, no matter what. The registry reaps them automatically.
+Idle sessions expire after 5 minutes; all sessions expire after 30 minutes, no matter what. The registry reaps them automatically. Operations against a `session_id` that has been reaped return a `session_expired` error so the caller can react instead of silently retrying on a fresh browser.
 
 For the trivial "open → navigate → screenshot → close" path, `POST /v1/capture` collapses all of the above into one request.
 
@@ -55,25 +74,25 @@ For the trivial "open → navigate → screenshot → close" path, `POST /v1/cap
 
 | Area | Decision |
 |---|---|
-| Transport | HTTP / JSON (OpenAPI 3.1 in `openapi.yaml`) |
+| Transport | Real-time socket connection per session (primary), plus HTTP / JSON endpoints (OpenAPI 3.1 in `openapi.yaml`) for async operations |
 | Screenshots | Default returns `image/png` bytes. `?encoding=base64` returns JSON for MCP / non-binary callers |
 | Screenshot storage | **Caller uploads.** Service holds bytes only long enough to return them |
-| Session model | Stateful sessions, opaque `session_id`, idle + absolute TTL |
+| Session model | Stateful sessions pinned to a specific browser instance, opaque `session_id`, 5-minute idle TTL + 30-minute absolute TTL, explicit `session_expired` error after reap |
 | Mobile | Appium (Android / iOS) included. Same session API; mobile gestures use `/element/touch` |
 | Engine | Selenium 4 + Appium Java Client 8 (upgraded from today's Selenium 3 / Appium 7) |
 | Upstream | Existing Selenium Grid (in `LookseeIaC`) + optional BrowserStack — unchanged |
-| Clients | Java client (for LookseeCore's shim). Khala uses the HTTP API directly |
-| Concurrency | 20 concurrent sessions per instance; 429 once capped. Horizontal scale via replicas |
+| Clients | Java client (for LookseeCore's shim). Khala uses the API directly |
+| Concurrency | **10 concurrent sessions per caller**; further `POST /sessions` requests get a 429 until one is closed. Horizontal scale via replicas |
 | Licence | MIT (inherited from Look-see) |
 
 ## Explicitly out of MVP
 
 Listed here so nothing gets forgotten:
 
-- **Authentication.** Service runs on a private network (VPC-only ingress). API keys / OAuth / per-tenant isolation deferred.
-- **Rate limits / quotas.** Need auth first to key off.
+- **Authentication.** Service runs on a private network (VPC-only ingress). API keys / OAuth / per-tenant isolation deferred. The 10-sessions-per-caller cap is keyed off whatever caller identity the network layer surfaces (source IP, header) until proper auth lands.
+- **Rate limits / quotas beyond the per-caller session cap.** Need auth first to key off properly.
 - **Network egress policy.** SSRF guard against `localhost` / `169.254.169.254` / private CIDRs — defer to post-auth.
-- **Streaming events.** No WebSocket or SSE at MVP. Page-load progress, console logs, network events, DOM mutations all come later if a caller asks.
+- **Push events on the socket beyond operation results.** The real-time socket carries operation results in this phase. Page-load progress, console logs, network events, DOM mutations come later if a caller asks.
 - **MCP server.** The REST endpoints are named so each maps 1:1 to a future MCP tool (`browser.navigate`, `browser.screenshot`, etc.) but no MCP wrapper ships in MVP.
 - **Live-view UI.** Vendors like Browserbase ship a debug panel (VNC/CDP stream). Possible later.
 - **Cloud-storage backends.** Service never uploads to GCS/S3; callers handle storage.
