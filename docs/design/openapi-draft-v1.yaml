@@ -2,11 +2,13 @@ openapi: 3.1.0
 info:
   title: Browser Service
   version: 0.1.0-draft
-  summary: Remote browser sessions for programmatic web interaction.
+  summary: Browsers as a service — dedicated browser instances handed out to applications and agents on demand.
   description: |
-    Standalone service that exposes Selenium/Appium browser sessions over HTTP
-    so agents, audit services, and other clients can drive a browser without
-    embedding a WebDriver library.
+    Standalone service that hands out live, dedicated browser instances to
+    applications and agents on demand. The primary interaction channel is a
+    real-time socket connection per session; this OpenAPI document describes
+    the asynchronous HTTP surface that runs alongside it (navigate, click,
+    extract, screenshot, etc.).
 
     This spec is a **design draft** being developed on Look-see branch
     `claude/extract-browsing-service-MgOw3`. It will be moved to the
@@ -14,19 +16,33 @@ info:
 
     ## Session model
 
-    Browser interactions are stateful. A caller creates a session, performs
-    one or more actions against it, then closes it. Sessions are identified
-    by an opaque `session_id` embedded in each URL path after creation.
+    Browser interactions are stateful. A caller opens a connection, the
+    service pins them to a specific browser instance, and every operation
+    in the session — whether sent over the socket or one of the HTTP
+    endpoints below — runs against that same browser. The caller closes the
+    connection when their task is done, freeing the browser for the next
+    caller.
+
+    Sessions are identified by an opaque `session_id` embedded in each URL
+    path (and exchanged on the socket).
 
     Idle sessions are closed automatically after the configured idle TTL
     (default 5 minutes); all sessions are closed after the absolute TTL
-    (default 30 minutes) regardless of activity.
+    (default 30 minutes) regardless of activity. Operations against a
+    `session_id` that has already been reaped return a `session_expired`
+    error so the caller knows it must open a new connection rather than
+    silently resuming on a fresh browser.
+
+    Each caller is capped at **10 concurrent sessions**. `POST /sessions`
+    returns 429 once the cap is reached, until one is closed (either
+    explicitly by the caller or by the idle timeout).
 
     ## Not in MVP
 
     - Authentication (service runs on a private network)
-    - Rate limits and per-tenant quotas
-    - Streaming events (WebSocket/SSE)
+    - Rate limits and per-tenant quotas beyond the 10-sessions-per-caller cap
+    - Push events on the socket beyond operation results (page-load progress,
+      console logs, network events, DOM mutations)
     - Screenshot upload to cloud storage (caller uploads)
     - MCP server (endpoints are named to map 1:1 to future MCP tools)
 
