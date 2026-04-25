@@ -8,13 +8,22 @@ public record EngineProperties(
         @DefaultValue SessionProps session,
         @DefaultValue SeleniumProps selenium,
         @DefaultValue AppiumProps appium,
-        @DefaultValue BrowserStackProps browserstack) {
+        @DefaultValue BrowserStackProps browserstack,
+        @DefaultValue WebSocketProps webSocket) {
 
     public record SessionProps(
             @DefaultValue("300") int idleTtlSeconds,
             @DefaultValue("1800") int absoluteTtlSeconds,
             @DefaultValue("20") int maxConcurrent,
             @DefaultValue("5000") long lockAcquireTimeoutMs) {
+    }
+
+    public record WebSocketProps(
+            @DefaultValue("/v1/ws/sessions") String path,
+            @DefaultValue("32") int commandQueueDepth,
+            @DefaultValue("300") int idleCloseSeconds,
+            @DefaultValue("64") int outboundBufferKiB,
+            @DefaultValue("10000") int sendTimeLimitMs) {
     }
 
     public record SeleniumProps(

@@ -41,6 +41,12 @@ browserservice:
     real-mobile: true
     local: false
     debug: true
+  web-socket:
+    path: /v1/ws/sessions
+    command-queue-depth: 32
+    idle-close-seconds: 300
+    outbound-buffer-ki-b: 64
+    send-time-limit-ms: 10000
 
 management:
   endpoints:
