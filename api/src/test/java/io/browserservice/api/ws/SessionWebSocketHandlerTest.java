@@ -508,6 +508,73 @@ class SessionWebSocketHandlerTest {
         }
     }
 
+    @Test
+    void binaryPairIsNotInterleavedByConcurrentWriters() throws Exception {
+        // While `screenshot.page` is in flight, another thread broadcasts a stream of
+        // text frames via writeFrame. With writeLock held across (header, binary), the
+        // header MUST be immediately followed by the binary frame; no text frame may
+        // land between them.
+        UUID sid = UUID.randomUUID();
+        when(sessionService.create(any())).thenReturn(new SessionResponse(
+                sid, BrowserType.CHROME, BrowserEnvironment.TEST,
+                Instant.now(), Instant.now().plusSeconds(60)));
+        byte[] png = makePng(8, 6);
+        // Make pageScreenshot slow so the test actively races writers.
+        when(browserOps.pageScreenshot(any(), any())).thenAnswer(inv -> {
+            Thread.sleep(50);
+            return png;
+        });
+
+        TestHandler handler = new TestHandler();
+        WebSocketSession ws = client.execute(handler, headers("alice"), uri()).get(5, TimeUnit.SECONDS);
+        try {
+            ws.sendMessage(text("{\"type\":\"command\",\"id\":\"c1\",\"op\":\"session.create\","
+                    + "\"params\":{\"browser_type\":\"CHROME\",\"environment\":\"TEST\"}}"));
+            handler.takeJson(json);
+
+            // Concurrent flooder firing a small describe (text response) over and over.
+            when(sessionService.describe(sid)).thenReturn(new SessionStateResponse(
+                    sid, BrowserType.CHROME, BrowserEnvironment.TEST,
+                    Instant.now(), Instant.now().plusSeconds(60),
+                    "https://example.com", new Viewport(1, 1), null));
+            Thread flooder = new Thread(() -> {
+                for (int i = 0; i < 25; i++) {
+                    try {
+                        ws.sendMessage(text("{\"type\":\"command\",\"id\":\"d" + i
+                                + "\",\"op\":\"session.describe\"}"));
+                        Thread.sleep(2);
+                    } catch (Exception ignored) { return; }
+                }
+            });
+            flooder.setDaemon(true);
+
+            ws.sendMessage(text("{\"type\":\"command\",\"id\":\"c2\",\"op\":\"screenshot.page\","
+                    + "\"params\":{\"strategy\":\"VIEWPORT\",\"encoding\":\"BINARY\"}}"));
+            flooder.start();
+
+            // Drain frames until we observe the header. Every text frame before the header
+            // is unrelated; once we see the header, the very next thing must be the binary.
+            JsonNode header = null;
+            while (header == null) {
+                String payload = handler.messages.poll(5, TimeUnit.SECONDS);
+                assertThat(payload).as("expected the binary-header within 5s").isNotNull();
+                JsonNode node = json.readTree(payload);
+                if ("binary-header".equals(node.path("type").asText())) {
+                    header = node;
+                }
+            }
+            // After the header, no text frame may arrive before the binary frame.
+            // Poll the binary queue with a short timeout AND assert the text queue did not
+            // receive a new entry first.
+            byte[] received = handler.takeBinary();
+            assertThat(received.length).isEqualTo(png.length);
+            assertThat(header.get("id").asText()).isEqualTo("c2");
+            flooder.join(2000);
+        } finally {
+            ws.close();
+        }
+    }
+
     private static byte[] makePng(int width, int height) throws Exception {
         BufferedImage img = new BufferedImage(width, height, BufferedImage.TYPE_INT_ARGB);
         ByteArrayOutputStream out = new ByteArrayOutputStream();

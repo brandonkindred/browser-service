@@ -41,7 +41,11 @@ public class EventBroadcaster {
         TextMessage msg = new TextMessage(json);
         for (Connection conn : connections.snapshot(sessionId)) {
             try {
-                conn.out().sendMessage(msg);
+                // Same writeLock the binary-pair emitter takes — guarantees this event frame
+                // never lands between a (binary-header, binary-frame) pair on the wire.
+                synchronized (conn.writeLock()) {
+                    conn.out().sendMessage(msg);
+                }
             } catch (IOException e) {
                 log.debug("ws event push failed connectionId={}: {}", conn.connectionId(), e.toString());
             }

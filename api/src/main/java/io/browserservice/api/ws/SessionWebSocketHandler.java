@@ -186,7 +186,9 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
     private void writeFrame(Connection conn, ResponseFrame frame) {
         try {
             String json = mapper.writeValueAsString(frame);
-            conn.out().sendMessage(new TextMessage(json));
+            synchronized (conn.writeLock()) {
+                conn.out().sendMessage(new TextMessage(json));
+            }
         } catch (IOException e) {
             log.warn("ws write failed connectionId={}: {}", conn.connectionId(), e.toString());
         }
