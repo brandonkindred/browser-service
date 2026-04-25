@@ -14,7 +14,6 @@ import io.browserservice.api.dto.ExecuteRequest;
 import io.browserservice.api.dto.FindElementRequest;
 import io.browserservice.api.dto.MouseMoveRequest;
 import io.browserservice.api.dto.NavigateRequest;
-import io.browserservice.api.dto.ScreenshotBase64Response;
 import io.browserservice.api.dto.ScreenshotRequest;
 import io.browserservice.api.dto.ScrollRequest;
 import io.browserservice.api.dto.SessionResponse;
@@ -30,14 +29,11 @@ import io.browserservice.api.service.SessionService;
 import io.browserservice.api.ws.push.WatcherCoordinator;
 import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validator;
-import java.io.ByteArrayInputStream;
-import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import javax.imageio.ImageIO;
 import org.springframework.stereotype.Component;
 
 /**
@@ -47,12 +43,6 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class CommandDispatcher {
-
-    static {
-        // Eagerly load PNG codec to avoid ServiceLoader edge cases under virtual threads,
-        // matching ScreenshotsController.
-        ImageIO.scanForPlugins();
-    }
 
     private final SessionService sessionService;
     private final BrowserOperationsService browserOps;
@@ -87,12 +77,13 @@ public class CommandDispatcher {
         this.handlers = buildHandlers();
     }
 
-    public Object dispatch(Connection conn, String op, JsonNode params) throws OwnershipMismatchException {
+    public DispatchResult dispatch(Connection conn, String op, JsonNode params) throws OwnershipMismatchException {
         CommandHandler handler = handlers.get(op);
         if (handler == null) {
             throw new UnknownOpException(op);
         }
-        return handler.handle(conn, params == null ? NullNode.getInstance() : params);
+        Object result = handler.handle(conn, params == null ? NullNode.getInstance() : params);
+        return result instanceof DispatchResult dr ? dr : new DispatchResult.Json(result);
     }
 
     private Map<String, CommandHandler> buildHandlers() {
@@ -138,16 +129,16 @@ public class CommandDispatcher {
         h.put("navigation.source", (conn, params) -> browserOps.getSource(requireBound(conn)));
         h.put("navigation.status", (conn, params) -> browserOps.getStatus(requireBound(conn)));
 
-        // Screenshots — WS-A returns base64-in-JSON; WS-C will replace with binary frames.
+        // Screenshots — WS-C: emit a (binary-header, binary-frame) pair instead of base64.
         h.put("screenshot.page", (conn, params) -> {
             ScreenshotRequest req = parseAndValidate(params, ScreenshotRequest.class);
             byte[] png = browserOps.pageScreenshot(requireBound(conn), req.strategy());
-            return toBase64Response(png);
+            return new DispatchResult.Binary("image/png", png);
         });
         h.put("screenshot.element", (conn, params) -> {
             ElementScreenshotRequest req = parseAndValidate(params, ElementScreenshotRequest.class);
             byte[] png = elementOps.elementScreenshot(requireBound(conn), req);
-            return toBase64Response(png);
+            return new DispatchResult.Binary("image/png", png);
         });
 
         // Capture (one-shot session under the hood; not bound to the WS connection)
@@ -156,7 +147,7 @@ public class CommandDispatcher {
         h.put("capture.fetchScreenshot", (conn, params) -> {
             UUID captureId = readUuid(params, "capture_id");
             byte[] png = captureService.fetchScreenshot(captureId).pngBytes();
-            return toBase64Response(png);
+            return new DispatchResult.Binary("image/png", png);
         });
 
         // Alerts
@@ -262,23 +253,6 @@ public class CommandDispatcher {
         UUID id = conn.boundSessionId();
         if (id != null) {
             throw new AlreadyBoundException(id.toString());
-        }
-    }
-
-    private static ScreenshotBase64Response toBase64Response(byte[] png) {
-        int[] wh = readDimensions(png);
-        return new ScreenshotBase64Response(Base64.getEncoder().encodeToString(png), wh[0], wh[1]);
-    }
-
-    private static int[] readDimensions(byte[] png) {
-        try (var in = new ByteArrayInputStream(png)) {
-            var image = ImageIO.read(in);
-            if (image == null) {
-                return new int[]{0, 0};
-            }
-            return new int[]{image.getWidth(), image.getHeight()};
-        } catch (Exception e) {
-            return new int[]{0, 0};
         }
     }
 

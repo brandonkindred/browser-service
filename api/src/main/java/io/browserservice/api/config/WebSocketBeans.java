@@ -24,4 +24,11 @@ public class WebSocketBeans {
             return t;
         });
     }
+
+    // Note on inbound binary buffer size: WS-C is server-emit-only — clients never send
+    // binary frames today. The sole emission ceiling is enforced per-message in
+    // SessionWebSocketHandler.writeBinaryPair (oversize → screenshot_too_large error
+    // frame, no binary). A `ServletServerContainerFactoryBean` would be the right place
+    // to bound inbound buffers if/when binary uploads land, but it requires a real
+    // servlet ServerContainer at boot, which would break MOCK-environment tests.
 }

@@ -20,6 +20,13 @@ public final class Connection {
     private final ExecutorService commands;
     private final Semaphore queue;
     private final AtomicLong lastActivityNanos;
+    /**
+     * Guards the (binary-header, binary-frame) pair emitted for screenshot ops so it
+     * cannot be interleaved on the wire with watcher events from WS-B or with another
+     * connection-side write. Single-message writes don't take this lock — the
+     * {@link ConcurrentWebSocketSessionDecorator} is already thread-safe per message.
+     */
+    private final Object writeLock = new Object();
     private volatile UUID boundSessionId;
 
     public Connection(CallerId caller, String connectionId, ConcurrentWebSocketSessionDecorator out,
@@ -37,6 +44,7 @@ public final class Connection {
     public ConcurrentWebSocketSessionDecorator out() { return out; }
     public ExecutorService commands() { return commands; }
     public Semaphore queue() { return queue; }
+    public Object writeLock() { return writeLock; }
     public UUID boundSessionId() { return boundSessionId; }
     public void bind(UUID sessionId) { this.boundSessionId = sessionId; }
     public void unbind() { this.boundSessionId = null; }

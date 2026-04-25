@@ -30,7 +30,8 @@ public record EngineProperties(
             @DefaultValue("1000") int consolePollMs,
             @DefaultValue("true") boolean navigationPushEnabled,
             @DefaultValue("2000") int navigationPollMs,
-            @DefaultValue("50") int watcherLockTimeoutMs) {
+            @DefaultValue("50") int watcherLockTimeoutMs,
+            @DefaultValue("16777216") int maxBinaryFrameBytes) {
     }
 
     public record SeleniumProps(
