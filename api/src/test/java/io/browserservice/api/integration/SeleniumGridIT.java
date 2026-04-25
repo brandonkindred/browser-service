@@ -37,6 +37,7 @@ import org.testcontainers.utility.DockerImageName;
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
+@org.springframework.test.context.ActiveProfiles("test")
 @Testcontainers
 class SeleniumGridIT {
 

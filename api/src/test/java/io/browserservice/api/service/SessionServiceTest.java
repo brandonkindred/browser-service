@@ -18,7 +18,9 @@ import io.browserservice.api.dto.SessionStateResponse;
 import io.browserservice.api.error.SessionCapExceededException;
 import io.browserservice.api.error.SessionNotFoundException;
 import io.browserservice.api.error.UpstreamUnavailableException;
+import io.browserservice.api.persistence.BrowserSessionTracker;
 import io.browserservice.api.session.DriverFactory;
+import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
 import io.browserservice.api.session.SessionRegistry;
 import java.util.UUID;
@@ -33,6 +35,7 @@ class SessionServiceTest {
     private SessionRegistry registry;
     private SessionLocks locks;
     private DriverFactory drivers;
+    private BrowserSessionTracker tracker;
     private SessionService service;
 
     @BeforeEach
@@ -41,7 +44,8 @@ class SessionServiceTest {
         registry = new SessionRegistry(props);
         locks = new SessionLocks(props);
         drivers = mock(DriverFactory.class);
-        service = new SessionService(registry, locks, drivers, props);
+        tracker = mock(BrowserSessionTracker.class);
+        service = new SessionService(registry, locks, drivers, tracker, props);
     }
 
     @Test
@@ -168,6 +172,31 @@ class SessionServiceTest {
 
         verify(browser).close();
         assertThat(registry.size()).isZero();
+    }
+
+    @Test
+    void createRecordsSessionInTracker() {
+        Browser browser = mockBrowserWithDriver();
+        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+
+        SessionResponse created = service.create(new CreateSessionRequest(
+                BrowserType.CHROME, BrowserEnvironment.TEST, null));
+
+        org.mockito.ArgumentCaptor<SessionHandle> captor = org.mockito.ArgumentCaptor.forClass(SessionHandle.class);
+        verify(tracker).recordCreate(captor.capture());
+        assertThat(captor.getValue().id()).isEqualTo(created.sessionId());
+    }
+
+    @Test
+    void closeRecordsClientCloseInTracker() {
+        Browser browser = mockBrowserWithDriver();
+        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+
+        SessionResponse created = service.create(new CreateSessionRequest(
+                BrowserType.CHROME, BrowserEnvironment.TEST, null));
+        service.close(created.sessionId());
+
+        verify(tracker).recordClientClose(created.sessionId());
     }
 
     @Test

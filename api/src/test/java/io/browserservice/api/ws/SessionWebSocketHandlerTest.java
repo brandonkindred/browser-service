@@ -59,6 +59,7 @@ import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@org.springframework.test.context.ActiveProfiles("test")
 @TestPropertySource(properties = {
         "browserservice.selenium.urls=http://localhost:4444/wd/hub",
         "browserservice.appium.urls=",
