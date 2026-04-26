@@ -50,11 +50,11 @@ public class SessionService {
 
     public SessionResponse create(CreateSessionRequest req) {
         registry.acquirePermit();
+        SessionHandle handle = null;
         try {
             Duration idleTtl = req.idleTtlSeconds() == null
                     ? defaultIdleTtl
                     : Duration.ofSeconds(req.idleTtlSeconds());
-            SessionHandle handle;
             if (req.browserType().isMobile()) {
                 MobileDevice device = drivers.createMobile(req.browserType(), req.environment());
                 handle = SessionHandle.mobile(device, req.browserType(), req.environment(), idleTtl, absoluteTtl);
@@ -68,6 +68,9 @@ public class SessionService {
                     handle.id(), handle.browserType(), handle.environment());
             return toSummary(handle);
         } catch (RuntimeException e) {
+            if (handle != null) {
+                handle.closeOnce();
+            }
             registry.releasePermit();
             throw e;
         }

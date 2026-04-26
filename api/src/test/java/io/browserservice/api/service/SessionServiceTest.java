@@ -100,6 +100,22 @@ class SessionServiceTest {
     }
 
     @Test
+    void trackerFailureClosesBrowserAndReleasesPermit() {
+        Browser browser = mockBrowserWithDriver();
+        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+        org.mockito.Mockito.doThrow(new RuntimeException("db down"))
+                .when(tracker).recordCreate(org.mockito.ArgumentMatchers.any(SessionHandle.class));
+
+        assertThatThrownBy(() ->
+                service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null)))
+                .isInstanceOf(RuntimeException.class);
+
+        verify(browser).close();
+        assertThat(registry.availablePermits()).isEqualTo(2);
+        assertThat(registry.size()).isZero();
+    }
+
+    @Test
     void createEnforcesCap() {
         Browser browser = mockBrowserWithDriver();
         when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);

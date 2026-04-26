@@ -28,7 +28,7 @@ public class SessionReaper {
             if (handle.isClosed() || !handle.isExpired(now)) {
                 continue;
             }
-            ClosedReason reason = reasonFor(handle, now);
+            ClosedReason reason = reasonFor(handle);
             if (registry.remove(handle.id())) {
                 tracker.recordReap(handle.id(), reason);
                 log.info("reaped session id={} browserType={} reason={} idleTtl={}s absoluteTtl={}s",
@@ -38,10 +38,11 @@ public class SessionReaper {
         }
     }
 
-    private static ClosedReason reasonFor(SessionHandle handle, Instant now) {
-        if (now.isAfter(handle.createdAt().plus(handle.absoluteTtl()))) {
-            return ClosedReason.REAPED_ABSOLUTE;
-        }
-        return ClosedReason.REAPED_IDLE;
+    private static ClosedReason reasonFor(SessionHandle handle) {
+        Instant idleDeadline = handle.lastUsedAt().plus(handle.idleTtl());
+        Instant absoluteDeadline = handle.createdAt().plus(handle.absoluteTtl());
+        return absoluteDeadline.isBefore(idleDeadline)
+                ? ClosedReason.REAPED_ABSOLUTE
+                : ClosedReason.REAPED_IDLE;
     }
 }
