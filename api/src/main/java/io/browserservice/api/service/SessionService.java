@@ -10,6 +10,7 @@ import io.browserservice.api.dto.SessionListResponse;
 import io.browserservice.api.dto.SessionResponse;
 import io.browserservice.api.dto.SessionStateResponse;
 import io.browserservice.api.dto.Viewport;
+import io.browserservice.api.persistence.BrowserSessionTracker;
 import io.browserservice.api.session.DriverFactory;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
@@ -32,25 +33,28 @@ public class SessionService {
     private final SessionRegistry registry;
     private final SessionLocks locks;
     private final DriverFactory drivers;
+    private final BrowserSessionTracker tracker;
     private final Duration defaultIdleTtl;
     private final Duration absoluteTtl;
 
     public SessionService(SessionRegistry registry, SessionLocks locks,
-                          DriverFactory drivers, EngineProperties props) {
+                          DriverFactory drivers, BrowserSessionTracker tracker,
+                          EngineProperties props) {
         this.registry = registry;
         this.locks = locks;
         this.drivers = drivers;
+        this.tracker = tracker;
         this.defaultIdleTtl = Duration.ofSeconds(props.session().idleTtlSeconds());
         this.absoluteTtl = Duration.ofSeconds(props.session().absoluteTtlSeconds());
     }
 
     public SessionResponse create(CreateSessionRequest req) {
         registry.acquirePermit();
+        SessionHandle handle = null;
         try {
             Duration idleTtl = req.idleTtlSeconds() == null
                     ? defaultIdleTtl
                     : Duration.ofSeconds(req.idleTtlSeconds());
-            SessionHandle handle;
             if (req.browserType().isMobile()) {
                 MobileDevice device = drivers.createMobile(req.browserType(), req.environment());
                 handle = SessionHandle.mobile(device, req.browserType(), req.environment(), idleTtl, absoluteTtl);
@@ -58,11 +62,15 @@ public class SessionService {
                 Browser browser = drivers.createDesktop(req.browserType(), req.environment());
                 handle = SessionHandle.desktop(browser, req.browserType(), req.environment(), idleTtl, absoluteTtl);
             }
+            tracker.recordCreate(handle);
             registry.register(handle);
             log.info("created session id={} browserType={} environment={}",
                     handle.id(), handle.browserType(), handle.environment());
             return toSummary(handle);
         } catch (RuntimeException e) {
+            if (handle != null) {
+                handle.closeOnce();
+            }
             registry.releasePermit();
             throw e;
         }
@@ -84,6 +92,7 @@ public class SessionService {
     public void close(UUID id) {
         SessionHandle handle = registry.get(id);
         registry.remove(handle.id());
+        tracker.recordClientClose(handle.id());
         log.info("closed session id={}", id);
     }
 

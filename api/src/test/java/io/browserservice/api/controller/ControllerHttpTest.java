@@ -92,6 +92,7 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
+@org.springframework.test.context.ActiveProfiles("test")
 @TestPropertySource(properties = {
         "browserservice.selenium.urls=http://localhost:4444/wd/hub",
         "browserservice.appium.urls=",
