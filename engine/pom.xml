@@ -198,6 +198,30 @@
             </goals>
             <phase>test</phase>
           </execution>
+          <execution>
+            <id>jacoco-check</id>
+            <goals>
+              <goal>check</goal>
+            </goals>
+            <phase>verify</phase>
+            <configuration>
+              <rules>
+                <rule>
+                  <element>BUNDLE</element>
+                  <limits>
+                    <limit>
+                      <counter>LINE</counter>
+                      <value>COVEREDRATIO</value>
+                      <!-- Baseline 92.5% (Apr 2026, surefire-only). Floored to
+                           90% so the gate is non-blocking on day one but
+                           catches regressions. Ratchet up via #40. -->
+                      <minimum>0.90</minimum>
+                    </limit>
+                  </limits>
+                </rule>
+              </rules>
+            </configuration>
+          </execution>
         </executions>
       </plugin>
 
