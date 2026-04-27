@@ -87,4 +87,43 @@ class ApiExceptionsTest {
     assertThat(withDetails.getDetails()).containsEntry("field", "x");
     assertThat(withDetails.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
   }
+
+  @Test
+  void callerUnidentifiedDefaultsToBadRequest() {
+    CallerUnidentifiedException bare = new CallerUnidentifiedException();
+    Throwable cause = new IllegalArgumentException("blank");
+    CallerUnidentifiedException withCause = new CallerUnidentifiedException("blank", cause);
+
+    assertThat(bare.getCode()).isEqualTo("caller_unidentified");
+    assertThat(bare.getHttpStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(bare.getCause()).isNull();
+    assertThat(withCause.getMessage()).contains("blank");
+    assertThat(withCause.getCause()).isSameAs(cause);
+  }
+
+  @Test
+  void sessionForbiddenCarriesId() {
+    UUID id = UUID.randomUUID();
+    SessionForbiddenException ex = new SessionForbiddenException(id);
+
+    assertThat(ex.getCode()).isEqualTo("session_forbidden");
+    assertThat(ex.getHttpStatus()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(ex.getDetails()).containsEntry("session_id", id.toString());
+    assertThat(ex.getMessage()).contains(id.toString());
+  }
+
+  @Test
+  void errorMapperRoutesNewExceptionsByCodeAndStatus() {
+    UUID id = UUID.randomUUID();
+
+    ErrorMapper.Mapped unidentified = ErrorMapper.map(new CallerUnidentifiedException(), "req-1");
+    assertThat(unidentified.status()).isEqualTo(HttpStatus.BAD_REQUEST);
+    assertThat(unidentified.body().code()).isEqualTo("caller_unidentified");
+    assertThat(unidentified.body().requestId()).isEqualTo("req-1");
+
+    ErrorMapper.Mapped forbidden = ErrorMapper.map(new SessionForbiddenException(id), "req-2");
+    assertThat(forbidden.status()).isEqualTo(HttpStatus.FORBIDDEN);
+    assertThat(forbidden.body().code()).isEqualTo("session_forbidden");
+    assertThat(forbidden.body().details()).containsEntry("session_id", id.toString());
+  }
 }
