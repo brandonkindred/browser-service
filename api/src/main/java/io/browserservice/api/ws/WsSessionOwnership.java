@@ -1,5 +1,6 @@
 package io.browserservice.api.ws;
 
+import io.browserservice.api.session.CallerId;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;

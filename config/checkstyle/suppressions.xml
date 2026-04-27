@@ -18,6 +18,8 @@
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]config[/\\]JacksonConfig\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]config[/\\]OpenApiConfig\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]config[/\\]OpenApiConfig\.java$" checks="MissingJavadocType"/>
+  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]config[/\\]WebMvcConfig\.java$" checks="MissingJavadocMethod"/>
+  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]config[/\\]WebMvcConfig\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]config[/\\]WebSocketBeans\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]config[/\\]WebSocketConfig\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]config[/\\]WebSocketConfig\.java$" checks="MissingJavadocType"/>
@@ -97,6 +99,8 @@
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]AlreadyBoundException\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]ApiException\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]ApiException\.java$" checks="MissingJavadocType"/>
+  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]CallerUnidentifiedException\.java$" checks="MissingJavadocMethod"/>
+  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]CallerUnidentifiedException\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]CaptureExpiredException\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]CaptureExpiredException\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]CaptureNotFoundException\.java$" checks="MissingJavadocMethod"/>
@@ -121,6 +125,8 @@
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]SessionBusyException\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]SessionCapExceededException\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]SessionCapExceededException\.java$" checks="MissingJavadocType"/>
+  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]SessionForbiddenException\.java$" checks="MissingJavadocMethod"/>
+  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]SessionForbiddenException\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]SessionNotBoundException\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]SessionNotBoundException\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]error[/\\]SessionNotFoundException\.java$" checks="MissingJavadocMethod"/>
@@ -156,6 +162,9 @@
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]service[/\\]SessionService\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]service[/\\]SessionService\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]session[/\\]BrowserConnectionHelperDriverFactory\.java$" checks="MissingJavadocType"/>
+  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]session[/\\]CallerId\.java$" checks="MissingJavadocMethod"/>
+  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]session[/\\]CallerId\.java$" checks="MissingJavadocType"/>
+  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]session[/\\]CallerId\.java$" checks="NeedBraces"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]session[/\\]CaptureScreenshotCache\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]session[/\\]CaptureScreenshotCache\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]session[/\\]DriverFactory\.java$" checks="MissingJavadocMethod"/>
@@ -170,9 +179,7 @@
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]session[/\\]SessionReaper\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]session[/\\]SessionRegistry\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]session[/\\]SessionRegistry\.java$" checks="MissingJavadocType"/>
-  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]CallerId\.java$" checks="MissingJavadocMethod"/>
-  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]CallerId\.java$" checks="MissingJavadocType"/>
-  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]CallerId\.java$" checks="NeedBraces"/>
+  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]web[/\\]CallerIdArgumentResolver\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]CallerIdHandshakeInterceptor\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]CommandDispatcher\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]CommandDispatcher\.java$" checks="NeedBraces"/>

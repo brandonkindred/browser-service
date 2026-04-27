@@ -1,4 +1,4 @@
-package io.browserservice.api.ws;
+package io.browserservice.api.session;
 
 import java.util.Objects;
 

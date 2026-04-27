@@ -8,6 +8,7 @@ import io.browserservice.api.error.ErrorMapper;
 import io.browserservice.api.error.RequestIdFilter;
 import io.browserservice.api.error.ScreenshotTooLargeException;
 import io.browserservice.api.error.UnknownFrameTypeException;
+import io.browserservice.api.session.CallerId;
 import io.browserservice.api.ws.dto.BinaryHeaderFrame;
 import io.browserservice.api.ws.dto.CommandFrame;
 import io.browserservice.api.ws.dto.ResponseFrame;

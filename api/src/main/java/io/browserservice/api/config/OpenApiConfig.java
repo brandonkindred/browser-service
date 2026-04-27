@@ -1,12 +1,20 @@
 package io.browserservice.api.config;
 
+import io.browserservice.api.session.CallerId;
+import io.browserservice.api.web.CallerIdArgumentResolver;
 import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.Operation;
+import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.media.StringSchema;
+import io.swagger.v3.oas.models.parameters.HeaderParameter;
+import io.swagger.v3.oas.models.parameters.Parameter;
 import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.tags.Tag;
 import java.util.List;
+import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -47,5 +55,57 @@ public class OpenApiConfig {
                 new Tag().name("Capture").description("One-shot navigate + capture + close"),
                 new Tag().name("Ops").description("Health, readiness, metrics")))
         .components(new Components());
+  }
+
+  /**
+   * Documents {@code X-Caller-Id} as a required header on every operation under {@code /v1/}.
+   * Endpoints outside that prefix (e.g. {@code /healthz}, {@code /readyz}) are unaffected.
+   */
+  @Bean
+  public OpenApiCustomizer callerIdHeaderCustomizer() {
+    return openApi -> {
+      if (openApi.getPaths() == null) {
+        return;
+      }
+      openApi
+          .getPaths()
+          .forEach(
+              (path, pathItem) -> {
+                if (path == null || !path.startsWith("/v1/")) {
+                  return;
+                }
+                for (Operation op : operationsOf(pathItem)) {
+                  if (hasCallerIdHeader(op)) {
+                    continue;
+                  }
+                  op.addParametersItem(callerIdHeaderParameter());
+                }
+              });
+    };
+  }
+
+  private static List<Operation> operationsOf(PathItem item) {
+    return item.readOperations();
+  }
+
+  private static boolean hasCallerIdHeader(Operation op) {
+    if (op.getParameters() == null) {
+      return false;
+    }
+    for (Parameter p : op.getParameters()) {
+      if ("header".equals(p.getIn())
+          && CallerIdArgumentResolver.CALLER_HEADER.equals(p.getName())) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static Parameter callerIdHeaderParameter() {
+    return new HeaderParameter()
+        .name(CallerIdArgumentResolver.CALLER_HEADER)
+        .required(true)
+        .description("Identifies the calling client. Bound to created sessions for ownership.")
+        .schema(new StringSchema().maxLength(CallerId.MAX_LENGTH));
   }
 }

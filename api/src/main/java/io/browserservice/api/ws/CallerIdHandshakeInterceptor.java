@@ -1,5 +1,6 @@
 package io.browserservice.api.ws;
 
+import io.browserservice.api.session.CallerId;
 import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
