@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      # Single invocation runs Spotless + Checkstyle + SpotBugs + PMD +
+      # surefire (unit) + failsafe (integration via Testcontainers) +
+      # JaCoCo gate. ubuntu-latest provides the Docker daemon required
+      # by the *IT.java tests.
+      - name: Build, lint, test, coverage
+        run: ./mvnw -B -ntp verify
+
+      # Upload reports even on failure so reviewers can inspect what
+      # broke without re-running CI locally.
+      - name: Upload JaCoCo reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-reports
+          path: |
+            api/target/site/jacoco/
+            engine/target/site/jacoco/
+          if-no-files-found: warn
+
+      - name: Upload lint reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-reports
+          path: |
+            api/target/checkstyle-result.xml
+            engine/target/checkstyle-result.xml
+            api/target/spotbugsXml.xml
+            engine/target/spotbugsXml.xml
+            api/target/pmd.xml
+            engine/target/pmd.xml
+          if-no-files-found: ignore
+
+      - name: Upload surefire/failsafe reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: |
+            api/target/surefire-reports/
+            engine/target/surefire-reports/
+            api/target/failsafe-reports/
+          if-no-files-found: ignore
