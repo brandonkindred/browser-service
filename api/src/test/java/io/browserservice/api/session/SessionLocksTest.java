@@ -32,12 +32,14 @@ class SessionLocksTest {
   }
 
   @Test
-  void doWithLockRunsWorkAndTouches() throws InterruptedException {
+  void doWithLockAdvancesLastUsedAt() throws InterruptedException {
     Instant before = handle.lastUsedAt();
     Thread.sleep(2);
     Integer result = locks.doWithLock(handle, h -> 42);
     assertThat(result).isEqualTo(42);
-    assertThat(handle.lastUsedAt()).isAfter(before);
+    assertThat(handle.lastUsedAt())
+        .as("op path through doWithLock must bump lastUsedAt")
+        .isAfter(before);
     assertThat(handle.lock().isHeldByCurrentThread()).isFalse();
   }
 
