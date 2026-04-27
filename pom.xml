@@ -38,6 +38,8 @@
     <maven-failsafe-plugin.version>3.5.2</maven-failsafe-plugin.version>
     <maven-source-plugin.version>3.3.1</maven-source-plugin.version>
     <spotless-maven-plugin.version>3.4.0</spotless-maven-plugin.version>
+    <maven-checkstyle-plugin.version>3.6.0</maven-checkstyle-plugin.version>
+    <checkstyle.version>13.4.0</checkstyle.version>
   </properties>
 
   <dependencyManagement>
@@ -127,6 +129,39 @@
           <executions>
             <execution>
               <id>spotless-check</id>
+              <goals>
+                <goal>check</goal>
+              </goals>
+              <phase>verify</phase>
+            </execution>
+          </executions>
+        </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-checkstyle-plugin</artifactId>
+          <version>${maven-checkstyle-plugin.version}</version>
+          <dependencies>
+            <dependency>
+              <groupId>com.puppycrawl.tools</groupId>
+              <artifactId>checkstyle</artifactId>
+              <version>${checkstyle.version}</version>
+            </dependency>
+          </dependencies>
+          <configuration>
+            <configLocation>google_checks.xml</configLocation>
+            <suppressionsLocation>${maven.multiModuleProjectDirectory}/config/checkstyle/suppressions.xml</suppressionsLocation>
+            <suppressionsFileExpression>org.checkstyle.google.suppressionfilter.config</suppressionsFileExpression>
+            <inputEncoding>UTF-8</inputEncoding>
+            <consoleOutput>true</consoleOutput>
+            <failsOnError>true</failsOnError>
+            <failOnViolation>true</failOnViolation>
+            <linkXRef>false</linkXRef>
+            <includeTestSourceDirectory>true</includeTestSourceDirectory>
+            <violationSeverity>warning</violationSeverity>
+          </configuration>
+          <executions>
+            <execution>
+              <id>checkstyle-check</id>
               <goals>
                 <goal>check</goal>
               </goals>
