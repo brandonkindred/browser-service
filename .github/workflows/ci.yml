@@ -30,8 +30,59 @@ jobs:
       # surefire (unit) + failsafe (integration via Testcontainers) +
       # JaCoCo gate. ubuntu-latest provides the Docker daemon required
       # by the *IT.java tests.
+      #
+      # `-e` prints full stack traces on failure; `-fae` (fail-at-end)
+      # tries every goal so we surface every problem in a single run.
       - name: Build, lint, test, coverage
-        run: ./mvnw -B -ntp verify
+        run: ./mvnw -B -ntp -e -fae verify
+
+      # If the verify step failed, dump the relevant failure detail
+      # straight into the workflow log. Anonymous users can't read the
+      # uploaded `test-reports` / `lint-reports` artifacts without
+      # signing in, so this makes the root cause visible directly in
+      # the (public) step output. Each section is a collapsible group.
+      - name: Dump failure context
+        if: failure()
+        run: |
+          set +e
+          echo "::group::Maven build summary (re-run with -X for full debug if needed)"
+          tail -n 200 "$GITHUB_WORKSPACE"/.mvn-build.log 2>/dev/null \
+            || echo "(no .mvn-build.log captured; relying on inline errors above)"
+          echo "::endgroup::"
+
+          for d in api/target/failsafe-reports api/target/surefire-reports engine/target/surefire-reports; do
+            if [ -d "$d" ]; then
+              echo "::group::$d (failures only)"
+              # *.txt files in surefire/failsafe carry the human-readable
+              # summary + stack trace for any test that didn't pass.
+              for f in "$d"/*.txt; do
+                [ -f "$f" ] || continue
+                if grep -qE 'FAIL|ERROR' "$f"; then
+                  echo "----- $f -----"
+                  cat "$f"
+                fi
+              done
+              # *.dump captures JVM-level errors (OOM, JUnit discovery
+              # failures, fork crashes) — always relevant when present.
+              for f in "$d"/*.dump "$d"/*.dumpstream; do
+                [ -f "$f" ] || continue
+                echo "----- $f -----"
+                cat "$f"
+              done
+              echo "::endgroup::"
+            fi
+          done
+
+          for f in api/target/checkstyle-result.xml engine/target/checkstyle-result.xml \
+                   api/target/spotbugsXml.xml engine/target/spotbugsXml.xml \
+                   api/target/pmd.xml engine/target/pmd.xml; do
+            if [ -f "$f" ]; then
+              echo "::group::$f (lint errors)"
+              # Show only error/violation lines, not the full XML envelope.
+              grep -E '<error |<BugInstance |<violation ' "$f" | head -100
+              echo "::endgroup::"
+            fi
+          done
 
       # Upload reports even on failure so reviewers can inspect what
       # broke without re-running CI locally.
