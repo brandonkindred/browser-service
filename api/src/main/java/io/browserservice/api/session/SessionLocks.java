@@ -27,6 +27,7 @@ public class SessionLocks {
       throw new SessionBusyException(handle.id());
     }
     try {
+      // Single, authoritative idle-refresh site. Do not add another anywhere.
       handle.touch();
       return work.execute(handle);
     } finally {

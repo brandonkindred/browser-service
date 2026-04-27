@@ -95,6 +95,31 @@ class SessionHandleTest {
   }
 
   @Test
+  void readAccessorsDoNotAdvanceLastUsedAt() throws InterruptedException {
+    SessionHandle handle =
+        SessionHandle.desktop(
+            mock(Browser.class),
+            BrowserType.CHROME,
+            BrowserEnvironment.TEST,
+            Duration.ofSeconds(30),
+            Duration.ofSeconds(60));
+    final Instant before = handle.lastUsedAt();
+    Thread.sleep(5);
+
+    // Read paths a describe/list response would touch — none should refresh idle.
+    handle.id();
+    handle.browserType();
+    handle.environment();
+    handle.createdAt();
+    handle.lastUsedAt();
+    handle.expiresAt();
+    handle.isExpired(Instant.now());
+    handle.isClosed();
+
+    assertThat(handle.lastUsedAt()).isEqualTo(before);
+  }
+
+  @Test
   void expiresAtPrefersTheEarlierOfIdleOrAbsoluteTtl() {
     SessionHandle handle =
         SessionHandle.desktop(

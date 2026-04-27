@@ -132,7 +132,12 @@ public final class SessionHandle {
     return mobileDevice != null ? mobileDevice.getDriver() : browser.getDriver();
   }
 
-  public void touch() {
+  /**
+   * Refreshes the idle clock. Called only by {@link SessionLocks} after a successful lock
+   * acquisition. Do not invoke from controllers or read paths — server-driven instrumentation must
+   * not extend a session's life.
+   */
+  void touch() {
     this.lastUsedAt = Instant.now();
   }
 
