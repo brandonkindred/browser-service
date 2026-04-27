@@ -20,21 +20,24 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Scrolling")
 public class ViewportController {
 
-    private final BrowserOperationsService service;
+  private final BrowserOperationsService service;
 
-    public ViewportController(BrowserOperationsService service) {
-        this.service = service;
-    }
+  public ViewportController(BrowserOperationsService service) {
+    this.service = service;
+  }
 
-    @GetMapping("/viewport")
-    @Operation(summary = "Get current viewport size and scroll offset", operationId = "getViewport")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200",
-                    content = @Content(schema = @Schema(implementation = ViewportStateResponse.class))),
-            @ApiResponse(responseCode = "404", description = "Session not found",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    })
-    public ViewportStateResponse viewport(@PathVariable UUID id) {
-        return service.getViewport(id);
-    }
+  @GetMapping("/viewport")
+  @Operation(summary = "Get current viewport size and scroll offset", operationId = "getViewport")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        content = @Content(schema = @Schema(implementation = ViewportStateResponse.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = "Session not found",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
+  public ViewportStateResponse viewport(@PathVariable UUID id) {
+    return service.getViewport(id);
+  }
 }

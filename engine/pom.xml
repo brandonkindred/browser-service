@@ -1,208 +1,206 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-    <modelVersion>4.0.0</modelVersion>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
 
-    <parent>
-        <groupId>io.browserservice</groupId>
-        <artifactId>browser-service-parent</artifactId>
-        <version>0.1.0-SNAPSHOT</version>
-        <relativePath>../pom.xml</relativePath>
-    </parent>
+  <parent>
+    <groupId>io.browserservice</groupId>
+    <artifactId>browser-service-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+    <relativePath>../pom.xml</relativePath>
+  </parent>
 
-    <artifactId>browser-service-engine</artifactId>
-    <packaging>jar</packaging>
+  <artifactId>browser-service-engine</artifactId>
+  <packaging>jar</packaging>
 
-    <name>Browser Service Engine</name>
-    <description>Selenium/Appium-based browser automation engine powering the Browser Service.</description>
+  <name>Browser Service Engine</name>
+  <description>Selenium/Appium-based browser automation engine powering the Browser Service.</description>
 
-    <properties>
-        <!-- Engine-only dependency versions (API module has its own Spring-managed versions) -->
-        <selenium.version>4.27.0</selenium.version>
-        <appium.version>9.3.0</appium.version>
-        <shutterbug.version>1.6</shutterbug.version>
-        <ashot.version>1.5.4</ashot.version>
-        <jackson.version>2.18.2</jackson.version>
-        <commons-codec.version>1.17.1</commons-codec.version>
-        <jstyleparser.version>3.5</jstyleparser.version>
-        <jsoup.version>1.18.1</jsoup.version>
-        <lombok.version>1.18.34</lombok.version>
-        <junit.version>5.11.3</junit.version>
-        <mockito.version>5.14.2</mockito.version>
-        <jacoco.version>0.8.12</jacoco.version>
-    </properties>
+  <properties>
+    <!-- Engine-only dependency versions (API module has its own Spring-managed versions) -->
+    <selenium.version>4.27.0</selenium.version>
+    <appium.version>9.3.0</appium.version>
+    <shutterbug.version>1.6</shutterbug.version>
+    <ashot.version>1.5.4</ashot.version>
+    <jackson.version>2.18.2</jackson.version>
+    <commons-codec.version>1.17.1</commons-codec.version>
+    <jstyleparser.version>3.5</jstyleparser.version>
+    <jsoup.version>1.18.1</jsoup.version>
+    <lombok.version>1.18.34</lombok.version>
+    <junit.version>5.11.3</junit.version>
+    <mockito.version>5.14.2</mockito.version>
+    <jacoco.version>0.8.12</jacoco.version>
+  </properties>
 
-    <dependencies>
-        <!-- Selenium 4 -->
-        <dependency>
-            <groupId>org.seleniumhq.selenium</groupId>
-            <artifactId>selenium-java</artifactId>
-            <version>${selenium.version}</version>
-        </dependency>
+  <dependencies>
+    <!-- Selenium 4 -->
+    <dependency>
+      <groupId>org.seleniumhq.selenium</groupId>
+      <artifactId>selenium-java</artifactId>
+      <version>${selenium.version}</version>
+    </dependency>
 
-        <!-- Screenshot strategies -->
-        <dependency>
-            <groupId>com.assertthat</groupId>
-            <artifactId>selenium-shutterbug</artifactId>
-            <version>${shutterbug.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.seleniumhq.selenium</groupId>
-                    <artifactId>selenium-java</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>ru.yandex.qatools.ashot</groupId>
-            <artifactId>ashot</artifactId>
-            <version>${ashot.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.seleniumhq.selenium</groupId>
-                    <artifactId>selenium-remote-driver</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
+    <!-- Screenshot strategies -->
+    <dependency>
+      <groupId>com.assertthat</groupId>
+      <artifactId>selenium-shutterbug</artifactId>
+      <version>${shutterbug.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.seleniumhq.selenium</groupId>
+          <artifactId>selenium-java</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>ru.yandex.qatools.ashot</groupId>
+      <artifactId>ashot</artifactId>
+      <version>${ashot.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.seleniumhq.selenium</groupId>
+          <artifactId>selenium-remote-driver</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
 
-        <!-- Appium 9 (Selenium 4 compatible) -->
-        <dependency>
-            <groupId>io.appium</groupId>
-            <artifactId>java-client</artifactId>
-            <version>${appium.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.seleniumhq.selenium</groupId>
-                    <artifactId>selenium-java</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
+    <!-- Appium 9 (Selenium 4 compatible) -->
+    <dependency>
+      <groupId>io.appium</groupId>
+      <artifactId>java-client</artifactId>
+      <version>${appium.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.seleniumhq.selenium</groupId>
+          <artifactId>selenium-java</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
 
-        <!-- CSS / HTML parsing -->
-        <dependency>
-            <groupId>net.sf.cssbox</groupId>
-            <artifactId>jstyleparser</artifactId>
-            <version>${jstyleparser.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jsoup</groupId>
-            <artifactId>jsoup</artifactId>
-            <version>${jsoup.version}</version>
-        </dependency>
+    <!-- CSS / HTML parsing -->
+    <dependency>
+      <groupId>net.sf.cssbox</groupId>
+      <artifactId>jstyleparser</artifactId>
+      <version>${jstyleparser.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jsoup</groupId>
+      <artifactId>jsoup</artifactId>
+      <version>${jsoup.version}</version>
+    </dependency>
 
-        <!-- Apache Commons -->
-        <dependency>
-            <groupId>commons-codec</groupId>
-            <artifactId>commons-codec</artifactId>
-            <version>${commons-codec.version}</version>
-        </dependency>
+    <!-- Apache Commons -->
+    <dependency>
+      <groupId>commons-codec</groupId>
+      <artifactId>commons-codec</artifactId>
+      <version>${commons-codec.version}</version>
+    </dependency>
 
-        <!-- Jackson -->
-        <dependency>
-            <groupId>com.fasterxml.jackson.core</groupId>
-            <artifactId>jackson-annotations</artifactId>
-            <version>${jackson.version}</version>
-        </dependency>
+    <!-- Jackson -->
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-annotations</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
 
-        <!-- Lombok (compile-only, annotation processor on plugin) -->
-        <dependency>
-            <groupId>org.projectlombok</groupId>
-            <artifactId>lombok</artifactId>
-            <version>${lombok.version}</version>
-            <scope>provided</scope>
-        </dependency>
+    <!-- Lombok (compile-only, annotation processor on plugin) -->
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>${lombok.version}</version>
+      <scope>provided</scope>
+    </dependency>
 
-        <!-- Test -->
-        <dependency>
-            <groupId>org.junit.jupiter</groupId>
-            <artifactId>junit-jupiter</artifactId>
-            <version>${junit.version}</version>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.mockito</groupId>
-            <artifactId>mockito-junit-jupiter</artifactId>
-            <version>${mockito.version}</version>
-            <scope>test</scope>
-        </dependency>
-    </dependencies>
+    <!-- Test -->
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>${junit.version}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-junit-jupiter</artifactId>
+      <version>${mockito.version}</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
 
-    <build>
-        <plugins>
-            <plugin>
-                <groupId>com.diffplug.spotless</groupId>
-                <artifactId>spotless-maven-plugin</artifactId>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <configuration>
-                    <source>${java.version}</source>
-                    <target>${java.version}</target>
-                    <encoding>UTF-8</encoding>
-                    <annotationProcessorPaths>
-                        <path>
-                            <groupId>org.projectlombok</groupId>
-                            <artifactId>lombok</artifactId>
-                            <version>${lombok.version}</version>
-                        </path>
-                    </annotationProcessorPaths>
-                </configuration>
-            </plugin>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.diffplug.spotless</groupId>
+        <artifactId>spotless-maven-plugin</artifactId>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>${java.version}</source>
+          <target>${java.version}</target>
+          <encoding>UTF-8</encoding>
+          <annotationProcessorPaths>
+            <path>
+              <groupId>org.projectlombok</groupId>
+              <artifactId>lombok</artifactId>
+              <version>${lombok.version}</version>
+            </path>
+          </annotationProcessorPaths>
+        </configuration>
+      </plugin>
 
-            <plugin>
-                <groupId>org.jacoco</groupId>
-                <artifactId>jacoco-maven-plugin</artifactId>
-                <version>${jacoco.version}</version>
-                <configuration>
-                    <excludes>
-                        <!-- Static factories that instantiate real RemoteWebDriver / Appium drivers and
+      <plugin>
+        <groupId>org.jacoco</groupId>
+        <artifactId>jacoco-maven-plugin</artifactId>
+        <version>${jacoco.version}</version>
+        <configuration>
+          <excludes>
+            <!-- Static factories that instantiate real RemoteWebDriver / Appium drivers and
                              connect to external Selenium Grid / Appium / BrowserStack URLs. Meaningful
                              tests would require real services; unit-level mocks don't exercise the
                              construction paths without triggering network calls. -->
-                        <exclude>com/looksee/browser/BrowserFactory.class</exclude>
-                        <exclude>com/looksee/browser/MobileFactory.class</exclude>
-                        <!-- Wraps HttpCommandExecutor; the execute() path requires a real WebDriver HTTP
+            <exclude>com/looksee/browser/BrowserFactory.class</exclude>
+            <exclude>com/looksee/browser/MobileFactory.class</exclude>
+            <!-- Wraps HttpCommandExecutor; the execute() path requires a real WebDriver HTTP
                              endpoint to exercise fully. -->
-                        <exclude>com/looksee/browser/RateLimitExecutor.class</exclude>
-                        <!-- readUrl() casts to HttpsURLConnection and fetches remote resources; requires
+            <exclude>com/looksee/browser/RateLimitExecutor.class</exclude>
+            <!-- readUrl() casts to HttpsURLConnection and fetches remote resources; requires
                              a live HTTPS upstream. -->
-                        <exclude>com/looksee/browser/utils/NetworkUtils.class</exclude>
-                        <!-- CSS parsing internals (jStyleParser RuleSet iteration with jsoup adapter
+            <exclude>com/looksee/browser/utils/NetworkUtils.class</exclude>
+            <!-- CSS parsing internals (jStyleParser RuleSet iteration with jsoup adapter
                              fixtures). Exercised by consumers through Browser.getSource() +
                              manual parser setup; unit-level test fixtures for the private parser
                              branches require building W3C Document + RuleSet graphs by hand. -->
-                        <exclude>com/looksee/browser/utils/CssUtils.class</exclude>
-                    </excludes>
-                </configuration>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>prepare-agent</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>report</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
+            <exclude>com/looksee/browser/utils/CssUtils.class</exclude>
+          </excludes>
+        </configuration>
+        <executions>
+          <execution>
+            <goals>
+              <goal>prepare-agent</goal>
+            </goals>
+          </execution>
+          <execution>
+            <id>report</id>
+            <goals>
+              <goal>report</goal>
+            </goals>
+            <phase>test</phase>
+          </execution>
+        </executions>
+      </plugin>
 
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <goals>
-                            <goal>jar-no-fork</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-source-plugin</artifactId>
+        <executions>
+          <execution>
+            <id>attach-sources</id>
+            <goals>
+              <goal>jar-no-fork</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

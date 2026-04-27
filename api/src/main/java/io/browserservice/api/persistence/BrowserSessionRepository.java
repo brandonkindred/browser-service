@@ -8,5 +8,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface BrowserSessionRepository extends JpaRepository<BrowserSessionEntity, UUID> {
 
-    List<BrowserSessionEntity> findByStatus(BrowserSessionEntity.Status status);
+  List<BrowserSessionEntity> findByStatus(BrowserSessionEntity.Status status);
 }

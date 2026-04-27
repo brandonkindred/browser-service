@@ -32,218 +32,241 @@ import org.openqa.selenium.WebDriver;
 
 class SessionServiceTest {
 
-    private SessionRegistry registry;
-    private SessionLocks locks;
-    private DriverFactory drivers;
-    private BrowserSessionTracker tracker;
-    private SessionService service;
+  private SessionRegistry registry;
+  private SessionLocks locks;
+  private DriverFactory drivers;
+  private BrowserSessionTracker tracker;
+  private SessionService service;
 
-    @BeforeEach
-    void setUp() {
-        EngineProperties props = props(2);
-        registry = new SessionRegistry(props);
-        locks = new SessionLocks(props);
-        drivers = mock(DriverFactory.class);
-        tracker = mock(BrowserSessionTracker.class);
-        service = new SessionService(registry, locks, drivers, tracker, props);
-    }
+  @BeforeEach
+  void setUp() {
+    EngineProperties props = props(2);
+    registry = new SessionRegistry(props);
+    locks = new SessionLocks(props);
+    drivers = mock(DriverFactory.class);
+    tracker = mock(BrowserSessionTracker.class);
+    service = new SessionService(registry, locks, drivers, tracker, props);
+  }
 
-    @Test
-    void createDesktopSessionUsesDesktopFactory() {
-        Browser browser = mockBrowserWithDriver();
-        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+  @Test
+  void createDesktopSessionUsesDesktopFactory() {
+    Browser browser = mockBrowserWithDriver();
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
-        SessionResponse response = service.create(new CreateSessionRequest(
-                BrowserType.CHROME, BrowserEnvironment.TEST, null));
-
-        assertThat(response.browserType()).isEqualTo(BrowserType.CHROME);
-        assertThat(response.environment()).isEqualTo(BrowserEnvironment.TEST);
-        assertThat(response.sessionId()).isNotNull();
-        assertThat(registry.size()).isEqualTo(1);
-    }
-
-    @Test
-    void createMobileSessionUsesMobileFactory() {
-        MobileDevice device = mockMobileWithDriver();
-        when(drivers.createMobile(BrowserType.ANDROID, BrowserEnvironment.TEST)).thenReturn(device);
-
-        SessionResponse response = service.create(new CreateSessionRequest(
-                BrowserType.ANDROID, BrowserEnvironment.TEST, 120));
-
-        assertThat(response.browserType()).isEqualTo(BrowserType.ANDROID);
-        assertThat(response.sessionId()).isNotNull();
-    }
-
-    @Test
-    void createRespectsIdleTtlOverride() {
-        Browser browser = mockBrowserWithDriver();
-        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
-
-        service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, 42));
-
-        // One session was stored
-        assertThat(registry.snapshot()).singleElement()
-                .extracting(handle -> handle.idleTtl().toSeconds())
-                .isEqualTo(42L);
-    }
-
-    @Test
-    void createFailureReleasesPermit() {
-        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST))
-                .thenThrow(new UpstreamUnavailableException("nope"));
-
-        assertThatThrownBy(() ->
-                service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null)))
-                .isInstanceOf(UpstreamUnavailableException.class);
-
-        assertThat(registry.availablePermits()).isEqualTo(2);
-    }
-
-    @Test
-    void trackerFailureClosesBrowserAndReleasesPermit() {
-        Browser browser = mockBrowserWithDriver();
-        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
-        org.mockito.Mockito.doThrow(new RuntimeException("db down"))
-                .when(tracker).recordCreate(org.mockito.ArgumentMatchers.any(SessionHandle.class));
-
-        assertThatThrownBy(() ->
-                service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null)))
-                .isInstanceOf(RuntimeException.class);
-
-        verify(browser).close();
-        assertThat(registry.availablePermits()).isEqualTo(2);
-        assertThat(registry.size()).isZero();
-    }
-
-    @Test
-    void createEnforcesCap() {
-        Browser browser = mockBrowserWithDriver();
-        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
-
-        service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
+    SessionResponse response =
         service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
 
-        assertThatThrownBy(() ->
-                service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null)))
-                .isInstanceOf(SessionCapExceededException.class);
-    }
+    assertThat(response.browserType()).isEqualTo(BrowserType.CHROME);
+    assertThat(response.environment()).isEqualTo(BrowserEnvironment.TEST);
+    assertThat(response.sessionId()).isNotNull();
+    assertThat(registry.size()).isEqualTo(1);
+  }
 
-    @Test
-    void listReturnsAllOpenSessions() {
-        Browser browser = mockBrowserWithDriver();
-        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+  @Test
+  void createMobileSessionUsesMobileFactory() {
+    MobileDevice device = mockMobileWithDriver();
+    when(drivers.createMobile(BrowserType.ANDROID, BrowserEnvironment.TEST)).thenReturn(device);
 
+    SessionResponse response =
+        service.create(new CreateSessionRequest(BrowserType.ANDROID, BrowserEnvironment.TEST, 120));
+
+    assertThat(response.browserType()).isEqualTo(BrowserType.ANDROID);
+    assertThat(response.sessionId()).isNotNull();
+  }
+
+  @Test
+  void createRespectsIdleTtlOverride() {
+    Browser browser = mockBrowserWithDriver();
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+
+    service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, 42));
+
+    // One session was stored
+    assertThat(registry.snapshot())
+        .singleElement()
+        .extracting(handle -> handle.idleTtl().toSeconds())
+        .isEqualTo(42L);
+  }
+
+  @Test
+  void createFailureReleasesPermit() {
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST))
+        .thenThrow(new UpstreamUnavailableException("nope"));
+
+    assertThatThrownBy(
+            () ->
+                service.create(
+                    new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null)))
+        .isInstanceOf(UpstreamUnavailableException.class);
+
+    assertThat(registry.availablePermits()).isEqualTo(2);
+  }
+
+  @Test
+  void trackerFailureClosesBrowserAndReleasesPermit() {
+    Browser browser = mockBrowserWithDriver();
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    org.mockito.Mockito.doThrow(new RuntimeException("db down"))
+        .when(tracker)
+        .recordCreate(org.mockito.ArgumentMatchers.any(SessionHandle.class));
+
+    assertThatThrownBy(
+            () ->
+                service.create(
+                    new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null)))
+        .isInstanceOf(RuntimeException.class);
+
+    verify(browser).close();
+    assertThat(registry.availablePermits()).isEqualTo(2);
+    assertThat(registry.size()).isZero();
+  }
+
+  @Test
+  void createEnforcesCap() {
+    Browser browser = mockBrowserWithDriver();
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+
+    service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
+    service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
+
+    assertThatThrownBy(
+            () ->
+                service.create(
+                    new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null)))
+        .isInstanceOf(SessionCapExceededException.class);
+  }
+
+  @Test
+  void listReturnsAllOpenSessions() {
+    Browser browser = mockBrowserWithDriver();
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+
+    service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
+    SessionListResponse list = service.list();
+    assertThat(list.sessions()).hasSize(1);
+  }
+
+  @Test
+  void describeReturnsStateSnapshot() {
+    Browser browser = mockBrowserWithDriver();
+    when(browser.getViewportScrollOffset()).thenReturn(new Point(10, 20));
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+
+    SessionResponse created =
         service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
-        SessionListResponse list = service.list();
-        assertThat(list.sessions()).hasSize(1);
-    }
+    SessionStateResponse state = service.describe(created.sessionId());
 
-    @Test
-    void describeReturnsStateSnapshot() {
-        Browser browser = mockBrowserWithDriver();
-        when(browser.getViewportScrollOffset()).thenReturn(new Point(10, 20));
-        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    assertThat(state.sessionId()).isEqualTo(created.sessionId());
+    assertThat(state.viewport()).isNotNull();
+    assertThat(state.scrollOffset().x()).isEqualTo(10);
+    assertThat(state.scrollOffset().y()).isEqualTo(20);
+  }
 
-        SessionResponse created = service.create(new CreateSessionRequest(
-                BrowserType.CHROME, BrowserEnvironment.TEST, null));
-        SessionStateResponse state = service.describe(created.sessionId());
+  @Test
+  void describeUnknownIdThrowsSessionNotFound() {
+    assertThatThrownBy(() -> service.describe(UUID.randomUUID()))
+        .isInstanceOf(SessionNotFoundException.class);
+  }
 
-        assertThat(state.sessionId()).isEqualTo(created.sessionId());
-        assertThat(state.viewport()).isNotNull();
-        assertThat(state.scrollOffset().x()).isEqualTo(10);
-        assertThat(state.scrollOffset().y()).isEqualTo(20);
-    }
+  @Test
+  void describeToleratesDriverFailuresReturningNullableFields() {
+    Browser browser = mockBrowserWithDriver();
+    when(browser.getDriver().getCurrentUrl()).thenThrow(new RuntimeException("no url"));
+    when(browser.getDriver().manage()).thenThrow(new RuntimeException("no manage"));
+    when(browser.getViewportScrollOffset()).thenThrow(new RuntimeException("no scroll"));
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
-    @Test
-    void describeUnknownIdThrowsSessionNotFound() {
-        assertThatThrownBy(() -> service.describe(UUID.randomUUID()))
-                .isInstanceOf(SessionNotFoundException.class);
-    }
+    SessionResponse created =
+        service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
+    SessionStateResponse state = service.describe(created.sessionId());
 
-    @Test
-    void describeToleratesDriverFailuresReturningNullableFields() {
-        Browser browser = mockBrowserWithDriver();
-        when(browser.getDriver().getCurrentUrl()).thenThrow(new RuntimeException("no url"));
-        when(browser.getDriver().manage()).thenThrow(new RuntimeException("no manage"));
-        when(browser.getViewportScrollOffset()).thenThrow(new RuntimeException("no scroll"));
-        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    assertThat(state.currentUrl()).isNull();
+    assertThat(state.viewport()).isNull();
+    assertThat(state.scrollOffset()).isNull();
+  }
 
-        SessionResponse created = service.create(new CreateSessionRequest(
-                BrowserType.CHROME, BrowserEnvironment.TEST, null));
-        SessionStateResponse state = service.describe(created.sessionId());
+  @Test
+  void closeRemovesSession() {
+    Browser browser = mockBrowserWithDriver();
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
-        assertThat(state.currentUrl()).isNull();
-        assertThat(state.viewport()).isNull();
-        assertThat(state.scrollOffset()).isNull();
-    }
+    SessionResponse created =
+        service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
+    service.close(created.sessionId());
 
-    @Test
-    void closeRemovesSession() {
-        Browser browser = mockBrowserWithDriver();
-        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    verify(browser).close();
+    assertThat(registry.size()).isZero();
+  }
 
-        SessionResponse created = service.create(new CreateSessionRequest(
-                BrowserType.CHROME, BrowserEnvironment.TEST, null));
-        service.close(created.sessionId());
+  @Test
+  void createRecordsSessionInTracker() {
+    Browser browser = mockBrowserWithDriver();
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
-        verify(browser).close();
-        assertThat(registry.size()).isZero();
-    }
+    SessionResponse created =
+        service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
 
-    @Test
-    void createRecordsSessionInTracker() {
-        Browser browser = mockBrowserWithDriver();
-        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    org.mockito.ArgumentCaptor<SessionHandle> captor =
+        org.mockito.ArgumentCaptor.forClass(SessionHandle.class);
+    verify(tracker).recordCreate(captor.capture());
+    assertThat(captor.getValue().id()).isEqualTo(created.sessionId());
+  }
 
-        SessionResponse created = service.create(new CreateSessionRequest(
-                BrowserType.CHROME, BrowserEnvironment.TEST, null));
+  @Test
+  void closeRecordsClientCloseInTracker() {
+    Browser browser = mockBrowserWithDriver();
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
-        org.mockito.ArgumentCaptor<SessionHandle> captor = org.mockito.ArgumentCaptor.forClass(SessionHandle.class);
-        verify(tracker).recordCreate(captor.capture());
-        assertThat(captor.getValue().id()).isEqualTo(created.sessionId());
-    }
+    SessionResponse created =
+        service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
+    service.close(created.sessionId());
 
-    @Test
-    void closeRecordsClientCloseInTracker() {
-        Browser browser = mockBrowserWithDriver();
-        when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    verify(tracker).recordClientClose(created.sessionId());
+  }
 
-        SessionResponse created = service.create(new CreateSessionRequest(
-                BrowserType.CHROME, BrowserEnvironment.TEST, null));
-        service.close(created.sessionId());
+  @Test
+  void closeUnknownIdThrowsSessionNotFound() {
+    assertThatThrownBy(() -> service.close(UUID.randomUUID()))
+        .isInstanceOf(SessionNotFoundException.class);
+  }
 
-        verify(tracker).recordClientClose(created.sessionId());
-    }
+  private Browser mockBrowserWithDriver() {
+    Browser browser = mock(Browser.class);
+    WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
+    when(browser.getDriver()).thenReturn(driver);
+    when(driver.manage().window().getSize()).thenReturn(new Dimension(1024, 768));
+    when(driver.getCurrentUrl()).thenReturn("https://example.com");
+    when(browser.getViewportScrollOffset()).thenReturn(new Point(0, 0));
+    return browser;
+  }
 
-    @Test
-    void closeUnknownIdThrowsSessionNotFound() {
-        assertThatThrownBy(() -> service.close(UUID.randomUUID()))
-                .isInstanceOf(SessionNotFoundException.class);
-    }
+  private MobileDevice mockMobileWithDriver() {
+    MobileDevice device = mock(MobileDevice.class);
+    WebDriver driver = mock(WebDriver.class);
+    when(device.getDriver()).thenReturn(driver);
+    return device;
+  }
 
-    private Browser mockBrowserWithDriver() {
-        Browser browser = mock(Browser.class);
-        WebDriver driver = mock(WebDriver.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);
-        when(browser.getDriver()).thenReturn(driver);
-        when(driver.manage().window().getSize()).thenReturn(new Dimension(1024, 768));
-        when(driver.getCurrentUrl()).thenReturn("https://example.com");
-        when(browser.getViewportScrollOffset()).thenReturn(new Point(0, 0));
-        return browser;
-    }
-
-    private MobileDevice mockMobileWithDriver() {
-        MobileDevice device = mock(MobileDevice.class);
-        WebDriver driver = mock(WebDriver.class);
-        when(device.getDriver()).thenReturn(driver);
-        return device;
-    }
-
-    private static EngineProperties props(int max) {
-        return new EngineProperties(
-                new EngineProperties.SessionProps(10, 60, max, 1000),
-                new EngineProperties.SeleniumProps("", 0, 0, 0, false, 0),
-                new EngineProperties.AppiumProps("", "", "", 0, 0),
-                new EngineProperties.BrowserStackProps(false, "", "", "", "", "", "", "", "", "", "", "", false, false, false),
-                new EngineProperties.WebSocketProps("/v1/ws/sessions", 32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50, 16777216));
-    }
+  private static EngineProperties props(int max) {
+    return new EngineProperties(
+        new EngineProperties.SessionProps(10, 60, max, 1000),
+        new EngineProperties.SeleniumProps("", 0, 0, 0, false, 0),
+        new EngineProperties.AppiumProps("", "", "", 0, 0),
+        new EngineProperties.BrowserStackProps(
+            false, "", "", "", "", "", "", "", "", "", "", "", false, false, false),
+        new EngineProperties.WebSocketProps(
+            "/v1/ws/sessions",
+            32,
+            300,
+            64,
+            10000,
+            true,
+            250,
+            true,
+            1000,
+            true,
+            2000,
+            50,
+            16777216));
+  }
 }

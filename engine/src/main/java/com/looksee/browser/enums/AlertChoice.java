@@ -2,38 +2,36 @@ package com.looksee.browser.enums;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 
-/**
- * Enum representing the choice of alert
- */
+/** Enum representing the choice of alert */
 public enum AlertChoice {
-	DISMISS("dismiss"),
-    ACCEPT("accept");
+  DISMISS("dismiss"),
+  ACCEPT("accept");
 
-	private String shortName;
+  private String shortName;
 
-	AlertChoice (String shortName) {
-        this.shortName = shortName;
+  AlertChoice(String shortName) {
+    this.shortName = shortName;
+  }
+
+  @Override
+  public String toString() {
+    return shortName;
+  }
+
+  @JsonCreator
+  public static AlertChoice create(String value) {
+    if (value == null) {
+      throw new IllegalArgumentException();
     }
-
-    @Override
-    public String toString() {
-        return shortName;
+    for (AlertChoice v : values()) {
+      if (value.equalsIgnoreCase(v.getShortName())) {
+        return v;
+      }
     }
+    throw new IllegalArgumentException();
+  }
 
-    @JsonCreator
-    public static AlertChoice create (String value) {
-        if(value == null) {
-            throw new IllegalArgumentException();
-        }
-        for(AlertChoice v : values()) {
-            if(value.equalsIgnoreCase(v.getShortName())) {
-                return v;
-            }
-        }
-        throw new IllegalArgumentException();
-    }
-
-    public String getShortName() {
-        return shortName;
-    }
+  public String getShortName() {
+    return shortName;
+  }
 }
