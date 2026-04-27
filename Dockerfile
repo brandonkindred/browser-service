@@ -19,7 +19,7 @@ RUN mvn -q -pl api -am -DskipTests package
 
 FROM eclipse-temurin:21-jre AS layers
 WORKDIR /workspace
-COPY --from=build /src/api/target/*.jar app.jar
+COPY --from=build /src/api/target/*-exec.jar app.jar
 RUN java -Djarmode=layertools -jar app.jar extract
 
 FROM eclipse-temurin:21-jre

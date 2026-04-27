@@ -156,6 +156,19 @@
             <goals>
               <goal>repackage</goal>
             </goals>
+            <configuration>
+              <!-- Publish the bootable Spring Boot fat jar as a classified
+                   artifact (browser-service-api-<version>-exec.jar) and keep
+                   the plain jar as the project's main artifact. Without this,
+                   `repackage` replaces the main artifact with a fat jar
+                   (classes nested under BOOT-INF/classes/), which breaks the
+                   maven-failsafe classpath: failsafe's booter manifest then
+                   points at the fat jar instead of target/classes/, and the
+                   classloader cannot resolve project classes during JUnit
+                   test discovery (NoClassDefFoundError on entity classes).
+                   The Dockerfile selects the *-exec.jar explicitly. -->
+              <classifier>exec</classifier>
+            </configuration>
           </execution>
         </executions>
       </plugin>
