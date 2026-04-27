@@ -23,9 +23,5 @@
          — too noisy, and it's a style preference rather than a real
          error-prone pattern. -->
     <exclude name="AvoidLiteralsInIfCondition"/>
-    <!-- BeanMembersShouldSerialize requires Serializable on every field of
-         every Spring bean / DTO; the project doesn't serialize at the JVM
-         level so this is irrelevant. -->
-    <exclude name="BeanMembersShouldSerialize"/>
   </rule>
 </ruleset>
