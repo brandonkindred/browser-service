@@ -1,8 +1,0 @@
-# Placeholder so the .mvn/ directory exists in git. Maven uses the
-# presence of .mvn/ at the repo root as the marker that anchors
-# ${maven.multiModuleProjectDirectory} — without it, that property
-# resolves to the current working directory, which breaks
-# Checkstyle/SpotBugs config-file lookups when developers run mvn
-# from inside a module subdirectory. The Maven wrapper added in #34
-# will populate this directory; this file can be removed at that
-# point.
