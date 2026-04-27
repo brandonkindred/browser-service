@@ -93,6 +93,12 @@
           <groupId>org.apache.maven.plugins</groupId>
           <artifactId>maven-failsafe-plugin</artifactId>
           <version>${maven-failsafe-plugin.version}</version>
+          <configuration>
+            <!-- Tags that opt an IT out of the default verify run.
+                 Override locally with `-DexcludedGroups=` to run them.
+                 See SeleniumGridIT for the rationale (#43). -->
+            <excludedGroups>requires-selenium-grid</excludedGroups>
+          </configuration>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
