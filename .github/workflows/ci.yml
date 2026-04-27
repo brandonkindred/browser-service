@@ -11,6 +11,7 @@ concurrency:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   build:
@@ -31,58 +32,114 @@ jobs:
       # JaCoCo gate. ubuntu-latest provides the Docker daemon required
       # by the *IT.java tests.
       #
-      # `-e` prints full stack traces on failure; `-fae` (fail-at-end)
-      # tries every goal so we surface every problem in a single run.
+      # `-e` prints full stack traces; `-fae` (fail-at-end) keeps Maven
+      # going so every gate reports. The full output is also `tee`d
+      # to mvn-output.log so the failure-summary step can read it back.
       - name: Build, lint, test, coverage
-        run: ./mvnw -B -ntp -e -fae verify
+        run: |
+          set -o pipefail
+          ./mvnw -B -ntp -e -fae verify 2>&1 | tee mvn-output.log
 
-      # If the verify step failed, dump the relevant failure detail
-      # straight into the workflow log. Anonymous users can't read the
-      # uploaded `test-reports` / `lint-reports` artifacts without
-      # signing in, so this makes the root cause visible directly in
-      # the (public) step output. Each section is a collapsible group.
-      - name: Dump failure context
+      # On failure, build a markdown summary of the most relevant
+      # diagnostics — last lines of mvn output, surefire/failsafe text
+      # reports, lint XML — and write it to failure-summary.md.
+      # GitHub's job log view is sign-in-only, so the next step posts
+      # this file as a PR comment, which IS public.
+      - name: Compose failure summary
         if: failure()
         run: |
           set +e
-          echo "::group::Maven build summary (re-run with -X for full debug if needed)"
-          tail -n 200 "$GITHUB_WORKSPACE"/.mvn-build.log 2>/dev/null \
-            || echo "(no .mvn-build.log captured; relying on inline errors above)"
-          echo "::endgroup::"
+          MAX_BODY_BYTES=60000
+          out=failure-summary.md
+          {
+            echo "## :rotating_light: CI failure"
+            echo
+            echo "Workflow run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo
+            echo "Commit: \`${{ github.event.pull_request.head.sha || github.sha }}\`"
+            echo
+            echo "<details open><summary><b>Last 200 lines of <code>mvn verify</code></b></summary>"
+            echo
+            echo '```'
+            tail -n 200 mvn-output.log 2>/dev/null || echo "(mvn-output.log missing)"
+            echo '```'
+            echo "</details>"
+            echo
 
-          for d in api/target/failsafe-reports api/target/surefire-reports engine/target/surefire-reports; do
-            if [ -d "$d" ]; then
-              echo "::group::$d (failures only)"
-              # *.txt files in surefire/failsafe carry the human-readable
-              # summary + stack trace for any test that didn't pass.
-              for f in "$d"/*.txt; do
-                [ -f "$f" ] || continue
-                if grep -qE 'FAIL|ERROR' "$f"; then
+            for d in api/target/failsafe-reports api/target/surefire-reports engine/target/surefire-reports; do
+              if [ -d "$d" ]; then
+                shown=0
+                for f in "$d"/*.txt; do
+                  [ -f "$f" ] || continue
+                  if grep -qE 'FAIL|ERROR' "$f"; then
+                    if [ $shown -eq 0 ]; then
+                      echo "<details><summary><b>$d (failing tests)</b></summary>"
+                      echo
+                      echo '```'
+                      shown=1
+                    fi
+                    echo "----- $f -----"
+                    cat "$f"
+                    echo
+                  fi
+                done
+                # *.dump = JVM-level / JUnit-discovery failures
+                for f in "$d"/*.dump "$d"/*.dumpstream; do
+                  [ -f "$f" ] || continue
+                  if [ $shown -eq 0 ]; then
+                    echo "<details><summary><b>$d (fork dumps)</b></summary>"
+                    echo
+                    echo '```'
+                    shown=1
+                  fi
                   echo "----- $f -----"
                   cat "$f"
+                  echo
+                done
+                if [ $shown -eq 1 ]; then
+                  echo '```'
+                  echo "</details>"
+                  echo
                 fi
-              done
-              # *.dump captures JVM-level errors (OOM, JUnit discovery
-              # failures, fork crashes) — always relevant when present.
-              for f in "$d"/*.dump "$d"/*.dumpstream; do
-                [ -f "$f" ] || continue
-                echo "----- $f -----"
-                cat "$f"
-              done
-              echo "::endgroup::"
-            fi
-          done
+              fi
+            done
 
-          for f in api/target/checkstyle-result.xml engine/target/checkstyle-result.xml \
-                   api/target/spotbugsXml.xml engine/target/spotbugsXml.xml \
-                   api/target/pmd.xml engine/target/pmd.xml; do
-            if [ -f "$f" ]; then
-              echo "::group::$f (lint errors)"
-              # Show only error/violation lines, not the full XML envelope.
-              grep -E '<error |<BugInstance |<violation ' "$f" | head -100
-              echo "::endgroup::"
-            fi
-          done
+            for f in api/target/checkstyle-result.xml engine/target/checkstyle-result.xml \
+                     api/target/spotbugsXml.xml engine/target/spotbugsXml.xml \
+                     api/target/pmd.xml engine/target/pmd.xml; do
+              if [ -f "$f" ]; then
+                lines=$(grep -E '<error |<BugInstance |<violation ' "$f" | head -50)
+                if [ -n "$lines" ]; then
+                  echo "<details><summary><b>$f (first 50 violations)</b></summary>"
+                  echo
+                  echo '```'
+                  echo "$lines"
+                  echo '```'
+                  echo "</details>"
+                  echo
+                fi
+              fi
+            done
+          } > "$out"
+
+          # Truncate to fit GitHub's 65,536-char comment limit.
+          size=$(wc -c < "$out")
+          if [ "$size" -gt "$MAX_BODY_BYTES" ]; then
+            head -c "$MAX_BODY_BYTES" "$out" > "${out}.trunc"
+            { cat "${out}.trunc"; echo; echo "... (truncated; full reports in workflow artifacts)"; } > "$out"
+          fi
+          echo "summary size: $(wc -c < "$out") bytes"
+
+      - name: Post failure summary as PR comment
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -e
+          PR_NUMBER='${{ github.event.pull_request.number }}'
+          # Use the GitHub-installed `gh` CLI on ubuntu-latest.
+          gh pr comment "$PR_NUMBER" --body-file failure-summary.md \
+            --repo '${{ github.repository }}'
 
       # Upload reports even on failure so reviewers can inspect what
       # broke without re-running CI locally.
@@ -119,4 +176,12 @@ jobs:
             api/target/surefire-reports/
             engine/target/surefire-reports/
             api/target/failsafe-reports/
+          if-no-files-found: ignore
+
+      - name: Upload mvn output log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mvn-output
+          path: mvn-output.log
           if-no-files-found: ignore
