@@ -15,107 +15,151 @@ import org.slf4j.LoggerFactory;
 
 public final class SessionHandle {
 
-    private static final Logger log = LoggerFactory.getLogger(SessionHandle.class);
+  private static final Logger log = LoggerFactory.getLogger(SessionHandle.class);
 
-    private final UUID id;
-    private final Browser browser;           // null iff mobile session
-    private final MobileDevice mobileDevice; // null iff desktop session
-    private final BrowserType browserType;
-    private final BrowserEnvironment environment;
-    private final Instant createdAt;
-    private volatile Instant lastUsedAt;
-    private final Duration idleTtl;
-    private final Duration absoluteTtl;
-    private final ElementHandleRegistry elements;
-    private final ReentrantLock lock;
-    private final AtomicBoolean closed;
+  private final UUID id;
+  private final Browser browser; // null iff mobile session
+  private final MobileDevice mobileDevice; // null iff desktop session
+  private final BrowserType browserType;
+  private final BrowserEnvironment environment;
+  private final Instant createdAt;
+  private volatile Instant lastUsedAt;
+  private final Duration idleTtl;
+  private final Duration absoluteTtl;
+  private final ElementHandleRegistry elements;
+  private final ReentrantLock lock;
+  private final AtomicBoolean closed;
 
-    private SessionHandle(UUID id, Browser browser, MobileDevice mobileDevice,
-                          BrowserType type, BrowserEnvironment env,
-                          Duration idleTtl, Duration absoluteTtl) {
-        this.id = id;
-        this.browser = browser;
-        this.mobileDevice = mobileDevice;
-        this.browserType = type;
-        this.environment = env;
-        this.createdAt = Instant.now();
-        this.lastUsedAt = this.createdAt;
-        this.idleTtl = idleTtl;
-        this.absoluteTtl = absoluteTtl;
-        this.elements = new ElementHandleRegistry();
-        this.lock = new ReentrantLock();
-        this.closed = new AtomicBoolean(false);
+  private SessionHandle(
+      UUID id,
+      Browser browser,
+      MobileDevice mobileDevice,
+      BrowserType type,
+      BrowserEnvironment env,
+      Duration idleTtl,
+      Duration absoluteTtl) {
+    this.id = id;
+    this.browser = browser;
+    this.mobileDevice = mobileDevice;
+    this.browserType = type;
+    this.environment = env;
+    this.createdAt = Instant.now();
+    this.lastUsedAt = this.createdAt;
+    this.idleTtl = idleTtl;
+    this.absoluteTtl = absoluteTtl;
+    this.elements = new ElementHandleRegistry();
+    this.lock = new ReentrantLock();
+    this.closed = new AtomicBoolean(false);
+  }
+
+  public static SessionHandle desktop(
+      Browser browser,
+      BrowserType type,
+      BrowserEnvironment env,
+      Duration idleTtl,
+      Duration absoluteTtl) {
+    return new SessionHandle(UUID.randomUUID(), browser, null, type, env, idleTtl, absoluteTtl);
+  }
+
+  public static SessionHandle mobile(
+      MobileDevice device,
+      BrowserType type,
+      BrowserEnvironment env,
+      Duration idleTtl,
+      Duration absoluteTtl) {
+    return new SessionHandle(UUID.randomUUID(), null, device, type, env, idleTtl, absoluteTtl);
+  }
+
+  public UUID id() {
+    return id;
+  }
+
+  public BrowserType browserType() {
+    return browserType;
+  }
+
+  public BrowserEnvironment environment() {
+    return environment;
+  }
+
+  public Instant createdAt() {
+    return createdAt;
+  }
+
+  public Instant lastUsedAt() {
+    return lastUsedAt;
+  }
+
+  public Duration idleTtl() {
+    return idleTtl;
+  }
+
+  public Duration absoluteTtl() {
+    return absoluteTtl;
+  }
+
+  public ElementHandleRegistry elements() {
+    return elements;
+  }
+
+  public ReentrantLock lock() {
+    return lock;
+  }
+
+  public boolean isClosed() {
+    return closed.get();
+  }
+
+  public boolean isMobile() {
+    return mobileDevice != null;
+  }
+
+  public Browser asBrowser() {
+    if (browser == null) {
+      throw new IllegalStateException("session " + id + " is not a desktop session");
     }
+    return browser;
+  }
 
-    public static SessionHandle desktop(Browser browser, BrowserType type, BrowserEnvironment env,
-                                        Duration idleTtl, Duration absoluteTtl) {
-        return new SessionHandle(UUID.randomUUID(), browser, null, type, env, idleTtl, absoluteTtl);
+  public MobileDevice asMobileDevice() {
+    if (mobileDevice == null) {
+      throw new IllegalStateException("session " + id + " is not a mobile session");
     }
+    return mobileDevice;
+  }
 
-    public static SessionHandle mobile(MobileDevice device, BrowserType type, BrowserEnvironment env,
-                                       Duration idleTtl, Duration absoluteTtl) {
-        return new SessionHandle(UUID.randomUUID(), null, device, type, env, idleTtl, absoluteTtl);
+  public WebDriver driver() {
+    return mobileDevice != null ? mobileDevice.getDriver() : browser.getDriver();
+  }
+
+  public void touch() {
+    this.lastUsedAt = Instant.now();
+  }
+
+  public Instant expiresAt() {
+    Instant idleExpiry = lastUsedAt.plus(idleTtl);
+    Instant absoluteExpiry = createdAt.plus(absoluteTtl);
+    return idleExpiry.isBefore(absoluteExpiry) ? idleExpiry : absoluteExpiry;
+  }
+
+  public boolean isExpired(Instant now) {
+    return now.isAfter(createdAt.plus(absoluteTtl)) || now.isAfter(lastUsedAt.plus(idleTtl));
+  }
+
+  public boolean closeOnce() {
+    if (!closed.compareAndSet(false, true)) {
+      return false;
     }
-
-    public UUID id() { return id; }
-    public BrowserType browserType() { return browserType; }
-    public BrowserEnvironment environment() { return environment; }
-    public Instant createdAt() { return createdAt; }
-    public Instant lastUsedAt() { return lastUsedAt; }
-    public Duration idleTtl() { return idleTtl; }
-    public Duration absoluteTtl() { return absoluteTtl; }
-    public ElementHandleRegistry elements() { return elements; }
-    public ReentrantLock lock() { return lock; }
-    public boolean isClosed() { return closed.get(); }
-    public boolean isMobile() { return mobileDevice != null; }
-
-    public Browser asBrowser() {
-        if (browser == null) {
-            throw new IllegalStateException("session " + id + " is not a desktop session");
-        }
-        return browser;
+    try {
+      if (mobileDevice != null) {
+        mobileDevice.close();
+      } else if (browser != null) {
+        browser.close();
+      }
+    } catch (Exception e) {
+      log.warn("error while closing session {}: {}", id, e.toString());
     }
-
-    public MobileDevice asMobileDevice() {
-        if (mobileDevice == null) {
-            throw new IllegalStateException("session " + id + " is not a mobile session");
-        }
-        return mobileDevice;
-    }
-
-    public WebDriver driver() {
-        return mobileDevice != null ? mobileDevice.getDriver() : browser.getDriver();
-    }
-
-    public void touch() {
-        this.lastUsedAt = Instant.now();
-    }
-
-    public Instant expiresAt() {
-        Instant idleExpiry = lastUsedAt.plus(idleTtl);
-        Instant absoluteExpiry = createdAt.plus(absoluteTtl);
-        return idleExpiry.isBefore(absoluteExpiry) ? idleExpiry : absoluteExpiry;
-    }
-
-    public boolean isExpired(Instant now) {
-        return now.isAfter(createdAt.plus(absoluteTtl))
-                || now.isAfter(lastUsedAt.plus(idleTtl));
-    }
-
-    public boolean closeOnce() {
-        if (!closed.compareAndSet(false, true)) {
-            return false;
-        }
-        try {
-            if (mobileDevice != null) {
-                mobileDevice.close();
-            } else if (browser != null) {
-                browser.close();
-            }
-        } catch (Exception e) {
-            log.warn("error while closing session {}: {}", id, e.toString());
-        }
-        elements.clear();
-        return true;
-    }
+    elements.clear();
+    return true;
+  }
 }

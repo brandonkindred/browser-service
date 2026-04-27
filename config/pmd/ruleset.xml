@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<ruleset name="browser-service-pmd"
+         xmlns="http://pmd.sourceforge.net/ruleset/2.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
+
+  <description>
+    PMD ruleset for browser-service. Imports the bestpractices and errorprone
+    categories. Skips codestyle (overlaps with Spotless / Checkstyle),
+    documentation (too noisy on existing code), and design / performance
+    (can be added once the baseline is clean — tracked in #39).
+  </description>
+
+  <rule ref="category/java/bestpractices.xml">
+    <!-- Ratcheting these to clean is too disruptive on day one. Re-enable
+         once the existing violations are fixed (#39). -->
+    <exclude name="GuardLogStatement"/>
+    <exclude name="JUnit5TestShouldBePackagePrivate"/>
+  </rule>
+
+  <rule ref="category/java/errorprone.xml">
+    <!-- AvoidLiteralsInIfCondition triggers on near every `== 0` / `!= -1`
+         — too noisy, and it's a style preference rather than a real
+         error-prone pattern. -->
+    <exclude name="AvoidLiteralsInIfCondition"/>
+    <!-- BeanMembersShouldSerialize requires Serializable on every field of
+         every Spring bean / DTO; the project doesn't serialize at the JVM
+         level so this is irrelevant. -->
+    <exclude name="BeanMembersShouldSerialize"/>
+  </rule>
+</ruleset>

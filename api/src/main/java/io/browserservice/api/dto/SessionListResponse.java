@@ -5,5 +5,4 @@ import java.util.List;
 
 @Schema(description = "List of active sessions.")
 public record SessionListResponse(
-        @Schema(description = "All currently open sessions") List<SessionResponse> sessions) {
-}
+    @Schema(description = "All currently open sessions") List<SessionResponse> sessions) {}

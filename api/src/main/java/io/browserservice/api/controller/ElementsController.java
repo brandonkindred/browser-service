@@ -26,36 +26,45 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Elements", description = "Find elements and perform desktop actions")
 public class ElementsController {
 
-    private final ElementOperationsService service;
+  private final ElementOperationsService service;
 
-    public ElementsController(ElementOperationsService service) {
-        this.service = service;
-    }
+  public ElementsController(ElementOperationsService service) {
+    this.service = service;
+  }
 
-    @PostMapping("/find")
-    @Operation(summary = "Locate an element by XPath", operationId = "findElement")
-    @ApiResponses({
-            @ApiResponse(responseCode = "200",
-                    content = @Content(schema = @Schema(implementation = ElementStateResponse.class))),
-            @ApiResponse(responseCode = "404", description = "Session not found",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    })
-    public ElementStateResponse find(@PathVariable UUID id, @Valid @RequestBody FindElementRequest req) {
-        return service.find(id, req);
-    }
+  @PostMapping("/find")
+  @Operation(summary = "Locate an element by XPath", operationId = "findElement")
+  @ApiResponses({
+    @ApiResponse(
+        responseCode = "200",
+        content = @Content(schema = @Schema(implementation = ElementStateResponse.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = "Session not found",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
+  public ElementStateResponse find(
+      @PathVariable UUID id, @Valid @RequestBody FindElementRequest req) {
+    return service.find(id, req);
+  }
 
-    @PostMapping("/action")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Perform a desktop action on an element",
-            operationId = "performElementAction")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Action performed"),
-            @ApiResponse(responseCode = "404", description = "Session or element handle not found",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "409", description = "Mobile session (desktop required)",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    })
-    public void action(@PathVariable UUID id, @Valid @RequestBody ElementActionRequest req) {
-        service.action(id, req);
-    }
+  @PostMapping("/action")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(
+      summary = "Perform a desktop action on an element",
+      operationId = "performElementAction")
+  @ApiResponses({
+    @ApiResponse(responseCode = "204", description = "Action performed"),
+    @ApiResponse(
+        responseCode = "404",
+        description = "Session or element handle not found",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+    @ApiResponse(
+        responseCode = "409",
+        description = "Mobile session (desktop required)",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
+  public void action(@PathVariable UUID id, @Valid @RequestBody ElementActionRequest req) {
+    service.action(id, req);
+  }
 }

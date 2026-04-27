@@ -24,25 +24,31 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Mouse", description = "Desktop mouse operations")
 public class MouseController {
 
-    private final BrowserOperationsService service;
+  private final BrowserOperationsService service;
 
-    public MouseController(BrowserOperationsService service) {
-        this.service = service;
-    }
+  public MouseController(BrowserOperationsService service) {
+    this.service = service;
+  }
 
-    @PostMapping("/mouse/move")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    @Operation(summary = "Move the mouse", operationId = "moveMouse")
-    @ApiResponses({
-            @ApiResponse(responseCode = "204", description = "Moved"),
-            @ApiResponse(responseCode = "400", description = "Validation failed",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "404", description = "Session not found",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-            @ApiResponse(responseCode = "409", description = "Mobile session (desktop required)",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-    })
-    public void move(@PathVariable UUID id, @Valid @RequestBody MouseMoveRequest req) {
-        service.moveMouse(id, req);
-    }
+  @PostMapping("/mouse/move")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  @Operation(summary = "Move the mouse", operationId = "moveMouse")
+  @ApiResponses({
+    @ApiResponse(responseCode = "204", description = "Moved"),
+    @ApiResponse(
+        responseCode = "400",
+        description = "Validation failed",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+    @ApiResponse(
+        responseCode = "404",
+        description = "Session not found",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+    @ApiResponse(
+        responseCode = "409",
+        description = "Mobile session (desktop required)",
+        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+  })
+  public void move(@PathVariable UUID id, @Valid @RequestBody MouseMoveRequest req) {
+    service.moveMouse(id, req);
+  }
 }
