@@ -66,19 +66,27 @@ curl "$(terraform output -raw browser_service_url)/v1/sessions" \
 
 ## How the pieces connect
 
-```
-                 ┌────────────────────┐
-                 │  browser-service   │  Cloud Run (public)
-                 │  Spring Boot API   │
-                 └────────┬───────────┘
-                          │ VPC connector (private egress)
-          ┌───────────────┼──────────────────────┐
-          │               │                      │
-          ▼               ▼                      ▼
- ┌─────────────────┐ ┌─────────────────┐   ┌───────────────────┐
- │ Cloud SQL       │ │ selenium-chrome │ … │ selenium-chrome   │
- │ Postgres (priv.)│ │  -dev-00 (Run)  │   │  -dev-09 (Run)    │
- └─────────────────┘ └─────────────────┘   └───────────────────┘
+```mermaid
+flowchart TD
+    Client([External caller])
+    API["browser-service API<br/>Spring Boot · Cloud Run<br/>ingress = all"]
+    PG[("Cloud SQL Postgres<br/>private IP")]
+    Secret[["Secret Manager<br/>DB password"]]
+    S0["selenium-chrome-dev-00<br/>Cloud Run · ingress = internal"]
+    S1["selenium-chrome-dev-01<br/>Cloud Run · ingress = internal"]
+    SN["selenium-chrome-dev-09<br/>Cloud Run · ingress = internal"]
+
+    Client -->|HTTPS| API
+
+    subgraph VPC["VPC (Serverless VPC Access connector, egress = all-traffic)"]
+        API -->|JDBC| PG
+        API -->|/wd/hub| S0
+        API -->|/wd/hub| S1
+        API -->|/wd/hub| SN
+    end
+
+    API -.reads DATABASE_PASSWORD.-> Secret
+    S1 -.- SN
 ```
 
 - The API reads `DATABASE_PASSWORD` from Secret Manager; everything else (`DATABASE_URL`, `DATABASE_USERNAME`, `SELENIUM_GRID_URLS`) is plain env injected by Terraform.
