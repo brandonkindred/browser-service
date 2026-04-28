@@ -19,8 +19,13 @@ variable "environment" {
   default     = "dev"
 
   validation {
-    condition     = can(regex("^[a-z][a-z0-9-]{0,11}$", var.environment))
-    error_message = "environment must be 1-12 chars, lowercase letters/digits/hyphens, starting with a letter. The cap keeps composed names under VPC connector (25), service account (30), and Cloud Run service (49) limits."
+    # 1 char OR 2-12 chars starting with a letter and ending with an
+    # alphanumeric. The trailing-alnum requirement matters because composed
+    # names like `bs-api-${env}` and `bs-conn-${env}` get fed to GCP APIs
+    # that enforce RFC1035 (must end alphanumeric), so e.g. `dev-` would
+    # plan-pass but apply-fail.
+    condition     = can(regex("^[a-z]([a-z0-9-]{0,10}[a-z0-9])?$", var.environment))
+    error_message = "environment must be 1-12 chars: lowercase letters/digits/hyphens, starting with a letter and ending with a letter or digit (no trailing hyphen). The cap keeps composed names under VPC connector (25), service account (30), and Cloud Run service (49) limits."
   }
 }
 
