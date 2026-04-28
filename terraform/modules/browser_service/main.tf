@@ -103,7 +103,10 @@ resource "google_cloud_run_service_iam_member" "public" {
 }
 
 resource "google_cloud_run_service_iam_member" "invoker" {
-  for_each = toset(var.invoker_members)
+  # Filter out allUsers when allow_public is true — it's already bound by
+  # the resource above, and binding the same member/role twice causes a
+  # plan-time IAM conflict.
+  for_each = toset([for m in var.invoker_members : m if !(var.allow_public && m == "allUsers")])
 
   location = google_cloud_run_service.api.location
   project  = google_cloud_run_service.api.project

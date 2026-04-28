@@ -74,6 +74,17 @@ variable "subnet_cidr" {
   }
 }
 
+variable "connector_cidr" {
+  description = "CIDR range for the Serverless VPC Access connector subnet (must be /28 — Serverless VPC Access requirement). Override if it overlaps with a custom `subnet_cidr`."
+  type        = string
+  default     = "10.8.0.0/28"
+
+  validation {
+    condition     = can(cidrnetmask(var.connector_cidr)) && endswith(var.connector_cidr, "/28")
+    error_message = "connector_cidr must be a valid /28 CIDR block (e.g. 10.8.0.0/28)."
+  }
+}
+
 #########################
 # Browser Service (Spring Boot API)
 #########################
