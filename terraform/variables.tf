@@ -112,6 +112,11 @@ variable "browser_service_max_instances" {
   default     = 10
 
   validation {
+    condition     = var.browser_service_max_instances >= 1 && floor(var.browser_service_max_instances) == var.browser_service_max_instances
+    error_message = "browser_service_max_instances must be a positive integer."
+  }
+
+  validation {
     condition     = var.browser_service_max_instances >= var.browser_service_min_instances
     error_message = "browser_service_max_instances must be >= browser_service_min_instances."
   }
@@ -177,6 +182,11 @@ variable "selenium_max_instances" {
   description = "Per-replica max Cloud Run instance count. Selenium standalone serves a single session per container, so keep this low (1 by default)."
   type        = number
   default     = 1
+
+  validation {
+    condition     = var.selenium_max_instances >= 1 && floor(var.selenium_max_instances) == var.selenium_max_instances
+    error_message = "selenium_max_instances must be a positive integer."
+  }
 
   validation {
     condition     = var.selenium_max_instances >= var.selenium_min_instances
