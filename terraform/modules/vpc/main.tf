@@ -14,11 +14,28 @@ resource "google_compute_subnetwork" "subnet" {
   private_ip_google_access = true
 }
 
-resource "google_vpc_access_connector" "connector" {
-  name          = var.connector_name
-  region        = var.region
-  network       = google_compute_network.vpc.name
+# Dedicated /28 subnet for the Serverless VPC Access connector. We explicitly
+# create the subnet (rather than letting the connector auto-create a hidden
+# one via `ip_cidr_range`) because Cloud NAT cannot apply to hidden connector
+# subnets — without this, the Cloud NAT below would never see connector
+# traffic and `egress=all-traffic` workloads (the browser-service API) would
+# have no outbound path to public non-Google endpoints.
+resource "google_compute_subnetwork" "connector" {
+  name          = "${var.connector_name}-subnet"
   ip_cidr_range = var.connector_cidr
+  region        = var.region
+  network       = google_compute_network.vpc.id
+  project       = var.project_id
+}
+
+resource "google_vpc_access_connector" "connector" {
+  name   = var.connector_name
+  region = var.region
+
+  subnet {
+    name = google_compute_subnetwork.connector.name
+  }
+
   min_instances = 2
   max_instances = 3
   machine_type  = "e2-micro"
