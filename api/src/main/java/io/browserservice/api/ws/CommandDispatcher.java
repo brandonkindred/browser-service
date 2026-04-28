@@ -18,7 +18,6 @@ import io.browserservice.api.dto.ScreenshotRequest;
 import io.browserservice.api.dto.ScrollRequest;
 import io.browserservice.api.dto.SessionResponse;
 import io.browserservice.api.error.AlreadyBoundException;
-import io.browserservice.api.error.SessionForbiddenException;
 import io.browserservice.api.error.SessionNotBoundException;
 import io.browserservice.api.error.UnknownOpException;
 import io.browserservice.api.error.ValidationFailedException;
@@ -50,7 +49,6 @@ public class CommandDispatcher {
   private final ElementOperationsService elementOps;
   private final AlertService alertService;
   private final CaptureService captureService;
-  private final WsSessionOwnership ownership;
   private final WatcherCoordinator watchers;
   private final Validator validator;
   private final ObjectMapper mapper;
@@ -63,7 +61,6 @@ public class CommandDispatcher {
       ElementOperationsService elementOps,
       AlertService alertService,
       CaptureService captureService,
-      WsSessionOwnership ownership,
       WatcherCoordinator watchers,
       Validator validator,
       ObjectMapper mapper) {
@@ -72,15 +69,13 @@ public class CommandDispatcher {
     this.elementOps = elementOps;
     this.alertService = alertService;
     this.captureService = captureService;
-    this.ownership = ownership;
     this.watchers = watchers;
     this.validator = validator;
     this.mapper = mapper;
     this.handlers = buildHandlers();
   }
 
-  public DispatchResult dispatch(Connection conn, String op, JsonNode params)
-      throws OwnershipMismatchException {
+  public DispatchResult dispatch(Connection conn, String op, JsonNode params) {
     CommandHandler handler = handlers.get(op);
     if (handler == null) {
       throw new UnknownOpException(op);
@@ -99,7 +94,6 @@ public class CommandDispatcher {
           requireUnbound(conn);
           CreateSessionRequest req = parseAndValidate(params, CreateSessionRequest.class);
           SessionResponse resp = sessionService.create(req, conn.caller());
-          ownership.claim(resp.sessionId(), conn.caller());
           conn.bind(resp.sessionId());
           watchers.onSessionAttached(resp.sessionId(), conn);
           return resp;
@@ -109,21 +103,12 @@ public class CommandDispatcher {
         (conn, params) -> {
           requireUnbound(conn);
           UUID sessionId = readSessionId(params);
-          if (!ownership.isOwnedBy(sessionId, conn.caller())) {
-            throw new OwnershipMismatchException(sessionId);
-          }
-          // Resolve state first; only bind once we've confirmed the session is still alive.
-          // Otherwise a SessionNotFoundException would leave the connection bound to a dead id
-          // and fail every subsequent session.create / session.attach with already_bound.
-          // requireOwner inside describe enforces the SessionHandle.owner invariant — translate
-          // a forbidden mismatch into the WS-specific OwnershipMismatchException so the existing
-          // 4403 close path keeps working.
-          Object state;
-          try {
-            state = sessionService.describe(sessionId, conn.caller());
-          } catch (SessionForbiddenException e) {
-            throw new OwnershipMismatchException(sessionId);
-          }
+          // Resolve state first; only bind once we've confirmed the session is still alive
+          // and the caller owns it. describe() delegates to requireOwner, so a wrong-owner
+          // attempt throws SessionForbiddenException, which the WS handler closes with 4403.
+          // Otherwise a SessionNotFoundException would leave the connection bound to a dead
+          // id and fail every subsequent session.create / session.attach with already_bound.
+          Object state = sessionService.describe(sessionId, conn.caller());
           conn.bind(sessionId);
           watchers.onSessionAttached(sessionId, conn);
           return state;
@@ -137,7 +122,6 @@ public class CommandDispatcher {
           UUID id = requireBound(conn);
           sessionService.close(id, conn.caller());
           watchers.onSessionDetached(id, conn);
-          ownership.release(id);
           conn.unbind();
           return null;
         });
@@ -334,24 +318,7 @@ public class CommandDispatcher {
 
   @FunctionalInterface
   interface CommandHandler {
-    Object handle(Connection conn, JsonNode params) throws OwnershipMismatchException;
-  }
-
-  /**
-   * Signals an attach attempt against a session that this caller does not own. The handler catches
-   * this and closes the connection with code 4403 — does not write a normal error frame.
-   */
-  public static final class OwnershipMismatchException extends Exception {
-    private final UUID sessionId;
-
-    public OwnershipMismatchException(UUID sessionId) {
-      super("session_forbidden: " + sessionId);
-      this.sessionId = sessionId;
-    }
-
-    public UUID sessionId() {
-      return sessionId;
-    }
+    Object handle(Connection conn, JsonNode params);
   }
 
   /** Inline helper to keep the dispatcher self-contained. */

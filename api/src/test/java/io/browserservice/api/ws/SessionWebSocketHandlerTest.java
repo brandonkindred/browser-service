@@ -15,6 +15,7 @@ import io.browserservice.api.dto.NavigateStatus;
 import io.browserservice.api.dto.SessionResponse;
 import io.browserservice.api.dto.SessionStateResponse;
 import io.browserservice.api.dto.Viewport;
+import io.browserservice.api.error.SessionForbiddenException;
 import io.browserservice.api.error.SessionNotFoundException;
 import io.browserservice.api.service.AlertService;
 import io.browserservice.api.service.BrowserOperationsService;
@@ -135,26 +136,11 @@ class SessionWebSocketHandlerTest {
   @Test
   void sessionAttachAsWrongOwnerClosesWith4403() throws Exception {
     UUID sid = UUID.randomUUID();
-    when(sessionService.create(any(), any()))
-        .thenReturn(
-            new SessionResponse(
-                sid,
-                BrowserType.CHROME,
-                BrowserEnvironment.TEST,
-                Instant.now(),
-                Instant.now().plusSeconds(60)));
+    // Ownership now lives on SessionHandle.owner — the WS dispatcher just delegates to
+    // sessionService.describe, which throws SessionForbiddenException via requireOwner
+    // when the caller is not the owner.
+    when(sessionService.describe(eq(sid), any())).thenThrow(new SessionForbiddenException(sid));
 
-    // Alice creates the session.
-    TestHandler aliceH = new TestHandler();
-    WebSocketSession alice =
-        client.execute(aliceH, headers("alice"), uri()).get(5, TimeUnit.SECONDS);
-    alice.sendMessage(
-        text(
-            "{\"type\":\"command\",\"id\":\"c1\",\"op\":\"session.create\","
-                + "\"params\":{\"browser_type\":\"CHROME\",\"environment\":\"TEST\"}}"));
-    aliceH.takeJson(json);
-
-    // Bob attempts to attach.
     TestHandler bobH = new TestHandler();
     WebSocketSession bob = client.execute(bobH, headers("bob"), uri()).get(5, TimeUnit.SECONDS);
     bob.sendMessage(
@@ -166,7 +152,40 @@ class SessionWebSocketHandlerTest {
 
     CloseStatus status = bobH.takeClose();
     assertThat(status.getCode()).isEqualTo(4403);
-    alice.close();
+    assertThat(status.getReason()).isEqualTo("session_forbidden");
+  }
+
+  @Test
+  void sessionCreateForwardsHandshakeCallerToService() throws Exception {
+    // Proves the WS-created session is owner-bound: the dispatcher passes the handshake
+    // caller into SessionService.create, which is the single place that stamps
+    // SessionHandle.owner. Same mechanism the REST surface uses.
+    UUID sid = UUID.randomUUID();
+    when(sessionService.create(any(), any()))
+        .thenReturn(
+            new SessionResponse(
+                sid,
+                BrowserType.CHROME,
+                BrowserEnvironment.TEST,
+                Instant.now(),
+                Instant.now().plusSeconds(60)));
+
+    TestHandler handler = new TestHandler();
+    WebSocketSession ws = client.execute(handler, headers("alice"), uri()).get(5, TimeUnit.SECONDS);
+    try {
+      ws.sendMessage(
+          text(
+              "{\"type\":\"command\",\"id\":\"c1\",\"op\":\"session.create\","
+                  + "\"params\":{\"browser_type\":\"CHROME\",\"environment\":\"TEST\"}}"));
+      handler.takeJson(json);
+      org.mockito.ArgumentCaptor<io.browserservice.api.session.CallerId> callerCap =
+          org.mockito.ArgumentCaptor.forClass(io.browserservice.api.session.CallerId.class);
+      org.mockito.Mockito.verify(sessionService).create(any(), callerCap.capture());
+      assertThat(callerCap.getValue())
+          .isEqualTo(io.browserservice.api.session.CallerId.parse("alice"));
+    } finally {
+      ws.close();
+    }
   }
 
   @Test
@@ -392,25 +411,8 @@ class SessionWebSocketHandlerTest {
   @Test
   void attachDoesNotBindIfDescribeFails() throws Exception {
     UUID sid = UUID.randomUUID();
-    // Alice creates the session so ownership is recorded.
-    when(sessionService.create(any(), any()))
-        .thenReturn(
-            new SessionResponse(
-                sid,
-                BrowserType.CHROME,
-                BrowserEnvironment.TEST,
-                Instant.now(),
-                Instant.now().plusSeconds(60)));
-    TestHandler creator = new TestHandler();
-    WebSocketSession a1 = client.execute(creator, headers("alice"), uri()).get(5, TimeUnit.SECONDS);
-    a1.sendMessage(
-        text(
-            "{\"type\":\"command\",\"id\":\"c1\",\"op\":\"session.create\","
-                + "\"params\":{\"browser_type\":\"CHROME\",\"environment\":\"TEST\"}}"));
-    creator.takeJson(json);
-    a1.close();
-
-    // Now alice opens a fresh connection and the session has been reaped.
+    // describe is the single gate for attach: when it throws, the connection must remain
+    // unbound so a follow-up session.create still succeeds.
     when(sessionService.describe(eq(sid), any())).thenThrow(new SessionNotFoundException(sid));
     when(sessionService.create(any(), any()))
         .thenReturn(

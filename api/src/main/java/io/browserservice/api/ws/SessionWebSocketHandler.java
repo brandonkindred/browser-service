@@ -7,6 +7,7 @@ import io.browserservice.api.error.CommandQueueFullException;
 import io.browserservice.api.error.ErrorMapper;
 import io.browserservice.api.error.RequestIdFilter;
 import io.browserservice.api.error.ScreenshotTooLargeException;
+import io.browserservice.api.error.SessionForbiddenException;
 import io.browserservice.api.error.UnknownFrameTypeException;
 import io.browserservice.api.session.CallerId;
 import io.browserservice.api.ws.dto.BinaryHeaderFrame;
@@ -161,9 +162,9 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
             writeFrame(conn, ResponseFrame.success(frame.id(), json.value()));
         case DispatchResult.Binary bin -> writeBinaryPair(conn, frame.id(), bin, requestId);
       }
-    } catch (CommandDispatcher.OwnershipMismatchException ownership) {
+    } catch (SessionForbiddenException forbidden) {
       log.info(
-          "ws ownership mismatch caller={} sessionId={}", conn.caller(), ownership.sessionId());
+          "ws ownership mismatch caller={} sessionId={}", conn.caller(), forbidden.sessionId());
       safeClose(conn.out(), SESSION_FORBIDDEN);
     } catch (Throwable t) {
       ErrorMapper.Mapped m = ErrorMapper.map(t, requestId);
