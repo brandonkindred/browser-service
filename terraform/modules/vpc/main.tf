@@ -75,12 +75,10 @@ resource "google_service_networking_connection" "private_vpc_connection" {
 }
 
 # Cloud Router + Cloud NAT so traffic that leaves the VPC connector can reach
-# the public internet. Without this, browser-service runs with
-# vpc-access-egress=all-traffic but has no egress path for non-Google public
-# endpoints (BrowserStack, external webhooks, etc.) and those calls time out.
+# the public internet. browser-service always runs with
+# vpc-access-egress=all-traffic and reaches Selenium via public *.run.app
+# URLs, so NAT is non-optional for this stack.
 resource "google_compute_router" "router" {
-  count = var.enable_nat ? 1 : 0
-
   name    = "${var.vpc_name}-router"
   region  = var.region
   network = google_compute_network.vpc.id
@@ -88,10 +86,8 @@ resource "google_compute_router" "router" {
 }
 
 resource "google_compute_router_nat" "nat" {
-  count = var.enable_nat ? 1 : 0
-
   name                               = "${var.vpc_name}-nat"
-  router                             = google_compute_router.router[0].name
+  router                             = google_compute_router.router.name
   region                             = var.region
   project                            = var.project_id
   nat_ip_allocate_option             = "AUTO_ONLY"

@@ -69,12 +69,6 @@ variable "subnet_cidr" {
   default     = "10.10.0.0/20"
 }
 
-variable "vpc_enable_nat" {
-  description = "Provision a Cloud Router + Cloud NAT so traffic exiting the VPC connector (egress=all-traffic) can reach public non-Google endpoints. Set false in environments that don't need external egress."
-  type        = bool
-  default     = true
-}
-
 #########################
 # Browser Service (Spring Boot API)
 #########################

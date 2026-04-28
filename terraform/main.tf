@@ -66,7 +66,6 @@ module "vpc" {
   subnet_name    = local.subnet_name
   connector_name = local.vpc_connector_name
   subnet_cidr    = var.subnet_cidr
-  enable_nat     = var.vpc_enable_nat
 
   depends_on = [google_project_service.required]
 }
