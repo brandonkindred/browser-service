@@ -47,11 +47,6 @@ variable "network_id" {
   type        = string
 }
 
-variable "private_vpc_connection" {
-  description = "Service networking connection id (depends_on hook so private IP is reachable before the SQL instance is created)."
-  type        = string
-}
-
 variable "database_name" {
   description = "Application database name."
   type        = string

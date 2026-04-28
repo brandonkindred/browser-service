@@ -13,8 +13,6 @@ resource "google_sql_database_instance" "this" {
   project             = var.project_id
   deletion_protection = var.deletion_protection
 
-  depends_on = [var.private_vpc_connection]
-
   settings {
     tier              = var.tier
     disk_size         = var.disk_size_gb

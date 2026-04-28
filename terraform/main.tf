@@ -51,19 +51,24 @@ module "vpc" {
 module "postgres" {
   source = "./modules/postgres"
 
-  project_id             = var.project_id
-  region                 = var.region
-  environment            = var.environment
-  network_id             = module.vpc.network_id
-  private_vpc_connection = module.vpc.private_vpc_connection
-  database_name          = var.postgres_database_name
-  database_user          = var.postgres_user
-  database_version       = var.postgres_version
-  tier                   = var.postgres_tier
-  disk_size_gb           = var.postgres_disk_size_gb
-  deletion_protection    = var.postgres_deletion_protection
-  service_account_email  = google_service_account.runtime.email
-  labels                 = local.base_labels
+  project_id            = var.project_id
+  region                = var.region
+  environment           = var.environment
+  network_id            = module.vpc.network_id
+  database_name         = var.postgres_database_name
+  database_user         = var.postgres_user
+  database_version      = var.postgres_version
+  tier                  = var.postgres_tier
+  disk_size_gb          = var.postgres_disk_size_gb
+  deletion_protection   = var.postgres_deletion_protection
+  service_account_email = google_service_account.runtime.email
+  labels                = local.base_labels
+
+  # The Cloud SQL instance can't be created until private services access
+  # is established on the VPC. Depending on the whole module (rather than
+  # threading the service-networking-connection id through a variable)
+  # keeps the dependency a real Terraform graph edge.
+  depends_on = [module.vpc]
 }
 
 # Fan out N Selenium standalone-chrome Cloud Run services. Each is the same
