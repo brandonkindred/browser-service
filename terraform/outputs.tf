@@ -8,9 +8,14 @@ output "browser_service_name" {
   value       = module.browser_service.service_name
 }
 
-output "selenium_grid_urls" {
-  description = "Selenium 4 grid URLs (each ends in /wd/hub) injected into SELENIUM_GRID_URLS on the API."
-  value       = [for s in module.selenium : s.grid_endpoint]
+output "selenium_grid_hosts" {
+  description = "Bare Selenium hostnames (no scheme/path) injected into SELENIUM_GRID_URLS on the API. The engine prepends https:// and appends /wd/hub at runtime."
+  value       = [for s in module.selenium : s.grid_host]
+}
+
+output "selenium_service_urls" {
+  description = "Full Cloud Run URLs of each Selenium replica (for debugging — not what gets fed into the API env var)."
+  value       = [for s in module.selenium : s.service_url]
 }
 
 output "selenium_service_names" {

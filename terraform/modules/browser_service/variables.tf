@@ -98,7 +98,7 @@ variable "database_password_secret_name" {
 }
 
 variable "selenium_grid_urls" {
-  description = "List of Selenium grid URLs (each ending in /wd/hub). Joined with commas into SELENIUM_GRID_URLS."
+  description = "List of bare Selenium hostnames (no scheme, no path) joined with commas into SELENIUM_GRID_URLS. The engine's BrowserConnectionHelper prepends https:// and appends /wd/hub at runtime, so passing fully-qualified URLs would yield https://https://.../wd/hub/wd/hub."
   type        = list(string)
 }
 

@@ -127,7 +127,7 @@ module "browser_service" {
   database_username             = module.postgres.database_user
   database_password_secret_name = module.postgres.password_secret_name
 
-  selenium_grid_urls = [for s in module.selenium : s.grid_endpoint]
+  selenium_grid_urls = [for s in module.selenium : s.grid_host]
 
   labels = local.base_labels
 

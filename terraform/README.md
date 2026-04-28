@@ -38,6 +38,7 @@ terraform/
    - `roles/secretmanager.admin`
    - `roles/run.admin`
    - `roles/iam.serviceAccountAdmin`
+   - `roles/iam.serviceAccountUser` (needed to attach the runtime service account to Cloud Run revisions — `iam.serviceAccounts.actAs`)
    - `roles/iam.securityAdmin`
 4. A published browser-service container image — Artifact Registry, GHCR, or Docker Hub all work. Set `browser_service_image` to its pullable reference.
 
