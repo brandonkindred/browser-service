@@ -25,9 +25,14 @@ variable "subnet_cidr" {
 }
 
 variable "connector_name" {
-  description = "Name of the Serverless VPC Access connector."
+  description = "Name of the Serverless VPC Access connector. GCP caps this at 25 chars."
   type        = string
-  default     = "browser-service-vpc-connector"
+  default     = "bs-vpc-conn"
+
+  validation {
+    condition     = length(var.connector_name) <= 25
+    error_message = "connector_name must be <= 25 characters (GCP Serverless VPC Access limit)."
+  }
 }
 
 variable "connector_cidr" {

@@ -14,9 +14,14 @@ variable "region" {
 }
 
 variable "environment" {
-  description = "Deployment environment label (dev, staging, prod). Used in resource naming and labels."
+  description = "Deployment environment label (dev, staging, prod). Used as a suffix in Cloud Run, VPC connector, and service-account names — all of which have hard length limits, so this is capped at 12 chars."
   type        = string
   default     = "dev"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{0,11}$", var.environment))
+    error_message = "environment must be 1-12 chars, lowercase letters/digits/hyphens, starting with a letter. The cap keeps composed names under VPC connector (25), service account (30), and Cloud Run service (49) limits."
+  }
 }
 
 variable "credentials_file" {
@@ -160,6 +165,12 @@ variable "selenium_port" {
   description = "Container port that Selenium standalone-chrome listens on."
   type        = number
   default     = 4444
+}
+
+variable "selenium_invoker_members" {
+  description = "IAM principals granted roles/run.invoker on each Selenium Cloud Run replica. Defaults to 'allUsers' so the Java client (which doesn't speak GCP id-token auth) can reach the services over the VPC; ingress=internal still keeps the public internet out. Set to [] or to specific service accounts in orgs that block allUsers via iam.allowedPolicyMemberDomains."
+  type        = list(string)
+  default     = ["allUsers"]
 }
 
 #########################

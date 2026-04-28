@@ -54,7 +54,12 @@ output "postgres_password_secret" {
   value       = module.postgres.password_secret_name
 }
 
-output "runtime_service_account" {
-  description = "Service account email used by Cloud Run revisions."
-  value       = google_service_account.runtime.email
+output "api_service_account" {
+  description = "Service account email used by the browser-service API Cloud Run revision. Holds Secret Manager access for the DB password."
+  value       = google_service_account.api_runtime.email
+}
+
+output "selenium_service_account" {
+  description = "Service account email used by the Selenium Cloud Run replicas. No privileged role bindings — separate identity from the API for least privilege."
+  value       = google_service_account.selenium_runtime.email
 }

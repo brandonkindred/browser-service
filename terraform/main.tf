@@ -12,7 +12,10 @@ locals {
   # project without collisions. tfvars can still override any of these.
   vpc_name           = coalesce(var.vpc_name, "browser-service-vpc-${var.environment}")
   subnet_name        = coalesce(var.subnet_name, "browser-service-subnet-${var.environment}")
-  vpc_connector_name = coalesce(var.vpc_connector_name, "browser-service-conn-${var.environment}")
+  # Serverless VPC Access connector names are capped at 25 chars, so this
+  # default uses a short prefix. The `environment` variable is validated at
+  # 12 chars, which keeps `bs-conn-<env>` (8 + env) safely under the limit.
+  vpc_connector_name = coalesce(var.vpc_connector_name, "bs-conn-${var.environment}")
 }
 
 # Enable APIs the stack depends on. Idempotent; safe to leave on.
@@ -25,6 +28,7 @@ resource "google_project_service" "required" {
     "secretmanager.googleapis.com",
     "servicenetworking.googleapis.com",
     "iam.googleapis.com",
+    "artifactregistry.googleapis.com",
   ])
 
   project            = var.project_id
@@ -32,13 +36,23 @@ resource "google_project_service" "required" {
   disable_on_destroy = false
 }
 
-# Single runtime service account used by the browser-service API and the
-# Selenium Cloud Run replicas. Keeping it shared simplifies IAM since the API
-# already needs to invoke each Selenium peer.
-resource "google_service_account" "runtime" {
+# Two runtime service accounts so least-privilege holds: only the API SA
+# needs Secret Manager access for the DB password (granted by the postgres
+# module), while Selenium replicas run with a separate identity that has no
+# privileged role bindings. If a Selenium container is compromised, DB
+# credentials don't come along for free.
+resource "google_service_account" "api_runtime" {
   project      = var.project_id
-  account_id   = "browser-service-${var.environment}"
-  display_name = "Browser Service runtime (${var.environment})"
+  account_id   = "bs-api-${var.environment}"
+  display_name = "Browser Service API runtime (${var.environment})"
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_service_account" "selenium_runtime" {
+  project      = var.project_id
+  account_id   = "bs-selenium-${var.environment}"
+  display_name = "Browser Service Selenium runtime (${var.environment})"
 
   depends_on = [google_project_service.required]
 }
@@ -70,7 +84,7 @@ module "postgres" {
   tier                  = var.postgres_tier
   disk_size_gb          = var.postgres_disk_size_gb
   deletion_protection   = var.postgres_deletion_protection
-  service_account_email = google_service_account.runtime.email
+  service_account_email = google_service_account.api_runtime.email
   labels                = local.base_labels
 
   # The Cloud SQL instance can't be created until private services access
@@ -92,7 +106,7 @@ module "selenium" {
   environment           = var.environment
   service_name          = "selenium-chrome-${var.environment}-${format("%02d", count.index)}"
   image                 = var.selenium_image
-  service_account_email = google_service_account.runtime.email
+  service_account_email = google_service_account.selenium_runtime.email
   vpc_connector_name    = module.vpc.vpc_connector_name
   port                  = var.selenium_port
   memory_allocation     = var.selenium_memory_allocation
@@ -101,10 +115,11 @@ module "selenium" {
   max_instances         = var.selenium_max_instances
   ingress               = "internal"
   # Selenium speaks plain HTTP, not GCP id-token auth, so invoker auth would
-  # block the Java client. Pair allUsers with ingress=internal: the IAM check
-  # passes once traffic is on the VPC, and ingress=internal keeps the public
-  # internet out.
-  invoker_members = ["allUsers"]
+  # block the Java client. The default `["allUsers"]` paired with
+  # ingress=internal keeps the public internet out while letting in-VPC
+  # callers reach the service. In orgs that block allUsers via
+  # iam.allowedPolicyMemberDomains, set selenium_invoker_members = [].
+  invoker_members = var.selenium_invoker_members
   labels          = local.base_labels
 }
 
@@ -115,7 +130,7 @@ module "browser_service" {
   region                = var.region
   service_name          = "${var.browser_service_service_name}-${var.environment}"
   image                 = var.browser_service_image
-  service_account_email = google_service_account.runtime.email
+  service_account_email = google_service_account.api_runtime.email
   vpc_connector_name    = module.vpc.vpc_connector_name
   min_instances         = var.browser_service_min_instances
   max_instances         = var.browser_service_max_instances
