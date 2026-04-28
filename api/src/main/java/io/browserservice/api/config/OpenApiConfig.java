@@ -15,11 +15,19 @@ import io.swagger.v3.oas.models.servers.Server;
 import io.swagger.v3.oas.models.tags.Tag;
 import java.util.List;
 import org.springdoc.core.customizers.OpenApiCustomizer;
+import org.springdoc.core.utils.SpringDocUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
 public class OpenApiConfig {
+
+  static {
+    // Hide CallerId from springdoc's parameter introspection. It is resolved out of the
+    // X-Caller-Id header by CallerIdArgumentResolver, not from request parameters; without this
+    // springdoc would treat each controller's CallerId argument as a query parameter.
+    SpringDocUtils.getConfig().addRequestWrapperToIgnore(CallerId.class);
+  }
 
   @Bean
   public OpenAPI browserServiceOpenApi() {

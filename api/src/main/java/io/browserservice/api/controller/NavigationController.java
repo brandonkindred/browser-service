@@ -6,6 +6,7 @@ import io.browserservice.api.dto.NavigateResponse;
 import io.browserservice.api.dto.PageSourceResponse;
 import io.browserservice.api.dto.PageStatusResponse;
 import io.browserservice.api.service.BrowserOperationsService;
+import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -48,8 +49,9 @@ public class NavigationController {
         description = "Upstream error",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public NavigateResponse navigate(@PathVariable UUID id, @Valid @RequestBody NavigateRequest req) {
-    return service.navigate(id, req);
+  public NavigateResponse navigate(
+      @PathVariable UUID id, CallerId caller, @Valid @RequestBody NavigateRequest req) {
+    return service.navigate(id, caller, req);
   }
 
   @GetMapping("/source")
@@ -63,8 +65,8 @@ public class NavigationController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public PageSourceResponse source(@PathVariable UUID id) {
-    return service.getSource(id);
+  public PageSourceResponse source(@PathVariable UUID id, CallerId caller) {
+    return service.getSource(id, caller);
   }
 
   @GetMapping("/status")
@@ -80,7 +82,7 @@ public class NavigationController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public PageStatusResponse status(@PathVariable UUID id) {
-    return service.getStatus(id);
+  public PageStatusResponse status(@PathVariable UUID id, CallerId caller) {
+    return service.getStatus(id, caller);
   }
 }

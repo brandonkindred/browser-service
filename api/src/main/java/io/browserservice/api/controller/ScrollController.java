@@ -4,6 +4,7 @@ import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.ScrollOffset;
 import io.browserservice.api.dto.ScrollRequest;
 import io.browserservice.api.service.BrowserOperationsService;
+import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -44,7 +45,8 @@ public class ScrollController {
         description = "Session or element handle not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public ScrollOffset scroll(@PathVariable UUID id, @Valid @RequestBody ScrollRequest req) {
-    return service.scroll(id, req);
+  public ScrollOffset scroll(
+      @PathVariable UUID id, CallerId caller, @Valid @RequestBody ScrollRequest req) {
+    return service.scroll(id, caller, req);
   }
 }

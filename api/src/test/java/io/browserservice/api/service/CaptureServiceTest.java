@@ -16,6 +16,7 @@ import io.browserservice.api.dto.CaptureResponse;
 import io.browserservice.api.dto.PngEncoding;
 import io.browserservice.api.dto.ScreenshotStrategy;
 import io.browserservice.api.error.UpstreamUnavailableException;
+import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.CaptureScreenshotCache;
 import io.browserservice.api.session.DriverFactory;
 import io.browserservice.api.session.SessionLocks;
@@ -30,6 +31,8 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
 class CaptureServiceTest {
+
+  private static final CallerId ALICE = CallerId.parse("alice");
 
   private SessionRegistry registry;
   private SessionLocks locks;
@@ -66,7 +69,8 @@ class CaptureServiceTest {
                 ScreenshotStrategy.VIEWPORT,
                 PngEncoding.BASE64,
                 null,
-                null));
+                null),
+            ALICE);
 
     assertThat(resp.screenshot().imageBase64()).isNotBlank();
     assertThat(resp.screenshot().href()).isNull();
@@ -85,7 +89,8 @@ class CaptureServiceTest {
     when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
     CaptureResponse resp =
-        service.capture(new CaptureRequest("u", BrowserType.CHROME, null, null, null, null, null));
+        service.capture(
+            new CaptureRequest("u", BrowserType.CHROME, null, null, null, null, null), ALICE);
 
     assertThat(resp.screenshot().href()).startsWith("/v1/capture/");
     assertThat(resp.screenshot().imageBase64()).isNull();
@@ -104,8 +109,8 @@ class CaptureServiceTest {
 
     CaptureResponse resp =
         service.capture(
-            new CaptureRequest(
-                "u", BrowserType.CHROME, null, null, PngEncoding.BASE64, null, true));
+            new CaptureRequest("u", BrowserType.CHROME, null, null, PngEncoding.BASE64, null, true),
+            ALICE);
 
     assertThat(resp.source()).isEqualTo("<html>hi</html>");
   }
@@ -128,7 +133,8 @@ class CaptureServiceTest {
     CaptureResponse resp =
         service.capture(
             new CaptureRequest(
-                "u", BrowserType.CHROME, null, null, PngEncoding.BASE64, "//h1", null));
+                "u", BrowserType.CHROME, null, null, PngEncoding.BASE64, "//h1", null),
+            ALICE);
 
     assertThat(resp.element()).isNotNull();
     assertThat(resp.element().found()).isTrue();
@@ -149,7 +155,8 @@ class CaptureServiceTest {
     CaptureResponse resp =
         service.capture(
             new CaptureRequest(
-                "u", BrowserType.CHROME, null, null, PngEncoding.BASE64, "//missing", null));
+                "u", BrowserType.CHROME, null, null, PngEncoding.BASE64, "//missing", null),
+            ALICE);
 
     assertThat(resp.element().found()).isFalse();
   }
@@ -167,7 +174,8 @@ class CaptureServiceTest {
     CaptureResponse resp =
         service.capture(
             new CaptureRequest(
-                "u", BrowserType.ANDROID, null, null, PngEncoding.BASE64, null, null));
+                "u", BrowserType.ANDROID, null, null, PngEncoding.BASE64, null, null),
+            ALICE);
     assertThat(resp).isNotNull();
     verify(device).navigateTo("u");
   }
@@ -180,7 +188,8 @@ class CaptureServiceTest {
     assertThatThrownBy(
             () ->
                 service.capture(
-                    new CaptureRequest("u", BrowserType.CHROME, null, null, null, null, null)))
+                    new CaptureRequest("u", BrowserType.CHROME, null, null, null, null, null),
+                    ALICE))
         .isInstanceOf(UpstreamUnavailableException.class);
     assertThat(registry.availablePermits()).isEqualTo(5);
   }
@@ -196,7 +205,8 @@ class CaptureServiceTest {
     when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
     CaptureResponse resp =
-        service.capture(new CaptureRequest("u", BrowserType.CHROME, null, null, null, null, null));
+        service.capture(
+            new CaptureRequest("u", BrowserType.CHROME, null, null, null, null, null), ALICE);
     java.util.UUID id =
         java.util.UUID.fromString(
             resp.screenshot()
@@ -205,7 +215,7 @@ class CaptureServiceTest {
                     "/v1/capture/".length(),
                     resp.screenshot().href().length() - "/screenshot".length()));
 
-    CaptureScreenshotCache.CaptureEntry entry = service.fetchScreenshot(id);
+    CaptureScreenshotCache.CaptureEntry entry = service.fetchScreenshot(id, ALICE);
     assertThat(entry.pngBytes()).isNotEmpty();
   }
 

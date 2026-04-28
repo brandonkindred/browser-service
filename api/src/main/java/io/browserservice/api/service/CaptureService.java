@@ -12,6 +12,7 @@ import io.browserservice.api.dto.PngEncoding;
 import io.browserservice.api.dto.Rect;
 import io.browserservice.api.dto.ScreenshotStrategy;
 import io.browserservice.api.error.UpstreamUnavailableException;
+import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.CaptureScreenshotCache;
 import io.browserservice.api.session.DriverFactory;
 import io.browserservice.api.session.SessionHandle;
@@ -56,7 +57,7 @@ public class CaptureService {
     this.absoluteTtl = Duration.ofSeconds(props.session().absoluteTtlSeconds());
   }
 
-  public CaptureResponse capture(CaptureRequest req) {
+  public CaptureResponse capture(CaptureRequest req, CallerId caller) {
     BrowserEnvironment env =
         req.environment() == null ? BrowserEnvironment.TEST : req.environment();
     ScreenshotStrategy strategy =
@@ -70,10 +71,11 @@ public class CaptureService {
     try {
       if (req.browserType().isMobile()) {
         MobileDevice device = drivers.createMobile(req.browserType(), env);
-        handle = SessionHandle.mobile(device, req.browserType(), env, idleTtl, absoluteTtl);
+        handle = SessionHandle.mobile(device, caller, req.browserType(), env, idleTtl, absoluteTtl);
       } else {
         Browser browser = drivers.createDesktop(req.browserType(), env);
-        handle = SessionHandle.desktop(browser, req.browserType(), env, idleTtl, absoluteTtl);
+        handle =
+            SessionHandle.desktop(browser, caller, req.browserType(), env, idleTtl, absoluteTtl);
       }
       registry.register(handle);
 
@@ -212,7 +214,12 @@ public class CaptureService {
         null, "/v1/capture/" + captureId + "/screenshot", width, height);
   }
 
-  public CaptureScreenshotCache.CaptureEntry fetchScreenshot(UUID captureId) {
+  /**
+   * Fetches a deferred capture screenshot. The {@code caller} is threaded through for symmetry with
+   * other endpoints; cross-caller cache isolation (rejecting a fetch when the caller did not author
+   * the capture) is a deferred follow-up.
+   */
+  public CaptureScreenshotCache.CaptureEntry fetchScreenshot(UUID captureId, CallerId caller) {
     return cache.get(captureId);
   }
 }

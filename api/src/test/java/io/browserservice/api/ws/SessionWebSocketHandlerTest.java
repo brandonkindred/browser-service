@@ -2,6 +2,7 @@ package io.browserservice.api.ws;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 
@@ -105,7 +106,7 @@ class SessionWebSocketHandlerTest {
   @Test
   void sessionCreateBindsAndEchoesId() throws Exception {
     UUID sid = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 sid,
@@ -134,7 +135,7 @@ class SessionWebSocketHandlerTest {
   @Test
   void sessionAttachAsWrongOwnerClosesWith4403() throws Exception {
     UUID sid = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 sid,
@@ -199,7 +200,7 @@ class SessionWebSocketHandlerTest {
   @Test
   void serviceExceptionsMapToErrorFrameWithSameCodeAsRest() throws Exception {
     UUID sid = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 sid,
@@ -207,7 +208,7 @@ class SessionWebSocketHandlerTest {
                 BrowserEnvironment.TEST,
                 Instant.now(),
                 Instant.now().plusSeconds(60)));
-    when(browserOps.navigate(any(), any())).thenThrow(new WebDriverException("boom"));
+    when(browserOps.navigate(any(), any(), any())).thenThrow(new WebDriverException("boom"));
 
     TestHandler handler = new TestHandler();
     WebSocketSession ws = client.execute(handler, headers("alice"), uri()).get(5, TimeUnit.SECONDS);
@@ -234,7 +235,7 @@ class SessionWebSocketHandlerTest {
   @Test
   void validationFailureReturnsValidationFailedCode() throws Exception {
     UUID sid = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 sid,
@@ -268,7 +269,7 @@ class SessionWebSocketHandlerTest {
   @Test
   void successfulNavigateRoundTrip() throws Exception {
     UUID sid = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 sid,
@@ -276,7 +277,7 @@ class SessionWebSocketHandlerTest {
                 BrowserEnvironment.TEST,
                 Instant.now(),
                 Instant.now().plusSeconds(60)));
-    when(browserOps.navigate(any(), any()))
+    when(browserOps.navigate(any(), any(), any()))
         .thenReturn(new NavigateResponse("https://example.com", NavigateStatus.LOADED));
 
     TestHandler handler = new TestHandler();
@@ -304,7 +305,7 @@ class SessionWebSocketHandlerTest {
   @Test
   void describeAfterBindUsesBoundSessionId() throws Exception {
     UUID sid = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 sid,
@@ -312,7 +313,7 @@ class SessionWebSocketHandlerTest {
                 BrowserEnvironment.TEST,
                 Instant.now(),
                 Instant.now().plusSeconds(60)));
-    when(sessionService.describe(sid))
+    when(sessionService.describe(eq(sid), any()))
         .thenReturn(
             new SessionStateResponse(
                 sid,
@@ -346,7 +347,7 @@ class SessionWebSocketHandlerTest {
   void sessionCloseUnbindsConnectionAndAllowsCreateAgain() throws Exception {
     UUID first = UUID.randomUUID();
     UUID second = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 first,
@@ -361,7 +362,7 @@ class SessionWebSocketHandlerTest {
                 BrowserEnvironment.TEST,
                 Instant.now(),
                 Instant.now().plusSeconds(60)));
-    doNothing().when(sessionService).close(any());
+    doNothing().when(sessionService).close(any(), any());
 
     TestHandler handler = new TestHandler();
     WebSocketSession ws = client.execute(handler, headers("alice"), uri()).get(5, TimeUnit.SECONDS);
@@ -392,7 +393,7 @@ class SessionWebSocketHandlerTest {
   void attachDoesNotBindIfDescribeFails() throws Exception {
     UUID sid = UUID.randomUUID();
     // Alice creates the session so ownership is recorded.
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 sid,
@@ -410,8 +411,8 @@ class SessionWebSocketHandlerTest {
     a1.close();
 
     // Now alice opens a fresh connection and the session has been reaped.
-    when(sessionService.describe(sid)).thenThrow(new SessionNotFoundException(sid));
-    when(sessionService.create(any()))
+    when(sessionService.describe(eq(sid), any())).thenThrow(new SessionNotFoundException(sid));
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 UUID.randomUUID(),
@@ -453,7 +454,7 @@ class SessionWebSocketHandlerTest {
     // outbound ConcurrentWebSocketSessionDecorator. Round-tripping a normal create
     // confirms the decorator's buffer accommodates real frames.
     UUID sid = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 sid,
@@ -491,7 +492,7 @@ class SessionWebSocketHandlerTest {
   @Test
   void doubleBindFails() throws Exception {
     UUID sid = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 sid,
@@ -524,7 +525,7 @@ class SessionWebSocketHandlerTest {
   @Test
   void screenshotPageEmitsHeaderThenBinaryFrame() throws Exception {
     UUID sid = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 sid,
@@ -533,7 +534,7 @@ class SessionWebSocketHandlerTest {
                 Instant.now(),
                 Instant.now().plusSeconds(60)));
     byte[] png = makePng(8, 6);
-    when(browserOps.pageScreenshot(any(), any())).thenReturn(png);
+    when(browserOps.pageScreenshot(any(), any(), any())).thenReturn(png);
 
     TestHandler handler = new TestHandler();
     WebSocketSession ws = client.execute(handler, headers("alice"), uri()).get(5, TimeUnit.SECONDS);
@@ -570,7 +571,7 @@ class SessionWebSocketHandlerTest {
   @Test
   void captureFetchScreenshotEmitsBinaryFrame() throws Exception {
     UUID sid = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 sid,
@@ -580,7 +581,7 @@ class SessionWebSocketHandlerTest {
                 Instant.now().plusSeconds(60)));
     UUID captureId = UUID.randomUUID();
     byte[] png = makePng(4, 4);
-    when(captureService.fetchScreenshot(captureId))
+    when(captureService.fetchScreenshot(eq(captureId), any()))
         .thenReturn(
             new CaptureScreenshotCache.CaptureEntry(png, 4, 4, Instant.now().plusSeconds(60)));
 
@@ -614,7 +615,7 @@ class SessionWebSocketHandlerTest {
   @Test
   void oversizeScreenshotProducesErrorAndNoBinaryFrame() throws Exception {
     UUID sid = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 sid,
@@ -625,7 +626,7 @@ class SessionWebSocketHandlerTest {
     // Default test prop is 16 MiB; produce a 17 MiB byte array (any bytes — server only
     // checks length before computing sha or sending the binary frame).
     byte[] huge = new byte[17 * 1024 * 1024];
-    when(browserOps.pageScreenshot(any(), any())).thenReturn(huge);
+    when(browserOps.pageScreenshot(any(), any(), any())).thenReturn(huge);
 
     TestHandler handler = new TestHandler();
     WebSocketSession ws = client.execute(handler, headers("alice"), uri()).get(5, TimeUnit.SECONDS);
@@ -658,7 +659,7 @@ class SessionWebSocketHandlerTest {
     // header MUST be immediately followed by the binary frame; no text frame may
     // land between them.
     UUID sid = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 sid,
@@ -668,7 +669,7 @@ class SessionWebSocketHandlerTest {
                 Instant.now().plusSeconds(60)));
     byte[] png = makePng(8, 6);
     // Make pageScreenshot slow so the test actively races writers.
-    when(browserOps.pageScreenshot(any(), any()))
+    when(browserOps.pageScreenshot(any(), any(), any()))
         .thenAnswer(
             inv -> {
               Thread.sleep(50);
@@ -685,7 +686,7 @@ class SessionWebSocketHandlerTest {
       handler.takeJson(json);
 
       // Concurrent flooder firing a small describe (text response) over and over.
-      when(sessionService.describe(sid))
+      when(sessionService.describe(eq(sid), any()))
           .thenReturn(
               new SessionStateResponse(
                   sid,

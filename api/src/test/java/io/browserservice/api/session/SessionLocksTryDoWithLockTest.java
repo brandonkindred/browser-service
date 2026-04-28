@@ -45,6 +45,7 @@ class SessionLocksTryDoWithLockTest {
     handle =
         SessionHandle.desktop(
             Mockito.mock(Browser.class),
+            CallerId.parse("alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),

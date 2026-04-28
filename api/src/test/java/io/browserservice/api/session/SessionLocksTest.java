@@ -25,6 +25,7 @@ class SessionLocksTest {
     handle =
         SessionHandle.desktop(
             mock(Browser.class),
+            CallerId.parse("alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(10),

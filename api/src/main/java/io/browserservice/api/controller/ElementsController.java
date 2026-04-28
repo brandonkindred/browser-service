@@ -5,6 +5,7 @@ import io.browserservice.api.dto.ElementStateResponse;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.FindElementRequest;
 import io.browserservice.api.service.ElementOperationsService;
+import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -44,8 +45,8 @@ public class ElementsController {
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   public ElementStateResponse find(
-      @PathVariable UUID id, @Valid @RequestBody FindElementRequest req) {
-    return service.find(id, req);
+      @PathVariable UUID id, CallerId caller, @Valid @RequestBody FindElementRequest req) {
+    return service.find(id, caller, req);
   }
 
   @PostMapping("/action")
@@ -64,7 +65,8 @@ public class ElementsController {
         description = "Mobile session (desktop required)",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public void action(@PathVariable UUID id, @Valid @RequestBody ElementActionRequest req) {
-    service.action(id, req);
+  public void action(
+      @PathVariable UUID id, CallerId caller, @Valid @RequestBody ElementActionRequest req) {
+    service.action(id, caller, req);
   }
 }

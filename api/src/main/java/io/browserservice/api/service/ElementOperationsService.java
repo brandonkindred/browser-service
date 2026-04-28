@@ -11,9 +11,9 @@ import io.browserservice.api.dto.Rect;
 import io.browserservice.api.error.DesktopSessionRequiredException;
 import io.browserservice.api.error.MobileSessionRequiredException;
 import io.browserservice.api.error.UpstreamUnavailableException;
+import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
-import io.browserservice.api.session.SessionRegistry;
 import java.awt.image.BufferedImage;
 import java.util.Map;
 import java.util.UUID;
@@ -24,16 +24,16 @@ import org.springframework.stereotype.Service;
 @Service
 public class ElementOperationsService {
 
-  private final SessionRegistry registry;
+  private final SessionService sessionService;
   private final SessionLocks locks;
 
-  public ElementOperationsService(SessionRegistry registry, SessionLocks locks) {
-    this.registry = registry;
+  public ElementOperationsService(SessionService sessionService, SessionLocks locks) {
+    this.sessionService = sessionService;
     this.locks = locks;
   }
 
-  public ElementStateResponse find(UUID sessionId, FindElementRequest req) {
-    SessionHandle handle = registry.get(sessionId);
+  public ElementStateResponse find(UUID sessionId, CallerId caller, FindElementRequest req) {
+    SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return locks.doWithLock(
         handle,
         h -> {
@@ -58,8 +58,8 @@ public class ElementOperationsService {
         });
   }
 
-  public void action(UUID sessionId, ElementActionRequest req) {
-    SessionHandle handle = registry.get(sessionId);
+  public void action(UUID sessionId, CallerId caller, ElementActionRequest req) {
+    SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     if (handle.isMobile()) {
       throw new DesktopSessionRequiredException();
     }
@@ -72,8 +72,8 @@ public class ElementOperationsService {
         });
   }
 
-  public void touch(UUID sessionId, ElementTouchRequest req) {
-    SessionHandle handle = registry.get(sessionId);
+  public void touch(UUID sessionId, CallerId caller, ElementTouchRequest req) {
+    SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     if (!handle.isMobile()) {
       throw new MobileSessionRequiredException();
     }
@@ -86,8 +86,8 @@ public class ElementOperationsService {
         });
   }
 
-  public byte[] elementScreenshot(UUID sessionId, ElementScreenshotRequest req) {
-    SessionHandle handle = registry.get(sessionId);
+  public byte[] elementScreenshot(UUID sessionId, CallerId caller, ElementScreenshotRequest req) {
+    SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return locks.doWithLock(
         handle,
         h -> {

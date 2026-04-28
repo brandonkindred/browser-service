@@ -4,6 +4,7 @@ import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.ExecuteRequest;
 import io.browserservice.api.dto.ExecuteResponse;
 import io.browserservice.api.service.BrowserOperationsService;
+import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -40,7 +41,8 @@ public class ScriptController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public ExecuteResponse execute(@PathVariable UUID id, @Valid @RequestBody ExecuteRequest req) {
-    return service.executeScript(id, req);
+  public ExecuteResponse execute(
+      @PathVariable UUID id, CallerId caller, @Valid @RequestBody ExecuteRequest req) {
+    return service.executeScript(id, caller, req);
   }
 }

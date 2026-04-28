@@ -29,7 +29,11 @@ import io.browserservice.api.dto.ScrollRequest;
 import io.browserservice.api.dto.ViewportStateResponse;
 import io.browserservice.api.error.DesktopSessionRequiredException;
 import io.browserservice.api.error.ElementHandleNotFoundException;
+import io.browserservice.api.error.SessionForbiddenException;
 import io.browserservice.api.error.ValidationFailedException;
+import io.browserservice.api.persistence.BrowserSessionTracker;
+import io.browserservice.api.session.CallerId;
+import io.browserservice.api.session.DriverFactory;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
 import io.browserservice.api.session.SessionRegistry;
@@ -48,6 +52,9 @@ import org.openqa.selenium.WebElement;
 
 class BrowserOperationsServiceTest {
 
+  private static final CallerId ALICE = CallerId.parse("alice");
+  private static final CallerId BOB = CallerId.parse("bob");
+
   private SessionRegistry registry;
   private SessionLocks locks;
   private BrowserOperationsService service;
@@ -57,7 +64,14 @@ class BrowserOperationsServiceTest {
     EngineProperties props = props();
     registry = new SessionRegistry(props);
     locks = new SessionLocks(props);
-    service = new BrowserOperationsService(registry, locks);
+    SessionService sessionService =
+        new SessionService(
+            registry,
+            locks,
+            org.mockito.Mockito.mock(DriverFactory.class),
+            org.mockito.Mockito.mock(BrowserSessionTracker.class),
+            props);
+    service = new BrowserOperationsService(sessionService, locks);
   }
 
   @Test
@@ -68,7 +82,8 @@ class BrowserOperationsServiceTest {
     when(driver.getCurrentUrl()).thenReturn("https://example.com");
     UUID id = register(browser);
 
-    NavigateResponse resp = service.navigate(id, new NavigateRequest("https://example.com", null));
+    NavigateResponse resp =
+        service.navigate(id, ALICE, new NavigateRequest("https://example.com", null));
 
     assertThat(resp.status()).isEqualTo(NavigateStatus.LOADED);
     assertThat(resp.currentUrl()).isEqualTo("https://example.com");
@@ -85,7 +100,7 @@ class BrowserOperationsServiceTest {
     UUID id = registerMobile(device);
 
     NavigateResponse resp =
-        service.navigate(id, new NavigateRequest("https://m.example.com", null));
+        service.navigate(id, ALICE, new NavigateRequest("https://m.example.com", null));
     assertThat(resp.status()).isEqualTo(NavigateStatus.LOADED);
   }
 
@@ -98,7 +113,8 @@ class BrowserOperationsServiceTest {
     org.mockito.Mockito.doThrow(new TimeoutException("slow")).when(browser).waitForPageToLoad();
     UUID id = register(browser);
 
-    NavigateResponse resp = service.navigate(id, new NavigateRequest("https://example.com", null));
+    NavigateResponse resp =
+        service.navigate(id, ALICE, new NavigateRequest("https://example.com", null));
     assertThat(resp.status()).isEqualTo(NavigateStatus.TIMEOUT);
   }
 
@@ -111,7 +127,7 @@ class BrowserOperationsServiceTest {
     org.mockito.Mockito.doThrow(new RuntimeException("broken")).when(browser).navigateTo("x");
     UUID id = register(browser);
 
-    NavigateResponse resp = service.navigate(id, new NavigateRequest("x", null));
+    NavigateResponse resp = service.navigate(id, ALICE, new NavigateRequest("x", null));
     assertThat(resp.status()).isEqualTo(NavigateStatus.ERROR);
   }
 
@@ -124,7 +140,7 @@ class BrowserOperationsServiceTest {
     when(browser.getSource()).thenReturn("<html/>");
     UUID id = register(browser);
 
-    PageSourceResponse resp = service.getSource(id);
+    PageSourceResponse resp = service.getSource(id, ALICE);
     assertThat(resp.source()).isEqualTo("<html/>");
     assertThat(resp.currentUrl()).isEqualTo("u");
   }
@@ -138,7 +154,7 @@ class BrowserOperationsServiceTest {
     when(device.getSource()).thenReturn("<html/>");
     UUID id = registerMobile(device);
 
-    PageSourceResponse resp = service.getSource(id);
+    PageSourceResponse resp = service.getSource(id, ALICE);
     assertThat(resp.source()).isEqualTo("<html/>");
   }
 
@@ -152,7 +168,7 @@ class BrowserOperationsServiceTest {
         .thenReturn("<html><title>503 Service Temporarily Unavailable</title></html>");
     UUID id = register(browser);
 
-    PageStatusResponse resp = service.getStatus(id);
+    PageStatusResponse resp = service.getStatus(id, ALICE);
     assertThat(resp.is503()).isTrue();
   }
 
@@ -165,7 +181,7 @@ class BrowserOperationsServiceTest {
     when(browser.getSource()).thenReturn("<html><body>ok</body></html>");
     UUID id = register(browser);
 
-    PageStatusResponse resp = service.getStatus(id);
+    PageStatusResponse resp = service.getStatus(id, ALICE);
     assertThat(resp.is503()).isFalse();
   }
 
@@ -178,7 +194,7 @@ class BrowserOperationsServiceTest {
     when(browser.getSource()).thenThrow(new RuntimeException("nope"));
     UUID id = register(browser);
 
-    assertThat(service.getStatus(id).is503()).isFalse();
+    assertThat(service.getStatus(id, ALICE).is503()).isFalse();
   }
 
   @Test
@@ -190,7 +206,7 @@ class BrowserOperationsServiceTest {
     when(browser.getViewportScrollOffset()).thenReturn(new Point(5, 10));
     UUID id = register(browser);
 
-    ViewportStateResponse resp = service.getViewport(id);
+    ViewportStateResponse resp = service.getViewport(id, ALICE);
     assertThat(resp.viewport().width()).isEqualTo(800);
     assertThat(resp.viewport().height()).isEqualTo(600);
     assertThat(resp.scrollOffset().x()).isEqualTo(5);
@@ -204,7 +220,8 @@ class BrowserOperationsServiceTest {
     when(browser.getViewportScrollOffset()).thenReturn(new Point(0, 0));
     UUID id = register(browser);
 
-    ScrollOffset offset = service.scroll(id, new ScrollRequest(ScrollMode.TO_TOP, null, null));
+    ScrollOffset offset =
+        service.scroll(id, ALICE, new ScrollRequest(ScrollMode.TO_TOP, null, null));
     assertThat(offset.x()).isZero();
     verify(browser).scrollToTopOfPage();
   }
@@ -217,7 +234,7 @@ class BrowserOperationsServiceTest {
     when(browser.getViewportScrollOffset()).thenReturn(new Point(0, 100));
     UUID id = register(browser);
 
-    service.scroll(id, new ScrollRequest(ScrollMode.TO_BOTTOM, null, null));
+    service.scroll(id, ALICE, new ScrollRequest(ScrollMode.TO_BOTTOM, null, null));
     verify(browser).scrollToBottomOfPage();
   }
 
@@ -229,7 +246,7 @@ class BrowserOperationsServiceTest {
     UUID id = register(browser);
 
     assertThatThrownBy(
-            () -> service.scroll(id, new ScrollRequest(ScrollMode.TO_ELEMENT, null, null)))
+            () -> service.scroll(id, ALICE, new ScrollRequest(ScrollMode.TO_ELEMENT, null, null)))
         .isInstanceOf(ValidationFailedException.class);
   }
 
@@ -242,6 +259,7 @@ class BrowserOperationsServiceTest {
     SessionHandle handle =
         SessionHandle.desktop(
             browser,
+            ALICE,
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -251,7 +269,7 @@ class BrowserOperationsServiceTest {
     WebElement element = mock(WebElement.class);
     String elHandle = handle.elements().put(element);
 
-    service.scroll(handle.id(), new ScrollRequest(ScrollMode.TO_ELEMENT, elHandle, null));
+    service.scroll(handle.id(), ALICE, new ScrollRequest(ScrollMode.TO_ELEMENT, elHandle, null));
     verify(browser).scrollToElement(element);
   }
 
@@ -263,7 +281,9 @@ class BrowserOperationsServiceTest {
     UUID id = register(browser);
 
     assertThatThrownBy(
-            () -> service.scroll(id, new ScrollRequest(ScrollMode.TO_ELEMENT, "el_missing", null)))
+            () ->
+                service.scroll(
+                    id, ALICE, new ScrollRequest(ScrollMode.TO_ELEMENT, "el_missing", null)))
         .isInstanceOf(ElementHandleNotFoundException.class);
   }
 
@@ -276,6 +296,7 @@ class BrowserOperationsServiceTest {
     SessionHandle handle =
         SessionHandle.desktop(
             browser,
+            ALICE,
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -285,7 +306,8 @@ class BrowserOperationsServiceTest {
     WebElement element = mock(WebElement.class);
     String elHandle = handle.elements().put(element);
 
-    service.scroll(handle.id(), new ScrollRequest(ScrollMode.TO_ELEMENT_CENTERED, elHandle, null));
+    service.scroll(
+        handle.id(), ALICE, new ScrollRequest(ScrollMode.TO_ELEMENT_CENTERED, elHandle, null));
     verify(browser).scrollToElementCentered(element);
   }
 
@@ -298,6 +320,7 @@ class BrowserOperationsServiceTest {
     SessionHandle handle =
         SessionHandle.mobile(
             device,
+            ALICE,
             BrowserType.ANDROID,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -307,7 +330,8 @@ class BrowserOperationsServiceTest {
     WebElement element = mock(WebElement.class);
     String elHandle = handle.elements().put(element);
 
-    service.scroll(handle.id(), new ScrollRequest(ScrollMode.TO_ELEMENT_CENTERED, elHandle, null));
+    service.scroll(
+        handle.id(), ALICE, new ScrollRequest(ScrollMode.TO_ELEMENT_CENTERED, elHandle, null));
     verify(device).scrollToElement(element);
   }
 
@@ -319,7 +343,9 @@ class BrowserOperationsServiceTest {
     UUID id = register(browser);
 
     assertThatThrownBy(
-            () -> service.scroll(id, new ScrollRequest(ScrollMode.TO_ELEMENT_CENTERED, "", null)))
+            () ->
+                service.scroll(
+                    id, ALICE, new ScrollRequest(ScrollMode.TO_ELEMENT_CENTERED, "", null)))
         .isInstanceOf(ValidationFailedException.class);
   }
 
@@ -331,7 +357,7 @@ class BrowserOperationsServiceTest {
     UUID id = register(browser);
 
     assertThatThrownBy(
-            () -> service.scroll(id, new ScrollRequest(ScrollMode.DOWN_PERCENT, null, null)))
+            () -> service.scroll(id, ALICE, new ScrollRequest(ScrollMode.DOWN_PERCENT, null, null)))
         .isInstanceOf(ValidationFailedException.class);
   }
 
@@ -343,7 +369,7 @@ class BrowserOperationsServiceTest {
     when(browser.getViewportScrollOffset()).thenReturn(new Point(0, 100));
     UUID id = register(browser);
 
-    service.scroll(id, new ScrollRequest(ScrollMode.DOWN_PERCENT, null, 0.5));
+    service.scroll(id, ALICE, new ScrollRequest(ScrollMode.DOWN_PERCENT, null, 0.5));
     verify(browser).scrollDownPercent(0.5);
   }
 
@@ -355,7 +381,7 @@ class BrowserOperationsServiceTest {
     when(browser.getViewportScrollOffset()).thenReturn(new Point(0, 100));
     UUID id = register(browser);
 
-    service.scroll(id, new ScrollRequest(ScrollMode.DOWN_FULL, null, null));
+    service.scroll(id, ALICE, new ScrollRequest(ScrollMode.DOWN_FULL, null, null));
     verify(browser).scrollDownFull();
   }
 
@@ -368,6 +394,7 @@ class BrowserOperationsServiceTest {
     SessionHandle handle =
         SessionHandle.mobile(
             device,
+            ALICE,
             BrowserType.ANDROID,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -375,7 +402,7 @@ class BrowserOperationsServiceTest {
     registry.acquirePermit();
     registry.register(handle);
 
-    service.scroll(handle.id(), new ScrollRequest(ScrollMode.TO_TOP, null, null));
+    service.scroll(handle.id(), ALICE, new ScrollRequest(ScrollMode.TO_TOP, null, null));
     verify(device).scrollToTopOfPage();
   }
 
@@ -388,6 +415,7 @@ class BrowserOperationsServiceTest {
     SessionHandle handle =
         SessionHandle.mobile(
             device,
+            ALICE,
             BrowserType.ANDROID,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -395,7 +423,7 @@ class BrowserOperationsServiceTest {
     registry.acquirePermit();
     registry.register(handle);
 
-    service.scroll(handle.id(), new ScrollRequest(ScrollMode.TO_BOTTOM, null, null));
+    service.scroll(handle.id(), ALICE, new ScrollRequest(ScrollMode.TO_BOTTOM, null, null));
     verify(device).scrollToBottomOfPage();
   }
 
@@ -408,6 +436,7 @@ class BrowserOperationsServiceTest {
     SessionHandle handle =
         SessionHandle.mobile(
             device,
+            ALICE,
             BrowserType.ANDROID,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -415,7 +444,7 @@ class BrowserOperationsServiceTest {
     registry.acquirePermit();
     registry.register(handle);
 
-    service.scroll(handle.id(), new ScrollRequest(ScrollMode.DOWN_PERCENT, null, 0.25));
+    service.scroll(handle.id(), ALICE, new ScrollRequest(ScrollMode.DOWN_PERCENT, null, 0.25));
     verify(device).scrollDownPercent(0.25);
   }
 
@@ -428,6 +457,7 @@ class BrowserOperationsServiceTest {
     SessionHandle handle =
         SessionHandle.mobile(
             device,
+            ALICE,
             BrowserType.ANDROID,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -435,7 +465,7 @@ class BrowserOperationsServiceTest {
     registry.acquirePermit();
     registry.register(handle);
 
-    service.scroll(handle.id(), new ScrollRequest(ScrollMode.DOWN_FULL, null, null));
+    service.scroll(handle.id(), ALICE, new ScrollRequest(ScrollMode.DOWN_FULL, null, null));
     verify(device).scrollDownFull();
   }
 
@@ -448,7 +478,7 @@ class BrowserOperationsServiceTest {
     when(browser.getViewportScreenshot()).thenReturn(img);
     UUID id = register(browser);
 
-    byte[] bytes = service.pageScreenshot(id, ScreenshotStrategy.VIEWPORT);
+    byte[] bytes = service.pageScreenshot(id, ALICE, ScreenshotStrategy.VIEWPORT);
     assertThat(bytes).isNotEmpty();
   }
 
@@ -461,7 +491,7 @@ class BrowserOperationsServiceTest {
     when(browser.getFullPageScreenshot()).thenReturn(img);
     UUID id = register(browser);
 
-    byte[] bytes = service.pageScreenshot(id, ScreenshotStrategy.FULL_PAGE_SHUTTERBUG);
+    byte[] bytes = service.pageScreenshot(id, ALICE, ScreenshotStrategy.FULL_PAGE_SHUTTERBUG);
     assertThat(bytes).isNotEmpty();
   }
 
@@ -474,7 +504,7 @@ class BrowserOperationsServiceTest {
     when(browser.getFullPageScreenshotAshot()).thenReturn(img);
     UUID id = register(browser);
 
-    byte[] bytes = service.pageScreenshot(id, ScreenshotStrategy.FULL_PAGE_ASHOT);
+    byte[] bytes = service.pageScreenshot(id, ALICE, ScreenshotStrategy.FULL_PAGE_ASHOT);
     assertThat(bytes).isNotEmpty();
   }
 
@@ -487,7 +517,8 @@ class BrowserOperationsServiceTest {
     when(browser.getFullPageScreenshotShutterbug()).thenReturn(img);
     UUID id = register(browser);
 
-    byte[] bytes = service.pageScreenshot(id, ScreenshotStrategy.FULL_PAGE_SHUTTERBUG_PAUSED);
+    byte[] bytes =
+        service.pageScreenshot(id, ALICE, ScreenshotStrategy.FULL_PAGE_SHUTTERBUG_PAUSED);
     assertThat(bytes).isNotEmpty();
   }
 
@@ -500,7 +531,7 @@ class BrowserOperationsServiceTest {
     when(device.getViewportScreenshot()).thenReturn(img);
     UUID id = registerMobile(device);
 
-    byte[] bytes = service.pageScreenshot(id, ScreenshotStrategy.VIEWPORT);
+    byte[] bytes = service.pageScreenshot(id, ALICE, ScreenshotStrategy.VIEWPORT);
     assertThat(bytes).isNotEmpty();
   }
 
@@ -513,7 +544,7 @@ class BrowserOperationsServiceTest {
     when(device.getFullPageScreenshot()).thenReturn(img);
     UUID id = registerMobile(device);
 
-    byte[] bytes = service.pageScreenshot(id, ScreenshotStrategy.FULL_PAGE_ASHOT);
+    byte[] bytes = service.pageScreenshot(id, ALICE, ScreenshotStrategy.FULL_PAGE_ASHOT);
     assertThat(bytes).isNotEmpty();
     verify(device).getFullPageScreenshot();
   }
@@ -526,7 +557,7 @@ class BrowserOperationsServiceTest {
     when(browser.getViewportScreenshot()).thenThrow(new java.io.IOException("disk"));
     UUID id = register(browser);
 
-    assertThatThrownBy(() -> service.pageScreenshot(id, ScreenshotStrategy.VIEWPORT))
+    assertThatThrownBy(() -> service.pageScreenshot(id, ALICE, ScreenshotStrategy.VIEWPORT))
         .isInstanceOf(io.browserservice.api.error.UpstreamUnavailableException.class);
   }
 
@@ -538,7 +569,7 @@ class BrowserOperationsServiceTest {
     UUID id = registerMobile(device);
 
     assertThatThrownBy(
-            () -> service.removeDom(id, new DomRemoveRequest(DomRemovePreset.GDPR, null)))
+            () -> service.removeDom(id, ALICE, new DomRemoveRequest(DomRemovePreset.GDPR, null)))
         .isInstanceOf(DesktopSessionRequiredException.class);
   }
 
@@ -550,7 +581,8 @@ class BrowserOperationsServiceTest {
     UUID id = register(browser);
 
     assertThatThrownBy(
-            () -> service.removeDom(id, new DomRemoveRequest(DomRemovePreset.BY_CLASS, null)))
+            () ->
+                service.removeDom(id, ALICE, new DomRemoveRequest(DomRemovePreset.BY_CLASS, null)))
         .isInstanceOf(ValidationFailedException.class);
   }
 
@@ -561,16 +593,16 @@ class BrowserOperationsServiceTest {
     when(browser.getDriver()).thenReturn(driver);
     UUID id = register(browser);
 
-    service.removeDom(id, new DomRemoveRequest(DomRemovePreset.DRIFT_CHAT, null));
+    service.removeDom(id, ALICE, new DomRemoveRequest(DomRemovePreset.DRIFT_CHAT, null));
     verify(browser).removeDriftChat();
 
-    service.removeDom(id, new DomRemoveRequest(DomRemovePreset.GDPR_MODAL, null));
+    service.removeDom(id, ALICE, new DomRemoveRequest(DomRemovePreset.GDPR_MODAL, null));
     verify(browser).removeGDPRmodals();
 
-    service.removeDom(id, new DomRemoveRequest(DomRemovePreset.GDPR, null));
+    service.removeDom(id, ALICE, new DomRemoveRequest(DomRemovePreset.GDPR, null));
     verify(browser).removeGDPR();
 
-    service.removeDom(id, new DomRemoveRequest(DomRemovePreset.BY_CLASS, "chat-widget"));
+    service.removeDom(id, ALICE, new DomRemoveRequest(DomRemovePreset.BY_CLASS, "chat-widget"));
     verify(browser).removeElement("chat-widget");
   }
 
@@ -583,7 +615,8 @@ class BrowserOperationsServiceTest {
 
     assertThatThrownBy(
             () ->
-                service.moveMouse(id, new MouseMoveRequest(MouseMoveMode.OUT_OF_FRAME, null, null)))
+                service.moveMouse(
+                    id, ALICE, new MouseMoveRequest(MouseMoveMode.OUT_OF_FRAME, null, null)))
         .isInstanceOf(DesktopSessionRequiredException.class);
   }
 
@@ -594,7 +627,7 @@ class BrowserOperationsServiceTest {
     when(browser.getDriver()).thenReturn(driver);
     UUID id = register(browser);
 
-    service.moveMouse(id, new MouseMoveRequest(MouseMoveMode.OUT_OF_FRAME, null, null));
+    service.moveMouse(id, ALICE, new MouseMoveRequest(MouseMoveMode.OUT_OF_FRAME, null, null));
     verify(browser).moveMouseOutOfFrame();
   }
 
@@ -608,7 +641,7 @@ class BrowserOperationsServiceTest {
     assertThatThrownBy(
             () ->
                 service.moveMouse(
-                    id, new MouseMoveRequest(MouseMoveMode.TO_NON_INTERACTIVE, null, 5)))
+                    id, ALICE, new MouseMoveRequest(MouseMoveMode.TO_NON_INTERACTIVE, null, 5)))
         .isInstanceOf(ValidationFailedException.class);
   }
 
@@ -619,7 +652,7 @@ class BrowserOperationsServiceTest {
     when(browser.getDriver()).thenReturn(driver);
     UUID id = register(browser);
 
-    service.moveMouse(id, new MouseMoveRequest(MouseMoveMode.TO_NON_INTERACTIVE, 10, 20));
+    service.moveMouse(id, ALICE, new MouseMoveRequest(MouseMoveMode.TO_NON_INTERACTIVE, 10, 20));
     verify(browser).moveMouseToNonInteractive(new Point(10, 20));
   }
 
@@ -634,7 +667,7 @@ class BrowserOperationsServiceTest {
     when(((JavascriptExecutor) driver).executeScript("return 42;")).thenReturn(42L);
     UUID id = register(browser);
 
-    ExecuteResponse resp = service.executeScript(id, new ExecuteRequest("return 42;", null));
+    ExecuteResponse resp = service.executeScript(id, ALICE, new ExecuteRequest("return 42;", null));
     assertThat(resp.result()).isEqualTo(42L);
   }
 
@@ -648,15 +681,24 @@ class BrowserOperationsServiceTest {
     when(browser.getDriver()).thenReturn(driver);
     UUID id = register(browser);
 
-    service.executeScript(id, new ExecuteRequest("return arguments[0];", List.of("hello")));
+    service.executeScript(id, ALICE, new ExecuteRequest("return arguments[0];", List.of("hello")));
     verify((JavascriptExecutor) driver)
         .executeScript("return arguments[0];", new Object[] {"hello"});
+  }
+
+  @Test
+  void getSourceWithWrongOwnerThrowsSessionForbidden() {
+    Browser browser = mock(Browser.class);
+    UUID id = register(browser);
+    assertThatThrownBy(() -> service.getSource(id, BOB))
+        .isInstanceOf(SessionForbiddenException.class);
   }
 
   private UUID register(Browser browser) {
     SessionHandle handle =
         SessionHandle.desktop(
             browser,
+            ALICE,
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -670,6 +712,7 @@ class BrowserOperationsServiceTest {
     SessionHandle handle =
         SessionHandle.mobile(
             device,
+            ALICE,
             BrowserType.ANDROID,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),

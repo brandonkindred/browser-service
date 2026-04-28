@@ -13,6 +13,7 @@ import com.looksee.browser.Browser;
 import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import io.browserservice.api.config.EngineProperties;
+import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
 import io.browserservice.api.ws.dto.EventFrame;
@@ -64,6 +65,7 @@ class AlertWatcherTest {
     handle =
         SessionHandle.desktop(
             browser,
+            CallerId.parse("alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),

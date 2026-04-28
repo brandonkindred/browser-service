@@ -3,6 +3,7 @@ package io.browserservice.api.controller;
 import io.browserservice.api.dto.ElementTouchRequest;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.service.ElementOperationsService;
+import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -46,7 +47,8 @@ public class TouchController {
         description = "Desktop session (mobile required)",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public void touch(@PathVariable UUID id, @Valid @RequestBody ElementTouchRequest req) {
-    service.touch(id, req);
+  public void touch(
+      @PathVariable UUID id, CallerId caller, @Valid @RequestBody ElementTouchRequest req) {
+    service.touch(id, caller, req);
   }
 }

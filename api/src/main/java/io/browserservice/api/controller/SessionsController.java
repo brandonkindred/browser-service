@@ -6,6 +6,7 @@ import io.browserservice.api.dto.SessionListResponse;
 import io.browserservice.api.dto.SessionResponse;
 import io.browserservice.api.dto.SessionStateResponse;
 import io.browserservice.api.service.SessionService;
+import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -56,8 +57,8 @@ public class SessionsController {
         description = "Upstream hub unavailable",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public SessionResponse create(@Valid @RequestBody CreateSessionRequest req) {
-    return sessionService.create(req);
+  public SessionResponse create(@Valid @RequestBody CreateSessionRequest req, CallerId caller) {
+    return sessionService.create(req, caller);
   }
 
   @GetMapping
@@ -68,8 +69,8 @@ public class SessionsController {
         description = "Session list",
         content = @Content(schema = @Schema(implementation = SessionListResponse.class)))
   })
-  public SessionListResponse list() {
-    return sessionService.list();
+  public SessionListResponse list(CallerId caller) {
+    return sessionService.list(caller);
   }
 
   @GetMapping("/{id}")
@@ -84,8 +85,8 @@ public class SessionsController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public SessionStateResponse get(@PathVariable UUID id) {
-    return sessionService.describe(id);
+  public SessionStateResponse get(@PathVariable UUID id, CallerId caller) {
+    return sessionService.describe(id, caller);
   }
 
   @DeleteMapping("/{id}")
@@ -98,7 +99,7 @@ public class SessionsController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public void delete(@PathVariable UUID id) {
-    sessionService.close(id);
+  public void delete(@PathVariable UUID id, CallerId caller) {
+    sessionService.close(id, caller);
   }
 }

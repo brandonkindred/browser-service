@@ -64,6 +64,7 @@ class WatcherCoordinatorTest {
     handle =
         SessionHandle.desktop(
             browser,
+            CallerId.parse("alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),

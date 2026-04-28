@@ -18,6 +18,7 @@ import io.browserservice.api.dto.ScreenshotRequest;
 import io.browserservice.api.dto.ScrollRequest;
 import io.browserservice.api.dto.SessionResponse;
 import io.browserservice.api.error.AlreadyBoundException;
+import io.browserservice.api.error.SessionForbiddenException;
 import io.browserservice.api.error.SessionNotBoundException;
 import io.browserservice.api.error.UnknownOpException;
 import io.browserservice.api.error.ValidationFailedException;
@@ -97,7 +98,7 @@ public class CommandDispatcher {
         (conn, params) -> {
           requireUnbound(conn);
           CreateSessionRequest req = parseAndValidate(params, CreateSessionRequest.class);
-          SessionResponse resp = sessionService.create(req);
+          SessionResponse resp = sessionService.create(req, conn.caller());
           ownership.claim(resp.sessionId(), conn.caller());
           conn.bind(resp.sessionId());
           watchers.onSessionAttached(resp.sessionId(), conn);
@@ -114,17 +115,27 @@ public class CommandDispatcher {
           // Resolve state first; only bind once we've confirmed the session is still alive.
           // Otherwise a SessionNotFoundException would leave the connection bound to a dead id
           // and fail every subsequent session.create / session.attach with already_bound.
-          Object state = sessionService.describe(sessionId);
+          // requireOwner inside describe enforces the SessionHandle.owner invariant — translate
+          // a forbidden mismatch into the WS-specific OwnershipMismatchException so the existing
+          // 4403 close path keeps working.
+          Object state;
+          try {
+            state = sessionService.describe(sessionId, conn.caller());
+          } catch (SessionForbiddenException e) {
+            throw new OwnershipMismatchException(sessionId);
+          }
           conn.bind(sessionId);
           watchers.onSessionAttached(sessionId, conn);
           return state;
         });
-    h.put("session.describe", (conn, params) -> sessionService.describe(requireBound(conn)));
+    h.put(
+        "session.describe",
+        (conn, params) -> sessionService.describe(requireBound(conn), conn.caller()));
     h.put(
         "session.close",
         (conn, params) -> {
           UUID id = requireBound(conn);
-          sessionService.close(id);
+          sessionService.close(id, conn.caller());
           watchers.onSessionDetached(id, conn);
           ownership.release(id);
           conn.unbind();
@@ -136,45 +147,55 @@ public class CommandDispatcher {
         "navigation.navigate",
         (conn, params) ->
             browserOps.navigate(
-                requireBound(conn), parseAndValidate(params, NavigateRequest.class)));
-    h.put("navigation.source", (conn, params) -> browserOps.getSource(requireBound(conn)));
-    h.put("navigation.status", (conn, params) -> browserOps.getStatus(requireBound(conn)));
+                requireBound(conn),
+                conn.caller(),
+                parseAndValidate(params, NavigateRequest.class)));
+    h.put(
+        "navigation.source",
+        (conn, params) -> browserOps.getSource(requireBound(conn), conn.caller()));
+    h.put(
+        "navigation.status",
+        (conn, params) -> browserOps.getStatus(requireBound(conn), conn.caller()));
 
     // Screenshots — WS-C: emit a (binary-header, binary-frame) pair instead of base64.
     h.put(
         "screenshot.page",
         (conn, params) -> {
           ScreenshotRequest req = parseAndValidate(params, ScreenshotRequest.class);
-          byte[] png = browserOps.pageScreenshot(requireBound(conn), req.strategy());
+          byte[] png = browserOps.pageScreenshot(requireBound(conn), conn.caller(), req.strategy());
           return new DispatchResult.Binary("image/png", png);
         });
     h.put(
         "screenshot.element",
         (conn, params) -> {
           ElementScreenshotRequest req = parseAndValidate(params, ElementScreenshotRequest.class);
-          byte[] png = elementOps.elementScreenshot(requireBound(conn), req);
+          byte[] png = elementOps.elementScreenshot(requireBound(conn), conn.caller(), req);
           return new DispatchResult.Binary("image/png", png);
         });
 
     // Capture (one-shot session under the hood; not bound to the WS connection)
     h.put(
         "capture.run",
-        (conn, params) -> captureService.capture(parseAndValidate(params, CaptureRequest.class)));
+        (conn, params) ->
+            captureService.capture(parseAndValidate(params, CaptureRequest.class), conn.caller()));
     h.put(
         "capture.fetchScreenshot",
         (conn, params) -> {
           UUID captureId = readUuid(params, "capture_id");
-          byte[] png = captureService.fetchScreenshot(captureId).pngBytes();
+          byte[] png = captureService.fetchScreenshot(captureId, conn.caller()).pngBytes();
           return new DispatchResult.Binary("image/png", png);
         });
 
     // Alerts
-    h.put("alert.state", (conn, params) -> alertService.getAlert(requireBound(conn)));
+    h.put(
+        "alert.state", (conn, params) -> alertService.getAlert(requireBound(conn), conn.caller()));
     h.put(
         "alert.respond",
         (conn, params) -> {
           alertService.respond(
-              requireBound(conn), parseAndValidate(params, AlertRespondRequest.class));
+              requireBound(conn),
+              conn.caller(),
+              parseAndValidate(params, AlertRespondRequest.class));
           return null;
         });
 
@@ -183,14 +204,14 @@ public class CommandDispatcher {
         "script.execute",
         (conn, params) ->
             browserOps.executeScript(
-                requireBound(conn), parseAndValidate(params, ExecuteRequest.class)));
+                requireBound(conn), conn.caller(), parseAndValidate(params, ExecuteRequest.class)));
 
     // Mouse
     h.put(
         "mouse.move",
         (conn, params) -> {
           browserOps.moveMouse(
-              requireBound(conn), parseAndValidate(params, MouseMoveRequest.class));
+              requireBound(conn), conn.caller(), parseAndValidate(params, MouseMoveRequest.class));
           return null;
         });
 
@@ -199,12 +220,16 @@ public class CommandDispatcher {
         "element.find",
         (conn, params) ->
             elementOps.find(
-                requireBound(conn), parseAndValidate(params, FindElementRequest.class)));
+                requireBound(conn),
+                conn.caller(),
+                parseAndValidate(params, FindElementRequest.class)));
     h.put(
         "element.action",
         (conn, params) -> {
           elementOps.action(
-              requireBound(conn), parseAndValidate(params, ElementActionRequest.class));
+              requireBound(conn),
+              conn.caller(),
+              parseAndValidate(params, ElementActionRequest.class));
           return null;
         });
 
@@ -212,7 +237,10 @@ public class CommandDispatcher {
     h.put(
         "touch.tap",
         (conn, params) -> {
-          elementOps.touch(requireBound(conn), parseAndValidate(params, ElementTouchRequest.class));
+          elementOps.touch(
+              requireBound(conn),
+              conn.caller(),
+              parseAndValidate(params, ElementTouchRequest.class));
           return null;
         });
 
@@ -220,17 +248,20 @@ public class CommandDispatcher {
     h.put(
         "scroll.to",
         (conn, params) ->
-            browserOps.scroll(requireBound(conn), parseAndValidate(params, ScrollRequest.class)));
+            browserOps.scroll(
+                requireBound(conn), conn.caller(), parseAndValidate(params, ScrollRequest.class)));
 
     // Viewport
-    h.put("viewport.state", (conn, params) -> browserOps.getViewport(requireBound(conn)));
+    h.put(
+        "viewport.state",
+        (conn, params) -> browserOps.getViewport(requireBound(conn), conn.caller()));
 
     // DOM
     h.put(
         "dom.remove",
         (conn, params) -> {
           browserOps.removeDom(
-              requireBound(conn), parseAndValidate(params, DomRemoveRequest.class));
+              requireBound(conn), conn.caller(), parseAndValidate(params, DomRemoveRequest.class));
           return null;
         });
 

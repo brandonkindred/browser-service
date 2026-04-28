@@ -26,6 +26,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             browser,
+            CallerId.parse("alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -55,6 +56,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.mobile(
             device,
+            CallerId.parse("alice"),
             BrowserType.ANDROID,
             BrowserEnvironment.DISCOVERY,
             Duration.ofSeconds(15),
@@ -63,6 +65,7 @@ class SessionHandleTest {
     assertThat(handle.isMobile()).isTrue();
     assertThat(handle.asMobileDevice()).isSameAs(device);
     assertThat(handle.driver()).isSameAs(driver);
+    assertThat(handle.owner().value()).isEqualTo("alice");
     assertThatThrownBy(handle::asBrowser).isInstanceOf(IllegalStateException.class);
   }
 
@@ -72,6 +75,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             browser,
+            CallerId.parse("alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -84,6 +88,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
+            CallerId.parse("alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -99,6 +104,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
+            CallerId.parse("alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -124,6 +130,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
+            CallerId.parse("alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(10),
@@ -139,6 +146,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
+            CallerId.parse("alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofMillis(1),
@@ -152,6 +160,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             browser,
+            CallerId.parse("alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -171,6 +180,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             browser,
+            CallerId.parse("alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -185,6 +195,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.mobile(
             device,
+            CallerId.parse("alice"),
             BrowserType.ANDROID,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -200,10 +211,41 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.mobile(
             device,
+            CallerId.parse("alice"),
             BrowserType.IOS,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
             Duration.ofSeconds(60));
     assertThat(handle.closeOnce()).isTrue();
+  }
+
+  @Test
+  void desktopFactoryRejectsNullOwner() {
+    Browser browser = mock(Browser.class);
+    assertThatThrownBy(
+            () ->
+                SessionHandle.desktop(
+                    browser,
+                    null,
+                    BrowserType.CHROME,
+                    BrowserEnvironment.TEST,
+                    Duration.ofSeconds(30),
+                    Duration.ofSeconds(60)))
+        .isInstanceOf(NullPointerException.class);
+  }
+
+  @Test
+  void mobileFactoryRejectsNullOwner() {
+    MobileDevice device = mock(MobileDevice.class);
+    assertThatThrownBy(
+            () ->
+                SessionHandle.mobile(
+                    device,
+                    null,
+                    BrowserType.ANDROID,
+                    BrowserEnvironment.TEST,
+                    Duration.ofSeconds(30),
+                    Duration.ofSeconds(60)))
+        .isInstanceOf(NullPointerException.class);
   }
 }
