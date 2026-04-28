@@ -36,15 +36,33 @@ variable "labels" {
 #########################
 
 variable "vpc_name" {
-  description = "Name of the VPC network to create."
+  description = "Name of the VPC network to create. Defaults to 'browser-service-vpc-<environment>' so multiple environments in the same project don't collide."
   type        = string
-  default     = "browser-service-vpc"
+  default     = null
+}
+
+variable "subnet_name" {
+  description = "Name of the primary subnet. Defaults to 'browser-service-subnet-<environment>'."
+  type        = string
+  default     = null
+}
+
+variable "vpc_connector_name" {
+  description = "Name of the Serverless VPC Access connector. Defaults to 'browser-service-conn-<environment>'."
+  type        = string
+  default     = null
 }
 
 variable "subnet_cidr" {
   description = "Primary subnet CIDR range used by the VPC."
   type        = string
   default     = "10.10.0.0/20"
+}
+
+variable "vpc_enable_nat" {
+  description = "Provision a Cloud Router + Cloud NAT so traffic exiting the VPC connector (egress=all-traffic) can reach public non-Google endpoints. Set false in environments that don't need external egress."
+  type        = bool
+  default     = true
 }
 
 #########################
@@ -104,9 +122,26 @@ variable "selenium_image" {
 }
 
 variable "selenium_instance_count" {
-  description = "Number of Selenium standalone-chrome Cloud Run instances to provision."
+  description = "Number of Selenium standalone-chrome Cloud Run instances to provision. Must be at least 1 — the API needs at least one Selenium endpoint to open sessions."
   type        = number
   default     = 10
+
+  validation {
+    condition     = var.selenium_instance_count >= 1
+    error_message = "selenium_instance_count must be at least 1 (the API needs at least one Selenium endpoint)."
+  }
+}
+
+variable "selenium_min_instances" {
+  description = "Per-replica minimum warm Cloud Run instances. Selenium standalone benefits from 1 because cold starts include Chrome boot; drop to 0 in dev to save cost."
+  type        = number
+  default     = 1
+}
+
+variable "selenium_max_instances" {
+  description = "Per-replica max Cloud Run instance count. Selenium standalone serves a single session per container, so keep this low (1 by default)."
+  type        = number
+  default     = 1
 }
 
 variable "selenium_memory_allocation" {

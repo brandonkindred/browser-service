@@ -1,6 +1,7 @@
-# Local Terraform state and plan artifacts
+# Local Terraform state and plan artifacts. The provider lockfile
+# (.terraform.lock.hcl) is intentionally tracked so provider versions are
+# reproducible across machines and CI runs.
 .terraform/
-.terraform.lock.hcl
 *.tfstate
 *.tfstate.*
 *.tfplan

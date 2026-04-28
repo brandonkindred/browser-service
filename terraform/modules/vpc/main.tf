@@ -56,3 +56,32 @@ resource "google_service_networking_connection" "private_vpc_connection" {
   service                 = "servicenetworking.googleapis.com"
   reserved_peering_ranges = [google_compute_global_address.private_ip_range.name]
 }
+
+# Cloud Router + Cloud NAT so traffic that leaves the VPC connector can reach
+# the public internet. Without this, browser-service runs with
+# vpc-access-egress=all-traffic but has no egress path for non-Google public
+# endpoints (BrowserStack, external webhooks, etc.) and those calls time out.
+resource "google_compute_router" "router" {
+  count = var.enable_nat ? 1 : 0
+
+  name    = "${var.vpc_name}-router"
+  region  = var.region
+  network = google_compute_network.vpc.id
+  project = var.project_id
+}
+
+resource "google_compute_router_nat" "nat" {
+  count = var.enable_nat ? 1 : 0
+
+  name                               = "${var.vpc_name}-nat"
+  router                             = google_compute_router.router[0].name
+  region                             = var.region
+  project                            = var.project_id
+  nat_ip_allocate_option             = "AUTO_ONLY"
+  source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
+
+  log_config {
+    enable = false
+    filter = "ERRORS_ONLY"
+  }
+}

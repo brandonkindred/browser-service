@@ -35,3 +35,9 @@ variable "connector_cidr" {
   type        = string
   default     = "10.8.0.0/28"
 }
+
+variable "enable_nat" {
+  description = "Whether to provision a Cloud Router + Cloud NAT for outbound internet egress. Required when any caller (e.g. browser-service) uses vpc-access-egress=all-traffic and needs to reach public non-Google endpoints."
+  type        = bool
+  default     = true
+}

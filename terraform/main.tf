@@ -7,6 +7,12 @@ locals {
     },
     var.labels,
   )
+
+  # Default network names include `environment` so multiple stacks can share a
+  # project without collisions. tfvars can still override any of these.
+  vpc_name           = coalesce(var.vpc_name, "browser-service-vpc-${var.environment}")
+  subnet_name        = coalesce(var.subnet_name, "browser-service-subnet-${var.environment}")
+  vpc_connector_name = coalesce(var.vpc_connector_name, "browser-service-conn-${var.environment}")
 }
 
 # Enable APIs the stack depends on. Idempotent; safe to leave on.
@@ -40,10 +46,13 @@ resource "google_service_account" "runtime" {
 module "vpc" {
   source = "./modules/vpc"
 
-  project_id  = var.project_id
-  region      = var.region
-  vpc_name    = var.vpc_name
-  subnet_cidr = var.subnet_cidr
+  project_id     = var.project_id
+  region         = var.region
+  vpc_name       = local.vpc_name
+  subnet_name    = local.subnet_name
+  connector_name = local.vpc_connector_name
+  subnet_cidr    = var.subnet_cidr
+  enable_nat     = var.vpc_enable_nat
 
   depends_on = [google_project_service.required]
 }
@@ -88,7 +97,9 @@ module "selenium" {
   port                  = var.selenium_port
   memory_allocation     = var.selenium_memory_allocation
   cpu_allocation        = var.selenium_cpu_allocation
-  ingress = "internal"
+  min_instances         = var.selenium_min_instances
+  max_instances         = var.selenium_max_instances
+  ingress               = "internal"
   # Selenium speaks plain HTTP, not GCP id-token auth, so invoker auth would
   # block the Java client. Pair allUsers with ingress=internal: the IAM check
   # passes once traffic is on the VPC, and ingress=internal keeps the public
