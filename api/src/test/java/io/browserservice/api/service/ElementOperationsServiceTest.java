@@ -19,6 +19,10 @@ import io.browserservice.api.dto.ElementTouchRequest;
 import io.browserservice.api.dto.FindElementRequest;
 import io.browserservice.api.error.DesktopSessionRequiredException;
 import io.browserservice.api.error.MobileSessionRequiredException;
+import io.browserservice.api.error.SessionForbiddenException;
+import io.browserservice.api.persistence.BrowserSessionTracker;
+import io.browserservice.api.session.CallerId;
+import io.browserservice.api.session.DriverFactory;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
 import io.browserservice.api.session.SessionRegistry;
@@ -34,6 +38,9 @@ import org.openqa.selenium.WebElement;
 
 class ElementOperationsServiceTest {
 
+  private static final CallerId ALICE = CallerId.parse("alice");
+  private static final CallerId BOB = CallerId.parse("bob");
+
   private SessionRegistry registry;
   private SessionLocks locks;
   private ElementOperationsService service;
@@ -43,7 +50,14 @@ class ElementOperationsServiceTest {
     EngineProperties props = props();
     registry = new SessionRegistry(props);
     locks = new SessionLocks(props);
-    service = new ElementOperationsService(registry, locks);
+    SessionService sessionService =
+        new SessionService(
+            registry,
+            locks,
+            org.mockito.Mockito.mock(DriverFactory.class),
+            org.mockito.Mockito.mock(BrowserSessionTracker.class),
+            props);
+    service = new ElementOperationsService(sessionService, locks);
   }
 
   @Test
@@ -58,7 +72,7 @@ class ElementOperationsServiceTest {
     when(browser.extractAttributes(element)).thenReturn(Map.of("id", "x"));
     SessionHandle handle = registerDesktop(browser);
 
-    ElementStateResponse resp = service.find(handle.id(), new FindElementRequest("//h1"));
+    ElementStateResponse resp = service.find(handle.id(), ALICE, new FindElementRequest("//h1"));
 
     assertThat(resp.found()).isTrue();
     assertThat(resp.displayed()).isTrue();
@@ -80,7 +94,7 @@ class ElementOperationsServiceTest {
     when(element.getRect()).thenThrow(new RuntimeException("nope"));
     SessionHandle handle = registerMobile(device);
 
-    ElementStateResponse resp = service.find(handle.id(), new FindElementRequest("//btn"));
+    ElementStateResponse resp = service.find(handle.id(), ALICE, new FindElementRequest("//btn"));
 
     assertThat(resp.found()).isTrue();
     assertThat(resp.displayed()).isFalse();
@@ -95,7 +109,8 @@ class ElementOperationsServiceTest {
     when(browser.findElement("//missing")).thenThrow(new NoSuchElementException("no"));
     SessionHandle handle = registerDesktop(browser);
 
-    ElementStateResponse resp = service.find(handle.id(), new FindElementRequest("//missing"));
+    ElementStateResponse resp =
+        service.find(handle.id(), ALICE, new FindElementRequest("//missing"));
     assertThat(resp.found()).isFalse();
     assertThat(resp.elementHandle()).isNull();
     assertThat(resp.attributes()).isEmpty();
@@ -112,7 +127,7 @@ class ElementOperationsServiceTest {
     when(browser.extractAttributes(element)).thenReturn(Map.of());
     SessionHandle handle = registerDesktop(browser);
 
-    ElementStateResponse resp = service.find(handle.id(), new FindElementRequest("//x"));
+    ElementStateResponse resp = service.find(handle.id(), ALICE, new FindElementRequest("//x"));
     assertThat(resp.displayed()).isFalse();
   }
 
@@ -124,7 +139,9 @@ class ElementOperationsServiceTest {
     SessionHandle handle = registerMobile(device);
 
     assertThatThrownBy(
-            () -> service.action(handle.id(), new ElementActionRequest("el_1", Action.CLICK, null)))
+            () ->
+                service.action(
+                    handle.id(), ALICE, new ElementActionRequest("el_1", Action.CLICK, null)))
         .isInstanceOf(DesktopSessionRequiredException.class);
   }
 
@@ -140,7 +157,7 @@ class ElementOperationsServiceTest {
     assertThatThrownBy(
             () ->
                 service.action(
-                    handle.id(), new ElementActionRequest("el_missing", Action.CLICK, null)))
+                    handle.id(), ALICE, new ElementActionRequest("el_missing", Action.CLICK, null)))
         .isInstanceOf(io.browserservice.api.error.ElementHandleNotFoundException.class);
   }
 
@@ -153,7 +170,8 @@ class ElementOperationsServiceTest {
 
     assertThatThrownBy(
             () ->
-                service.touch(handle.id(), new ElementTouchRequest("el_1", MobileAction.TAP, null)))
+                service.touch(
+                    handle.id(), ALICE, new ElementTouchRequest("el_1", MobileAction.TAP, null)))
         .isInstanceOf(MobileSessionRequiredException.class);
   }
 
@@ -168,7 +186,8 @@ class ElementOperationsServiceTest {
     SessionHandle handle = registerDesktop(browser);
     String h = handle.elements().put(element);
 
-    byte[] bytes = service.elementScreenshot(handle.id(), new ElementScreenshotRequest(h, null));
+    byte[] bytes =
+        service.elementScreenshot(handle.id(), ALICE, new ElementScreenshotRequest(h, null));
     assertThat(bytes).isNotEmpty();
   }
 
@@ -183,7 +202,8 @@ class ElementOperationsServiceTest {
     SessionHandle handle = registerMobile(device);
     String h = handle.elements().put(element);
 
-    byte[] bytes = service.elementScreenshot(handle.id(), new ElementScreenshotRequest(h, null));
+    byte[] bytes =
+        service.elementScreenshot(handle.id(), ALICE, new ElementScreenshotRequest(h, null));
     assertThat(bytes).isNotEmpty();
   }
 
@@ -198,7 +218,9 @@ class ElementOperationsServiceTest {
     String h = handle.elements().put(element);
 
     assertThatThrownBy(
-            () -> service.elementScreenshot(handle.id(), new ElementScreenshotRequest(h, null)))
+            () ->
+                service.elementScreenshot(
+                    handle.id(), ALICE, new ElementScreenshotRequest(h, null)))
         .isInstanceOf(io.browserservice.api.error.UpstreamUnavailableException.class);
   }
 
@@ -213,14 +235,25 @@ class ElementOperationsServiceTest {
     String h = handle.elements().put(element);
 
     assertThatThrownBy(
-            () -> service.elementScreenshot(handle.id(), new ElementScreenshotRequest(h, null)))
+            () ->
+                service.elementScreenshot(
+                    handle.id(), ALICE, new ElementScreenshotRequest(h, null)))
         .isInstanceOf(RuntimeException.class);
+  }
+
+  @Test
+  void findWithWrongOwnerThrowsSessionForbidden() {
+    Browser browser = mock(Browser.class);
+    SessionHandle handle = registerDesktop(browser);
+    assertThatThrownBy(() -> service.find(handle.id(), BOB, new FindElementRequest("//x")))
+        .isInstanceOf(SessionForbiddenException.class);
   }
 
   private SessionHandle registerDesktop(Browser browser) {
     SessionHandle handle =
         SessionHandle.desktop(
             browser,
+            ALICE,
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -234,6 +267,7 @@ class ElementOperationsServiceTest {
     SessionHandle handle =
         SessionHandle.mobile(
             device,
+            ALICE,
             BrowserType.ANDROID,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),

@@ -74,6 +74,7 @@ import io.browserservice.api.service.CaptureService;
 import io.browserservice.api.service.ElementOperationsService;
 import io.browserservice.api.service.ReadinessService;
 import io.browserservice.api.service.SessionService;
+import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.CaptureScreenshotCache;
 import java.time.Instant;
 import java.util.List;
@@ -156,7 +157,7 @@ class ControllerHttpTest {
   @Test
   void createSessionReturns201() throws Exception {
     UUID id = UUID.randomUUID();
-    when(sessionService.create(any()))
+    when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
                 id,
@@ -167,6 +168,7 @@ class ControllerHttpTest {
 
     mvc.perform(
             post("/v1/sessions")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(
@@ -178,17 +180,22 @@ class ControllerHttpTest {
 
   @Test
   void createSessionValidationFailure() throws Exception {
-    mvc.perform(post("/v1/sessions").contentType(MediaType.APPLICATION_JSON).content("{}"))
+    mvc.perform(
+            post("/v1/sessions")
+                .header("X-Caller-Id", "alice")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{}"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.code").value("validation_failed"));
   }
 
   @Test
   void createSessionCapExceeded() throws Exception {
-    when(sessionService.create(any())).thenThrow(new SessionCapExceededException(20));
+    when(sessionService.create(any(), any())).thenThrow(new SessionCapExceededException(20));
 
     mvc.perform(
             post("/v1/sessions")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(
@@ -200,10 +207,11 @@ class ControllerHttpTest {
 
   @Test
   void createSessionUpstreamUnavailable() throws Exception {
-    when(sessionService.create(any())).thenThrow(new UpstreamUnavailableException("down"));
+    when(sessionService.create(any(), any())).thenThrow(new UpstreamUnavailableException("down"));
 
     mvc.perform(
             post("/v1/sessions")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(
@@ -215,8 +223,8 @@ class ControllerHttpTest {
 
   @Test
   void listSessions() throws Exception {
-    when(sessionService.list()).thenReturn(new SessionListResponse(List.of()));
-    mvc.perform(get("/v1/sessions"))
+    when(sessionService.list(any())).thenReturn(new SessionListResponse(List.of()));
+    mvc.perform(get("/v1/sessions").header("X-Caller-Id", "alice"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.sessions").isArray());
   }
@@ -224,7 +232,7 @@ class ControllerHttpTest {
   @Test
   void getSession() throws Exception {
     UUID id = UUID.randomUUID();
-    when(sessionService.describe(id))
+    when(sessionService.describe(eq(id), any()))
         .thenReturn(
             new SessionStateResponse(
                 id,
@@ -236,7 +244,7 @@ class ControllerHttpTest {
                 new Viewport(100, 200),
                 new ScrollOffset(0, 0)));
 
-    mvc.perform(get("/v1/sessions/" + id))
+    mvc.perform(get("/v1/sessions/" + id).header("X-Caller-Id", "alice"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.current_url").value("https://x"));
   }
@@ -244,9 +252,9 @@ class ControllerHttpTest {
   @Test
   void getSessionNotFound() throws Exception {
     UUID id = UUID.randomUUID();
-    when(sessionService.describe(id)).thenThrow(new SessionNotFoundException(id));
+    when(sessionService.describe(eq(id), any())).thenThrow(new SessionNotFoundException(id));
 
-    mvc.perform(get("/v1/sessions/" + id))
+    mvc.perform(get("/v1/sessions/" + id).header("X-Caller-Id", "alice"))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.error.code").value("session_not_found"));
   }
@@ -254,17 +262,69 @@ class ControllerHttpTest {
   @Test
   void deleteSessionReturns204() throws Exception {
     UUID id = UUID.randomUUID();
-    doNothing().when(sessionService).close(id);
+    doNothing().when(sessionService).close(eq(id), any(CallerId.class));
 
-    mvc.perform(delete("/v1/sessions/" + id)).andExpect(status().isNoContent());
-    verify(sessionService).close(id);
+    mvc.perform(delete("/v1/sessions/" + id).header("X-Caller-Id", "alice"))
+        .andExpect(status().isNoContent());
+    verify(sessionService).close(eq(id), any(CallerId.class));
   }
 
   @Test
   void deleteSessionWithInvalidUuidIs400() throws Exception {
-    mvc.perform(delete("/v1/sessions/not-a-uuid"))
+    mvc.perform(delete("/v1/sessions/not-a-uuid").header("X-Caller-Id", "alice"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.code").value("validation_failed"));
+  }
+
+  // ---------- Caller-Id wiring (issues #47/#48) ----------
+
+  @Test
+  void missingCallerIdHeaderReturns400() throws Exception {
+    mvc.perform(get("/v1/sessions"))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.error.code").value("caller_unidentified"));
+  }
+
+  @Test
+  void wrongOwnerReturns403SessionForbidden() throws Exception {
+    UUID id = UUID.randomUUID();
+    when(sessionService.describe(eq(id), any()))
+        .thenThrow(new io.browserservice.api.error.SessionForbiddenException(id));
+
+    mvc.perform(get("/v1/sessions/" + id).header("X-Caller-Id", "bob"))
+        .andExpect(status().isForbidden())
+        .andExpect(jsonPath("$.error.code").value("session_forbidden"))
+        .andExpect(jsonPath("$.error.details.session_id").value(id.toString()));
+  }
+
+  @Test
+  void listSessionsForwardsCallerToService() throws Exception {
+    UUID aliceSession = UUID.randomUUID();
+    when(sessionService.list(any()))
+        .thenAnswer(
+            inv -> {
+              CallerId caller = inv.getArgument(0);
+              if ("alice".equals(caller.value())) {
+                return new SessionListResponse(
+                    List.of(
+                        new SessionResponse(
+                            aliceSession,
+                            BrowserType.CHROME,
+                            BrowserEnvironment.TEST,
+                            Instant.now(),
+                            Instant.now().plusSeconds(60))));
+              }
+              return new SessionListResponse(List.of());
+            });
+
+    mvc.perform(get("/v1/sessions").header("X-Caller-Id", "alice"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.sessions[0].session_id").value(aliceSession.toString()));
+
+    mvc.perform(get("/v1/sessions").header("X-Caller-Id", "bob"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.sessions").isArray())
+        .andExpect(jsonPath("$.sessions[0]").doesNotExist());
   }
 
   // ---------- Navigation ----------
@@ -272,11 +332,12 @@ class ControllerHttpTest {
   @Test
   void navigateOk() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.navigate(eq(id), any()))
+    when(browserOps.navigate(eq(id), any(), any()))
         .thenReturn(new NavigateResponse("https://x", NavigateStatus.LOADED));
 
     mvc.perform(
             post("/v1/sessions/" + id + "/navigate")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(new NavigateRequest("https://x", null))))
         .andExpect(status().isOk())
@@ -286,8 +347,8 @@ class ControllerHttpTest {
   @Test
   void getSourceOk() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.getSource(id)).thenReturn(new PageSourceResponse("u", "<html/>"));
-    mvc.perform(get("/v1/sessions/" + id + "/source"))
+    when(browserOps.getSource(eq(id), any())).thenReturn(new PageSourceResponse("u", "<html/>"));
+    mvc.perform(get("/v1/sessions/" + id + "/source").header("X-Caller-Id", "alice"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.source").value("<html/>"));
   }
@@ -295,8 +356,8 @@ class ControllerHttpTest {
   @Test
   void getStatusOk() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.getStatus(id)).thenReturn(new PageStatusResponse("u", false));
-    mvc.perform(get("/v1/sessions/" + id + "/status"))
+    when(browserOps.getStatus(eq(id), any())).thenReturn(new PageStatusResponse("u", false));
+    mvc.perform(get("/v1/sessions/" + id + "/status").header("X-Caller-Id", "alice"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.is503").value(false));
   }
@@ -307,10 +368,11 @@ class ControllerHttpTest {
   void screenshotBinaryResponse() throws Exception {
     UUID id = UUID.randomUUID();
     byte[] png = samplePng();
-    when(browserOps.pageScreenshot(eq(id), eq(ScreenshotStrategy.VIEWPORT))).thenReturn(png);
+    when(browserOps.pageScreenshot(eq(id), any(), eq(ScreenshotStrategy.VIEWPORT))).thenReturn(png);
 
     mvc.perform(
             post("/v1/sessions/" + id + "/screenshot")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.IMAGE_PNG)
                 .content(
@@ -323,11 +385,12 @@ class ControllerHttpTest {
   @Test
   void screenshotBase64Response() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.pageScreenshot(eq(id), eq(ScreenshotStrategy.VIEWPORT)))
+    when(browserOps.pageScreenshot(eq(id), any(), eq(ScreenshotStrategy.VIEWPORT)))
         .thenReturn(samplePng());
 
     mvc.perform(
             post("/v1/sessions/" + id + "/screenshot")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .content(
@@ -342,11 +405,12 @@ class ControllerHttpTest {
   @Test
   void screenshotBase64HandlesUnparseableBytesGracefully() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.pageScreenshot(eq(id), eq(ScreenshotStrategy.VIEWPORT)))
+    when(browserOps.pageScreenshot(eq(id), any(), eq(ScreenshotStrategy.VIEWPORT)))
         .thenReturn(new byte[] {1, 2, 3});
 
     mvc.perform(
             post("/v1/sessions/" + id + "/screenshot")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.APPLICATION_JSON)
                 .content(
@@ -359,10 +423,11 @@ class ControllerHttpTest {
   @Test
   void elementScreenshotBinary() throws Exception {
     UUID id = UUID.randomUUID();
-    when(elementOps.elementScreenshot(eq(id), any())).thenReturn(samplePng());
+    when(elementOps.elementScreenshot(eq(id), any(), any())).thenReturn(samplePng());
 
     mvc.perform(
             post("/v1/sessions/" + id + "/element/screenshot")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .accept(MediaType.IMAGE_PNG)
                 .content(json.writeValueAsString(new ElementScreenshotRequest("el_1", null))))
@@ -375,11 +440,12 @@ class ControllerHttpTest {
   @Test
   void findElement() throws Exception {
     UUID id = UUID.randomUUID();
-    when(elementOps.find(eq(id), any()))
+    when(elementOps.find(eq(id), any(), any()))
         .thenReturn(new ElementStateResponse("el_1", true, true, Map.of(), new Rect(0, 0, 1, 1)));
 
     mvc.perform(
             post("/v1/sessions/" + id + "/element/find")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(new FindElementRequest("//h1"))))
         .andExpect(status().isOk())
@@ -389,10 +455,11 @@ class ControllerHttpTest {
   @Test
   void elementAction204() throws Exception {
     UUID id = UUID.randomUUID();
-    doNothing().when(elementOps).action(eq(id), any());
+    doNothing().when(elementOps).action(eq(id), any(), any());
 
     mvc.perform(
             post("/v1/sessions/" + id + "/element/action")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(new ElementActionRequest("el_1", Action.CLICK, null))))
@@ -402,10 +469,11 @@ class ControllerHttpTest {
   @Test
   void elementActionOnMobileReturns409() throws Exception {
     UUID id = UUID.randomUUID();
-    doThrow(new DesktopSessionRequiredException()).when(elementOps).action(eq(id), any());
+    doThrow(new DesktopSessionRequiredException()).when(elementOps).action(eq(id), any(), any());
 
     mvc.perform(
             post("/v1/sessions/" + id + "/element/action")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(new ElementActionRequest("el_1", Action.CLICK, null))))
@@ -416,10 +484,13 @@ class ControllerHttpTest {
   @Test
   void elementActionElementMissingReturns404() throws Exception {
     UUID id = UUID.randomUUID();
-    doThrow(new ElementHandleNotFoundException("el_1")).when(elementOps).action(eq(id), any());
+    doThrow(new ElementHandleNotFoundException("el_1"))
+        .when(elementOps)
+        .action(eq(id), any(), any());
 
     mvc.perform(
             post("/v1/sessions/" + id + "/element/action")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(new ElementActionRequest("el_1", Action.CLICK, null))))
@@ -430,10 +501,11 @@ class ControllerHttpTest {
   @Test
   void elementTouch204() throws Exception {
     UUID id = UUID.randomUUID();
-    doNothing().when(elementOps).touch(eq(id), any());
+    doNothing().when(elementOps).touch(eq(id), any(), any());
 
     mvc.perform(
             post("/v1/sessions/" + id + "/element/touch")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(
@@ -444,10 +516,11 @@ class ControllerHttpTest {
   @Test
   void elementTouchOnDesktopReturns409() throws Exception {
     UUID id = UUID.randomUUID();
-    doThrow(new MobileSessionRequiredException()).when(elementOps).touch(eq(id), any());
+    doThrow(new MobileSessionRequiredException()).when(elementOps).touch(eq(id), any(), any());
 
     mvc.perform(
             post("/v1/sessions/" + id + "/element/touch")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(
@@ -461,10 +534,11 @@ class ControllerHttpTest {
   @Test
   void scrollOk() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.scroll(eq(id), any())).thenReturn(new ScrollOffset(0, 500));
+    when(browserOps.scroll(eq(id), any(), any())).thenReturn(new ScrollOffset(0, 500));
 
     mvc.perform(
             post("/v1/sessions/" + id + "/scroll")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(new ScrollRequest(ScrollMode.TO_BOTTOM, null, null))))
@@ -475,11 +549,12 @@ class ControllerHttpTest {
   @Test
   void scrollValidationFailure() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.scroll(eq(id), any()))
+    when(browserOps.scroll(eq(id), any(), any()))
         .thenThrow(new ValidationFailedException("element_handle is required for TO_ELEMENT"));
 
     mvc.perform(
             post("/v1/sessions/" + id + "/scroll")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(new ScrollRequest(ScrollMode.TO_ELEMENT, null, null))))
@@ -490,10 +565,10 @@ class ControllerHttpTest {
   @Test
   void getViewport() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.getViewport(id))
+    when(browserOps.getViewport(eq(id), any()))
         .thenReturn(new ViewportStateResponse(new Viewport(1000, 800), new ScrollOffset(0, 0)));
 
-    mvc.perform(get("/v1/sessions/" + id + "/viewport"))
+    mvc.perform(get("/v1/sessions/" + id + "/viewport").header("X-Caller-Id", "alice"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.viewport.width").value(1000));
   }
@@ -503,10 +578,11 @@ class ControllerHttpTest {
   @Test
   void domRemove204() throws Exception {
     UUID id = UUID.randomUUID();
-    doNothing().when(browserOps).removeDom(eq(id), any());
+    doNothing().when(browserOps).removeDom(eq(id), any(), any());
 
     mvc.perform(
             post("/v1/sessions/" + id + "/dom/remove")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(
@@ -519,9 +595,9 @@ class ControllerHttpTest {
   @Test
   void getAlertOk() throws Exception {
     UUID id = UUID.randomUUID();
-    when(alertService.getAlert(id)).thenReturn(new AlertStateResponse(true, "hi"));
+    when(alertService.getAlert(eq(id), any())).thenReturn(new AlertStateResponse(true, "hi"));
 
-    mvc.perform(get("/v1/sessions/" + id + "/alert"))
+    mvc.perform(get("/v1/sessions/" + id + "/alert").header("X-Caller-Id", "alice"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.present").value(true))
         .andExpect(jsonPath("$.text").value("hi"));
@@ -530,10 +606,11 @@ class ControllerHttpTest {
   @Test
   void respondAlert204() throws Exception {
     UUID id = UUID.randomUUID();
-    doNothing().when(alertService).respond(eq(id), any(AlertRespondRequest.class));
+    doNothing().when(alertService).respond(eq(id), any(), any(AlertRespondRequest.class));
 
     mvc.perform(
             post("/v1/sessions/" + id + "/alert/respond")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(new AlertRespondRequest(AlertChoice.ACCEPT, null))))
@@ -545,10 +622,11 @@ class ControllerHttpTest {
   @Test
   void mouseMove204() throws Exception {
     UUID id = UUID.randomUUID();
-    doNothing().when(browserOps).moveMouse(eq(id), any());
+    doNothing().when(browserOps).moveMouse(eq(id), any(), any());
 
     mvc.perform(
             post("/v1/sessions/" + id + "/mouse/move")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(
@@ -561,10 +639,11 @@ class ControllerHttpTest {
   @Test
   void executeScript() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.executeScript(eq(id), any())).thenReturn(new ExecuteResponse(42));
+    when(browserOps.executeScript(eq(id), any(), any())).thenReturn(new ExecuteResponse(42));
 
     mvc.perform(
             post("/v1/sessions/" + id + "/execute")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(new ExecuteRequest("return 42;", null))))
         .andExpect(status().isOk())
@@ -576,7 +655,7 @@ class ControllerHttpTest {
   @Test
   void captureOk() throws Exception {
     UUID capId = UUID.randomUUID();
-    when(captureService.capture(any()))
+    when(captureService.capture(any(), any()))
         .thenReturn(
             new CaptureResponse(
                 capId,
@@ -587,6 +666,7 @@ class ControllerHttpTest {
 
     mvc.perform(
             post("/v1/capture")
+                .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     json.writeValueAsString(
@@ -601,9 +681,9 @@ class ControllerHttpTest {
     UUID capId = UUID.randomUUID();
     CaptureScreenshotCache.CaptureEntry entry =
         new CaptureScreenshotCache.CaptureEntry(samplePng(), 2, 2, Instant.now().plusSeconds(60));
-    when(captureService.fetchScreenshot(capId)).thenReturn(entry);
+    when(captureService.fetchScreenshot(eq(capId), any())).thenReturn(entry);
 
-    mvc.perform(get("/v1/capture/" + capId + "/screenshot"))
+    mvc.perform(get("/v1/capture/" + capId + "/screenshot").header("X-Caller-Id", "alice"))
         .andExpect(status().isOk())
         .andExpect(content().contentType(MediaType.IMAGE_PNG));
   }
@@ -611,9 +691,10 @@ class ControllerHttpTest {
   @Test
   void captureScreenshotNotFound() throws Exception {
     UUID capId = UUID.randomUUID();
-    when(captureService.fetchScreenshot(capId)).thenThrow(new CaptureNotFoundException(capId));
+    when(captureService.fetchScreenshot(eq(capId), any()))
+        .thenThrow(new CaptureNotFoundException(capId));
 
-    mvc.perform(get("/v1/capture/" + capId + "/screenshot"))
+    mvc.perform(get("/v1/capture/" + capId + "/screenshot").header("X-Caller-Id", "alice"))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.error.code").value("capture_not_found"));
   }
@@ -621,9 +702,10 @@ class ControllerHttpTest {
   @Test
   void captureScreenshotExpired() throws Exception {
     UUID capId = UUID.randomUUID();
-    when(captureService.fetchScreenshot(capId)).thenThrow(new CaptureExpiredException(capId));
+    when(captureService.fetchScreenshot(eq(capId), any()))
+        .thenThrow(new CaptureExpiredException(capId));
 
-    mvc.perform(get("/v1/capture/" + capId + "/screenshot"))
+    mvc.perform(get("/v1/capture/" + capId + "/screenshot").header("X-Caller-Id", "alice"))
         .andExpect(status().isGone())
         .andExpect(jsonPath("$.error.code").value("capture_expired"));
   }
@@ -633,9 +715,9 @@ class ControllerHttpTest {
   @Test
   void sessionBusyMapsTo409() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.getSource(id)).thenThrow(new SessionBusyException(id));
+    when(browserOps.getSource(eq(id), any())).thenThrow(new SessionBusyException(id));
 
-    mvc.perform(get("/v1/sessions/" + id + "/source"))
+    mvc.perform(get("/v1/sessions/" + id + "/source").header("X-Caller-Id", "alice"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.error.code").value("session_busy"));
   }
@@ -643,9 +725,9 @@ class ControllerHttpTest {
   @Test
   void unknownWebDriverExceptionMapsTo502() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.getSource(id)).thenThrow(new WebDriverException("driver exploded"));
+    when(browserOps.getSource(eq(id), any())).thenThrow(new WebDriverException("driver exploded"));
 
-    mvc.perform(get("/v1/sessions/" + id + "/source"))
+    mvc.perform(get("/v1/sessions/" + id + "/source").header("X-Caller-Id", "alice"))
         .andExpect(status().isBadGateway())
         .andExpect(jsonPath("$.error.code").value("webdriver_error"));
   }
@@ -653,9 +735,9 @@ class ControllerHttpTest {
   @Test
   void unreachableBrowserMapsTo502() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.getSource(id)).thenThrow(new UnreachableBrowserException("gone"));
+    when(browserOps.getSource(eq(id), any())).thenThrow(new UnreachableBrowserException("gone"));
 
-    mvc.perform(get("/v1/sessions/" + id + "/source"))
+    mvc.perform(get("/v1/sessions/" + id + "/source").header("X-Caller-Id", "alice"))
         .andExpect(status().isBadGateway())
         .andExpect(jsonPath("$.error.code").value("upstream_unavailable"));
   }
@@ -663,10 +745,10 @@ class ControllerHttpTest {
   @Test
   void unknownSeleniumElementMapsTo404() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.getSource(id))
+    when(browserOps.getSource(eq(id), any()))
         .thenThrow(new org.openqa.selenium.NoSuchElementException("gone"));
 
-    mvc.perform(get("/v1/sessions/" + id + "/source"))
+    mvc.perform(get("/v1/sessions/" + id + "/source").header("X-Caller-Id", "alice"))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.error.code").value("element_not_found"));
   }
@@ -674,9 +756,10 @@ class ControllerHttpTest {
   @Test
   void seleniumTimeoutMapsTo408() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.getSource(id)).thenThrow(new org.openqa.selenium.TimeoutException("slow"));
+    when(browserOps.getSource(eq(id), any()))
+        .thenThrow(new org.openqa.selenium.TimeoutException("slow"));
 
-    mvc.perform(get("/v1/sessions/" + id + "/source"))
+    mvc.perform(get("/v1/sessions/" + id + "/source").header("X-Caller-Id", "alice"))
         .andExpect(status().isRequestTimeout())
         .andExpect(jsonPath("$.error.code").value("upstream_timeout"));
   }
@@ -684,10 +767,10 @@ class ControllerHttpTest {
   @Test
   void unhandledAlertMapsTo409() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.getSource(id))
+    when(browserOps.getSource(eq(id), any()))
         .thenThrow(new org.openqa.selenium.UnhandledAlertException("alert"));
 
-    mvc.perform(get("/v1/sessions/" + id + "/source"))
+    mvc.perform(get("/v1/sessions/" + id + "/source").header("X-Caller-Id", "alice"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.error.code").value("unhandled_alert"));
   }
@@ -695,10 +778,10 @@ class ControllerHttpTest {
   @Test
   void staleElementMapsTo409() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.getSource(id))
+    when(browserOps.getSource(eq(id), any()))
         .thenThrow(new org.openqa.selenium.StaleElementReferenceException("stale"));
 
-    mvc.perform(get("/v1/sessions/" + id + "/source"))
+    mvc.perform(get("/v1/sessions/" + id + "/source").header("X-Caller-Id", "alice"))
         .andExpect(status().isConflict())
         .andExpect(jsonPath("$.error.code").value("stale_element"));
   }
@@ -706,9 +789,9 @@ class ControllerHttpTest {
   @Test
   void unexpectedErrorMapsTo500() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.getSource(id)).thenThrow(new IllegalStateException("wat"));
+    when(browserOps.getSource(eq(id), any())).thenThrow(new IllegalStateException("wat"));
 
-    mvc.perform(get("/v1/sessions/" + id + "/source"))
+    mvc.perform(get("/v1/sessions/" + id + "/source").header("X-Caller-Id", "alice"))
         .andExpect(status().isInternalServerError())
         .andExpect(jsonPath("$.error.code").value("internal_error"));
   }
@@ -716,14 +799,18 @@ class ControllerHttpTest {
   @Test
   void parameterTypeMismatchReturns400() throws Exception {
     // UUID path parameter receives a non-UUID → MethodArgumentTypeMismatchException
-    mvc.perform(get("/v1/sessions/not-a-uuid/source"))
+    mvc.perform(get("/v1/sessions/not-a-uuid/source").header("X-Caller-Id", "alice"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.code").value("validation_failed"));
   }
 
   @Test
   void unparseableJsonReturns400() throws Exception {
-    mvc.perform(post("/v1/sessions").contentType(MediaType.APPLICATION_JSON).content("{"))
+    mvc.perform(
+            post("/v1/sessions")
+                .header("X-Caller-Id", "alice")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{"))
         .andExpect(status().isBadRequest())
         .andExpect(jsonPath("$.error.code").value("validation_failed"));
   }
@@ -731,9 +818,12 @@ class ControllerHttpTest {
   @Test
   void errorEnvelopeIncludesRequestId() throws Exception {
     UUID id = UUID.randomUUID();
-    when(sessionService.describe(id)).thenThrow(new SessionNotFoundException(id));
+    when(sessionService.describe(eq(id), any())).thenThrow(new SessionNotFoundException(id));
 
-    mvc.perform(get("/v1/sessions/" + id).header("X-Request-Id", "trace-1"))
+    mvc.perform(
+            get("/v1/sessions/" + id)
+                .header("X-Caller-Id", "alice")
+                .header("X-Request-Id", "trace-1"))
         .andExpect(status().isNotFound())
         .andExpect(jsonPath("$.error.request_id").value("trace-1"))
         .andExpect(header().string("X-Request-Id", "trace-1"));
@@ -742,10 +832,10 @@ class ControllerHttpTest {
   @Test
   void errorMessageSanitizesMultiLineMessages() throws Exception {
     UUID id = UUID.randomUUID();
-    when(browserOps.getSource(id))
+    when(browserOps.getSource(eq(id), any()))
         .thenThrow(new WebDriverException("short message\nwith full stacktrace"));
 
-    mvc.perform(get("/v1/sessions/" + id + "/source"))
+    mvc.perform(get("/v1/sessions/" + id + "/source").header("X-Caller-Id", "alice"))
         .andExpect(status().isBadGateway())
         .andExpect(jsonPath("$.error.message").value(containsString("short message")));
     assertThat(true).isTrue();

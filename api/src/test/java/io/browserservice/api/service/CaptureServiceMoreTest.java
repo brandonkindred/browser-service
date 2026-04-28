@@ -13,6 +13,7 @@ import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.dto.CaptureRequest;
 import io.browserservice.api.dto.PngEncoding;
 import io.browserservice.api.error.UpstreamUnavailableException;
+import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.CaptureScreenshotCache;
 import io.browserservice.api.session.DriverFactory;
 import io.browserservice.api.session.SessionLocks;
@@ -23,6 +24,8 @@ import org.junit.jupiter.api.Test;
 import org.openqa.selenium.WebDriver;
 
 class CaptureServiceMoreTest {
+
+  private static final CallerId ALICE = CallerId.parse("alice");
 
   private SessionRegistry registry;
   private SessionLocks locks;
@@ -51,7 +54,8 @@ class CaptureServiceMoreTest {
     assertThatThrownBy(
             () ->
                 service.capture(
-                    new CaptureRequest("u", BrowserType.CHROME, null, null, null, null, null)))
+                    new CaptureRequest("u", BrowserType.CHROME, null, null, null, null, null),
+                    ALICE))
         .isInstanceOf(RuntimeException.class);
 
     // Permit released after the capture session was cleaned up.
@@ -72,7 +76,8 @@ class CaptureServiceMoreTest {
             () ->
                 service.capture(
                     new CaptureRequest(
-                        "u", BrowserType.CHROME, null, null, PngEncoding.BASE64, null, null)))
+                        "u", BrowserType.CHROME, null, null, PngEncoding.BASE64, null, null),
+                    ALICE))
         .isInstanceOf(UpstreamUnavailableException.class);
     assertThat(registry.size()).isZero();
   }
@@ -89,7 +94,8 @@ class CaptureServiceMoreTest {
 
     var resp =
         service.capture(
-            new CaptureRequest("u", BrowserType.CHROME, null, null, PngEncoding.BASE64, "", null));
+            new CaptureRequest("u", BrowserType.CHROME, null, null, PngEncoding.BASE64, "", null),
+            ALICE);
     assertThat(resp.element()).isNull();
   }
 

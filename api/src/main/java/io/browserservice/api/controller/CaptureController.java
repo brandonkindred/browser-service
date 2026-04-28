@@ -4,6 +4,7 @@ import io.browserservice.api.dto.CaptureRequest;
 import io.browserservice.api.dto.CaptureResponse;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.service.CaptureService;
+import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.CaptureScreenshotCache;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -52,8 +53,8 @@ public class CaptureController {
         description = "Upstream unavailable",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public CaptureResponse capture(@Valid @RequestBody CaptureRequest req) {
-    return service.capture(req);
+  public CaptureResponse capture(@Valid @RequestBody CaptureRequest req, CallerId caller) {
+    return service.capture(req, caller);
   }
 
   @GetMapping(value = "/{captureId}/screenshot", produces = MediaType.IMAGE_PNG_VALUE)
@@ -69,8 +70,8 @@ public class CaptureController {
         description = "Capture expired",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public ResponseEntity<byte[]> getScreenshot(@PathVariable UUID captureId) {
-    CaptureScreenshotCache.CaptureEntry entry = service.fetchScreenshot(captureId);
+  public ResponseEntity<byte[]> getScreenshot(@PathVariable UUID captureId, CallerId caller) {
+    CaptureScreenshotCache.CaptureEntry entry = service.fetchScreenshot(captureId, caller);
     return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(entry.pngBytes());
   }
 }

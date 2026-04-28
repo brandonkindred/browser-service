@@ -114,6 +114,7 @@ class SessionRegistryTest {
   private static SessionHandle newHandle() {
     return SessionHandle.desktop(
         mock(Browser.class),
+        CallerId.parse("alice"),
         BrowserType.CHROME,
         BrowserEnvironment.TEST,
         Duration.ofSeconds(30),

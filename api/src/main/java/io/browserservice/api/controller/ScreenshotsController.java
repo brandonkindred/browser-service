@@ -7,6 +7,7 @@ import io.browserservice.api.dto.ScreenshotBase64Response;
 import io.browserservice.api.dto.ScreenshotRequest;
 import io.browserservice.api.service.BrowserOperationsService;
 import io.browserservice.api.service.ElementOperationsService;
+import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -60,8 +61,8 @@ public class ScreenshotsController {
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   public ResponseEntity<?> capture(
-      @PathVariable UUID id, @Valid @RequestBody ScreenshotRequest req) {
-    byte[] pngBytes = browserOps.pageScreenshot(id, req.strategy());
+      @PathVariable UUID id, CallerId caller, @Valid @RequestBody ScreenshotRequest req) {
+    byte[] pngBytes = browserOps.pageScreenshot(id, caller, req.strategy());
     return respond(pngBytes, req.encoding());
   }
 
@@ -79,8 +80,8 @@ public class ScreenshotsController {
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   public ResponseEntity<?> captureElement(
-      @PathVariable UUID id, @Valid @RequestBody ElementScreenshotRequest req) {
-    byte[] pngBytes = elementOps.elementScreenshot(id, req);
+      @PathVariable UUID id, CallerId caller, @Valid @RequestBody ElementScreenshotRequest req) {
+    byte[] pngBytes = elementOps.elementScreenshot(id, caller, req);
     return respond(pngBytes, req.encoding());
   }
 

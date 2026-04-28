@@ -3,6 +3,7 @@ package io.browserservice.api.controller;
 import io.browserservice.api.dto.DomRemoveRequest;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.service.BrowserOperationsService;
+import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -50,7 +51,8 @@ public class DomController {
         description = "Mobile session (desktop required)",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public void remove(@PathVariable UUID id, @Valid @RequestBody DomRemoveRequest req) {
-    service.removeDom(id, req);
+  public void remove(
+      @PathVariable UUID id, CallerId caller, @Valid @RequestBody DomRemoveRequest req) {
+    service.removeDom(id, caller, req);
   }
 }

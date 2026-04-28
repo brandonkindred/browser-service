@@ -6,6 +6,7 @@ import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
@@ -18,6 +19,7 @@ public final class SessionHandle {
   private static final Logger log = LoggerFactory.getLogger(SessionHandle.class);
 
   private final UUID id;
+  private final CallerId owner;
   private final Browser browser; // null iff mobile session
   private final MobileDevice mobileDevice; // null iff desktop session
   private final BrowserType browserType;
@@ -32,6 +34,7 @@ public final class SessionHandle {
 
   private SessionHandle(
       UUID id,
+      CallerId owner,
       Browser browser,
       MobileDevice mobileDevice,
       BrowserType type,
@@ -39,6 +42,7 @@ public final class SessionHandle {
       Duration idleTtl,
       Duration absoluteTtl) {
     this.id = id;
+    this.owner = Objects.requireNonNull(owner, "owner");
     this.browser = browser;
     this.mobileDevice = mobileDevice;
     this.browserType = type;
@@ -54,24 +58,32 @@ public final class SessionHandle {
 
   public static SessionHandle desktop(
       Browser browser,
+      CallerId owner,
       BrowserType type,
       BrowserEnvironment env,
       Duration idleTtl,
       Duration absoluteTtl) {
-    return new SessionHandle(UUID.randomUUID(), browser, null, type, env, idleTtl, absoluteTtl);
+    return new SessionHandle(
+        UUID.randomUUID(), owner, browser, null, type, env, idleTtl, absoluteTtl);
   }
 
   public static SessionHandle mobile(
       MobileDevice device,
+      CallerId owner,
       BrowserType type,
       BrowserEnvironment env,
       Duration idleTtl,
       Duration absoluteTtl) {
-    return new SessionHandle(UUID.randomUUID(), null, device, type, env, idleTtl, absoluteTtl);
+    return new SessionHandle(
+        UUID.randomUUID(), owner, null, device, type, env, idleTtl, absoluteTtl);
   }
 
   public UUID id() {
     return id;
+  }
+
+  public CallerId owner() {
+    return owner;
   }
 
   public BrowserType browserType() {

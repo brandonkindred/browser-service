@@ -20,9 +20,9 @@ import io.browserservice.api.dto.Viewport;
 import io.browserservice.api.dto.ViewportStateResponse;
 import io.browserservice.api.error.DesktopSessionRequiredException;
 import io.browserservice.api.error.ValidationFailedException;
+import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
-import io.browserservice.api.session.SessionRegistry;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.util.UUID;
@@ -37,16 +37,16 @@ import org.springframework.stereotype.Service;
 @Service
 public class BrowserOperationsService {
 
-  private final SessionRegistry registry;
+  private final SessionService sessionService;
   private final SessionLocks locks;
 
-  public BrowserOperationsService(SessionRegistry registry, SessionLocks locks) {
-    this.registry = registry;
+  public BrowserOperationsService(SessionService sessionService, SessionLocks locks) {
+    this.sessionService = sessionService;
     this.locks = locks;
   }
 
-  public NavigateResponse navigate(UUID sessionId, NavigateRequest req) {
-    SessionHandle handle = registry.get(sessionId);
+  public NavigateResponse navigate(UUID sessionId, CallerId caller, NavigateRequest req) {
+    SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return locks.doWithLock(
         handle,
         h -> {
@@ -67,8 +67,8 @@ public class BrowserOperationsService {
         });
   }
 
-  public PageSourceResponse getSource(UUID sessionId) {
-    SessionHandle handle = registry.get(sessionId);
+  public PageSourceResponse getSource(UUID sessionId, CallerId caller) {
+    SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return locks.doWithLock(
         handle,
         h -> {
@@ -77,8 +77,8 @@ public class BrowserOperationsService {
         });
   }
 
-  public PageStatusResponse getStatus(UUID sessionId) {
-    SessionHandle handle = registry.get(sessionId);
+  public PageStatusResponse getStatus(UUID sessionId, CallerId caller) {
+    SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return locks.doWithLock(
         handle,
         h -> {
@@ -93,8 +93,8 @@ public class BrowserOperationsService {
         });
   }
 
-  public ViewportStateResponse getViewport(UUID sessionId) {
-    SessionHandle handle = registry.get(sessionId);
+  public ViewportStateResponse getViewport(UUID sessionId, CallerId caller) {
+    SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return locks.doWithLock(
         handle,
         h -> {
@@ -109,8 +109,8 @@ public class BrowserOperationsService {
         });
   }
 
-  public ScrollOffset scroll(UUID sessionId, ScrollRequest req) {
-    SessionHandle handle = registry.get(sessionId);
+  public ScrollOffset scroll(UUID sessionId, CallerId caller, ScrollRequest req) {
+    SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return locks.doWithLock(
         handle,
         h -> {
@@ -124,8 +124,8 @@ public class BrowserOperationsService {
   }
 
   public byte[] pageScreenshot(
-      UUID sessionId, io.browserservice.api.dto.ScreenshotStrategy strategy) {
-    SessionHandle handle = registry.get(sessionId);
+      UUID sessionId, CallerId caller, io.browserservice.api.dto.ScreenshotStrategy strategy) {
+    SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return locks.doWithLock(
         handle,
         h -> {
@@ -139,8 +139,8 @@ public class BrowserOperationsService {
         });
   }
 
-  public void removeDom(UUID sessionId, DomRemoveRequest req) {
-    SessionHandle handle = registry.get(sessionId);
+  public void removeDom(UUID sessionId, CallerId caller, DomRemoveRequest req) {
+    SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     if (handle.isMobile()) {
       throw new DesktopSessionRequiredException();
     }
@@ -161,8 +161,8 @@ public class BrowserOperationsService {
         });
   }
 
-  public void moveMouse(UUID sessionId, MouseMoveRequest req) {
-    SessionHandle handle = registry.get(sessionId);
+  public void moveMouse(UUID sessionId, CallerId caller, MouseMoveRequest req) {
+    SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     if (handle.isMobile()) {
       throw new DesktopSessionRequiredException();
     }
@@ -182,8 +182,8 @@ public class BrowserOperationsService {
         });
   }
 
-  public ExecuteResponse executeScript(UUID sessionId, ExecuteRequest req) {
-    SessionHandle handle = registry.get(sessionId);
+  public ExecuteResponse executeScript(UUID sessionId, CallerId caller, ExecuteRequest req) {
+    SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return locks.doWithLock(
         handle,
         h -> {

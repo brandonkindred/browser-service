@@ -4,6 +4,7 @@ import io.browserservice.api.dto.AlertRespondRequest;
 import io.browserservice.api.dto.AlertStateResponse;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.service.AlertService;
+import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -43,8 +44,8 @@ public class AlertsController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public AlertStateResponse getAlert(@PathVariable UUID id) {
-    return service.getAlert(id);
+  public AlertStateResponse getAlert(@PathVariable UUID id, CallerId caller) {
+    return service.getAlert(id, caller);
   }
 
   @PostMapping("/alert/respond")
@@ -57,7 +58,8 @@ public class AlertsController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public void respond(@PathVariable UUID id, @Valid @RequestBody AlertRespondRequest req) {
-    service.respond(id, req);
+  public void respond(
+      @PathVariable UUID id, CallerId caller, @Valid @RequestBody AlertRespondRequest req) {
+    service.respond(id, caller, req);
   }
 }

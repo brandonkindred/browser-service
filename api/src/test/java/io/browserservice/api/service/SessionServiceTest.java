@@ -16,9 +16,11 @@ import io.browserservice.api.dto.SessionListResponse;
 import io.browserservice.api.dto.SessionResponse;
 import io.browserservice.api.dto.SessionStateResponse;
 import io.browserservice.api.error.SessionCapExceededException;
+import io.browserservice.api.error.SessionForbiddenException;
 import io.browserservice.api.error.SessionNotFoundException;
 import io.browserservice.api.error.UpstreamUnavailableException;
 import io.browserservice.api.persistence.BrowserSessionTracker;
+import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.DriverFactory;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
@@ -31,6 +33,9 @@ import org.openqa.selenium.Point;
 import org.openqa.selenium.WebDriver;
 
 class SessionServiceTest {
+
+  private static final CallerId ALICE = CallerId.parse("alice");
+  private static final CallerId BOB = CallerId.parse("bob");
 
   private SessionRegistry registry;
   private SessionLocks locks;
@@ -54,7 +59,8 @@ class SessionServiceTest {
     when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
     SessionResponse response =
-        service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
+        service.create(
+            new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
 
     assertThat(response.browserType()).isEqualTo(BrowserType.CHROME);
     assertThat(response.environment()).isEqualTo(BrowserEnvironment.TEST);
@@ -68,7 +74,8 @@ class SessionServiceTest {
     when(drivers.createMobile(BrowserType.ANDROID, BrowserEnvironment.TEST)).thenReturn(device);
 
     SessionResponse response =
-        service.create(new CreateSessionRequest(BrowserType.ANDROID, BrowserEnvironment.TEST, 120));
+        service.create(
+            new CreateSessionRequest(BrowserType.ANDROID, BrowserEnvironment.TEST, 120), ALICE);
 
     assertThat(response.browserType()).isEqualTo(BrowserType.ANDROID);
     assertThat(response.sessionId()).isNotNull();
@@ -79,7 +86,8 @@ class SessionServiceTest {
     Browser browser = mockBrowserWithDriver();
     when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
-    service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, 42));
+    service.create(
+        new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, 42), ALICE);
 
     // One session was stored
     assertThat(registry.snapshot())
@@ -96,7 +104,8 @@ class SessionServiceTest {
     assertThatThrownBy(
             () ->
                 service.create(
-                    new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null)))
+                    new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null),
+                    ALICE))
         .isInstanceOf(UpstreamUnavailableException.class);
 
     assertThat(registry.availablePermits()).isEqualTo(2);
@@ -113,7 +122,8 @@ class SessionServiceTest {
     assertThatThrownBy(
             () ->
                 service.create(
-                    new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null)))
+                    new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null),
+                    ALICE))
         .isInstanceOf(RuntimeException.class);
 
     verify(browser).close();
@@ -126,24 +136,43 @@ class SessionServiceTest {
     Browser browser = mockBrowserWithDriver();
     when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
-    service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
-    service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
+    service.create(
+        new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
+    service.create(
+        new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
 
     assertThatThrownBy(
             () ->
                 service.create(
-                    new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null)))
+                    new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null),
+                    ALICE))
         .isInstanceOf(SessionCapExceededException.class);
   }
 
   @Test
-  void listReturnsAllOpenSessions() {
+  void listReturnsAllOpenSessionsForCaller() {
     Browser browser = mockBrowserWithDriver();
     when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
-    service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
-    SessionListResponse list = service.list();
+    service.create(
+        new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
+    SessionListResponse list = service.list(ALICE);
     assertThat(list.sessions()).hasSize(1);
+  }
+
+  @Test
+  void listFiltersByCaller() {
+    Browser browser = mockBrowserWithDriver();
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+
+    service.create(
+        new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
+    service.create(
+        new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), BOB);
+
+    assertThat(service.list(ALICE).sessions()).hasSize(1);
+    assertThat(service.list(BOB).sessions()).hasSize(1);
+    assertThat(service.list(CallerId.parse("eve")).sessions()).isEmpty();
   }
 
   @Test
@@ -153,8 +182,9 @@ class SessionServiceTest {
     when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
     SessionResponse created =
-        service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
-    SessionStateResponse state = service.describe(created.sessionId());
+        service.create(
+            new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
+    SessionStateResponse state = service.describe(created.sessionId(), ALICE);
 
     assertThat(state.sessionId()).isEqualTo(created.sessionId());
     assertThat(state.viewport()).isNotNull();
@@ -164,8 +194,20 @@ class SessionServiceTest {
 
   @Test
   void describeUnknownIdThrowsSessionNotFound() {
-    assertThatThrownBy(() -> service.describe(UUID.randomUUID()))
+    assertThatThrownBy(() -> service.describe(UUID.randomUUID(), ALICE))
         .isInstanceOf(SessionNotFoundException.class);
+  }
+
+  @Test
+  void describeRequiresOwner() {
+    Browser browser = mockBrowserWithDriver();
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    SessionResponse created =
+        service.create(
+            new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
+
+    assertThatThrownBy(() -> service.describe(created.sessionId(), BOB))
+        .isInstanceOf(SessionForbiddenException.class);
   }
 
   @Test
@@ -177,8 +219,9 @@ class SessionServiceTest {
     when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
     SessionResponse created =
-        service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
-    SessionStateResponse state = service.describe(created.sessionId());
+        service.create(
+            new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
+    SessionStateResponse state = service.describe(created.sessionId(), ALICE);
 
     assertThat(state.currentUrl()).isNull();
     assertThat(state.viewport()).isNull();
@@ -191,11 +234,25 @@ class SessionServiceTest {
     when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
     SessionResponse created =
-        service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
-    service.close(created.sessionId());
+        service.create(
+            new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
+    service.close(created.sessionId(), ALICE);
 
     verify(browser).close();
     assertThat(registry.size()).isZero();
+  }
+
+  @Test
+  void closeRequiresOwner() {
+    Browser browser = mockBrowserWithDriver();
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    SessionResponse created =
+        service.create(
+            new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
+
+    assertThatThrownBy(() -> service.close(created.sessionId(), BOB))
+        .isInstanceOf(SessionForbiddenException.class);
+    assertThat(registry.size()).isEqualTo(1);
   }
 
   @Test
@@ -204,12 +261,14 @@ class SessionServiceTest {
     when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
     SessionResponse created =
-        service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
+        service.create(
+            new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
 
     org.mockito.ArgumentCaptor<SessionHandle> captor =
         org.mockito.ArgumentCaptor.forClass(SessionHandle.class);
     verify(tracker).recordCreate(captor.capture());
     assertThat(captor.getValue().id()).isEqualTo(created.sessionId());
+    assertThat(captor.getValue().owner()).isEqualTo(ALICE);
   }
 
   @Test
@@ -218,15 +277,48 @@ class SessionServiceTest {
     when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
     SessionResponse created =
-        service.create(new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null));
-    service.close(created.sessionId());
+        service.create(
+            new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
+    service.close(created.sessionId(), ALICE);
 
     verify(tracker).recordClientClose(created.sessionId());
   }
 
   @Test
   void closeUnknownIdThrowsSessionNotFound() {
-    assertThatThrownBy(() -> service.close(UUID.randomUUID()))
+    assertThatThrownBy(() -> service.close(UUID.randomUUID(), ALICE))
+        .isInstanceOf(SessionNotFoundException.class);
+  }
+
+  @Test
+  void requireOwnerHappyPathReturnsHandle() {
+    Browser browser = mockBrowserWithDriver();
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+
+    SessionResponse created =
+        service.create(
+            new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
+    SessionHandle handle = service.requireOwner(created.sessionId(), ALICE);
+
+    assertThat(handle.id()).isEqualTo(created.sessionId());
+    assertThat(handle.owner()).isEqualTo(ALICE);
+  }
+
+  @Test
+  void requireOwnerMismatchThrowsSessionForbidden() {
+    Browser browser = mockBrowserWithDriver();
+    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+
+    SessionResponse created =
+        service.create(
+            new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), ALICE);
+    assertThatThrownBy(() -> service.requireOwner(created.sessionId(), BOB))
+        .isInstanceOf(SessionForbiddenException.class);
+  }
+
+  @Test
+  void requireOwnerOnUnknownSessionThrowsSessionNotFound() {
+    assertThatThrownBy(() -> service.requireOwner(UUID.randomUUID(), ALICE))
         .isInstanceOf(SessionNotFoundException.class);
   }
 

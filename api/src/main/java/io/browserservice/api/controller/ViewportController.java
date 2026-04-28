@@ -3,6 +3,7 @@ package io.browserservice.api.controller;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.ViewportStateResponse;
 import io.browserservice.api.service.BrowserOperationsService;
+import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -37,7 +38,7 @@ public class ViewportController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public ViewportStateResponse viewport(@PathVariable UUID id) {
-    return service.getViewport(id);
+  public ViewportStateResponse viewport(@PathVariable UUID id, CallerId caller) {
+    return service.getViewport(id, caller);
   }
 }

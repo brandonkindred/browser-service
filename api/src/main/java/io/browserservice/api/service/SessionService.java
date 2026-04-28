@@ -9,7 +9,9 @@ import io.browserservice.api.dto.SessionListResponse;
 import io.browserservice.api.dto.SessionResponse;
 import io.browserservice.api.dto.SessionStateResponse;
 import io.browserservice.api.dto.Viewport;
+import io.browserservice.api.error.SessionForbiddenException;
 import io.browserservice.api.persistence.BrowserSessionTracker;
+import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.DriverFactory;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
@@ -50,7 +52,7 @@ public class SessionService {
     this.absoluteTtl = Duration.ofSeconds(props.session().absoluteTtlSeconds());
   }
 
-  public SessionResponse create(CreateSessionRequest req) {
+  public SessionResponse create(CreateSessionRequest req, CallerId caller) {
     registry.acquirePermit();
     SessionHandle handle = null;
     try {
@@ -60,12 +62,12 @@ public class SessionService {
         MobileDevice device = drivers.createMobile(req.browserType(), req.environment());
         handle =
             SessionHandle.mobile(
-                device, req.browserType(), req.environment(), idleTtl, absoluteTtl);
+                device, caller, req.browserType(), req.environment(), idleTtl, absoluteTtl);
       } else {
         Browser browser = drivers.createDesktop(req.browserType(), req.environment());
         handle =
             SessionHandle.desktop(
-                browser, req.browserType(), req.environment(), idleTtl, absoluteTtl);
+                browser, caller, req.browserType(), req.environment(), idleTtl, absoluteTtl);
       }
       tracker.recordCreate(handle);
       registry.register(handle);
@@ -84,25 +86,38 @@ public class SessionService {
     }
   }
 
-  public SessionListResponse list() {
+  public SessionListResponse list(CallerId caller) {
     List<SessionResponse> items =
         registry.snapshot().stream()
-            .filter(h -> !h.isClosed())
+            .filter(h -> !h.isClosed() && h.owner().equals(caller))
             .map(SessionService::toSummary)
             .toList();
     return new SessionListResponse(items);
   }
 
-  public SessionStateResponse describe(UUID id) {
-    SessionHandle handle = registry.get(id);
+  public SessionStateResponse describe(UUID id, CallerId caller) {
+    SessionHandle handle = requireOwner(id, caller);
     return locks.doWithLock(handle, this::toStateLocked);
   }
 
-  public void close(UUID id) {
-    SessionHandle handle = registry.get(id);
+  public void close(UUID id, CallerId caller) {
+    SessionHandle handle = requireOwner(id, caller);
     registry.remove(handle.id());
     tracker.recordClientClose(handle.id());
     log.info("closed session id={}", id);
+  }
+
+  /**
+   * Looks up the session and verifies the caller owns it. Throws {@link
+   * io.browserservice.api.error.SessionNotFoundException} if the session is not registered (or has
+   * been closed) and {@link SessionForbiddenException} if the caller is not the owner.
+   */
+  public SessionHandle requireOwner(UUID id, CallerId caller) {
+    SessionHandle handle = registry.get(id);
+    if (!handle.owner().equals(caller)) {
+      throw new SessionForbiddenException(id);
+    }
+    return handle;
   }
 
   private SessionStateResponse toStateLocked(SessionHandle handle) {

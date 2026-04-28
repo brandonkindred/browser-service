@@ -3,6 +3,7 @@ package io.browserservice.api.controller;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.MouseMoveRequest;
 import io.browserservice.api.service.BrowserOperationsService;
+import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -48,7 +49,8 @@ public class MouseController {
         description = "Mobile session (desktop required)",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public void move(@PathVariable UUID id, @Valid @RequestBody MouseMoveRequest req) {
-    service.moveMouse(id, req);
+  public void move(
+      @PathVariable UUID id, CallerId caller, @Valid @RequestBody MouseMoveRequest req) {
+    service.moveMouse(id, caller, req);
   }
 }
