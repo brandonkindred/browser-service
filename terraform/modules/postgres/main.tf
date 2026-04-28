@@ -20,6 +20,13 @@ resource "google_sql_database_instance" "this" {
     disk_autoresize   = true
     availability_type = var.availability_type
 
+    # Cloud SQL has TWO deletion protections. The top-level
+    # `deletion_protection` (Terraform-side) only blocks `terraform destroy`;
+    # this `deletion_protection_enabled` is the server-side flag that also
+    # blocks deletes from gcloud / the Cloud Console. Both follow the same
+    # var so prod can't be wiped via either path.
+    deletion_protection_enabled = var.deletion_protection
+
     backup_configuration {
       enabled                        = true
       point_in_time_recovery_enabled = true

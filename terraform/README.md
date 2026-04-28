@@ -60,10 +60,16 @@ When `apply` finishes:
 terraform output browser_service_url
 # https://browser-service-api-dev-xxxxx-uc.a.run.app
 
-curl "$(terraform output -raw browser_service_url)/v1/sessions" \
+curl -X POST "$(terraform output -raw browser_service_url)/v1/sessions" \
   -H 'Content-Type: application/json' \
-  -d '{"browser":"chrome","environment":"discovery"}'
+  -H 'X-Caller-Id: smoke-test' \
+  -d '{"browser_type": "CHROME", "environment": "DISCOVERY"}'
 ```
+
+Notes on the smoke-test request:
+- `X-Caller-Id` is required — every request needs a caller identifier (the API uses it for the per-caller session cap).
+- Field names are snake-case on the wire (`browser_type`, not `browser`) because the API serializes with `SNAKE_CASE`.
+- Enum values are uppercase: `BrowserType` ∈ {`CHROME`, `FIREFOX`, `SAFARI`, `IE`, `ANDROID`, `IOS`}; `BrowserEnvironment` ∈ {`TEST`, `DISCOVERY`}.
 
 ## How the pieces connect
 

@@ -1,5 +1,7 @@
 terraform {
-  required_version = ">= 1.5.0"
+  # 1.9.0 adds cross-variable references in `validation` blocks, used in
+  # variables.tf to enforce min_instances <= max_instances at plan time.
+  required_version = ">= 1.9.0"
 
   required_providers {
     google = {
