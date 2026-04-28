@@ -26,6 +26,13 @@ resource "google_compute_subnetwork" "connector" {
   region        = var.region
   network       = google_compute_network.vpc.id
   project       = var.project_id
+
+  # Required for Cloud Run-to-Cloud Run calls with ingress=internal: the
+  # caller must route through the VPC connector AND the connector subnet
+  # needs PGA so traffic to *.run.app resolves to Google's private network
+  # (not the public internet via Cloud NAT). Without it, Selenium services
+  # see the request as external and reject it with 403.
+  private_ip_google_access = true
 }
 
 resource "google_vpc_access_connector" "connector" {
