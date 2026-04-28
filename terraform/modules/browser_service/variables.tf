@@ -82,6 +82,12 @@ variable "allow_public" {
   default     = true
 }
 
+variable "invoker_members" {
+  description = "Additional IAM principals granted roles/run.invoker on the API. Useful when `allow_public = false` to grant specific service accounts / groups."
+  type        = list(string)
+  default     = []
+}
+
 variable "database_url" {
   description = "JDBC URL for the application database (e.g. jdbc:postgresql://10.x.x.x:5432/browser_service)."
   type        = string
@@ -94,6 +100,11 @@ variable "database_username" {
 
 variable "database_password_secret_name" {
   description = "Short name of the Secret Manager secret that holds the DB password."
+  type        = string
+}
+
+variable "database_password_secret_version" {
+  description = "Specific Secret Manager version (e.g. \"1\") of the DB password secret. Pinning to a version (not 'latest') keeps Cloud Run's mounted credential in lock-step with the password Terraform created — a stray manual `secret-version add` won't silently break the API's auth."
   type        = string
 }
 

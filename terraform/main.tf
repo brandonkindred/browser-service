@@ -136,10 +136,12 @@ module "browser_service" {
   memory                = var.browser_service_memory
   cpu                   = var.browser_service_cpu
   allow_public          = var.browser_service_allow_public
+  invoker_members       = var.browser_service_invoker_members
 
-  database_url                  = "jdbc:postgresql://${module.postgres.private_ip_address}:5432/${module.postgres.database_name}"
-  database_username             = module.postgres.database_user
-  database_password_secret_name = module.postgres.password_secret_name
+  database_url                     = "jdbc:postgresql://${module.postgres.private_ip_address}:5432/${module.postgres.database_name}"
+  database_username                = module.postgres.database_user
+  database_password_secret_name    = module.postgres.password_secret_name
+  database_password_secret_version = module.postgres.password_secret_version_number
 
   selenium_grid_urls = [for s in module.selenium : s.grid_host]
 

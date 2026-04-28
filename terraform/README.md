@@ -98,7 +98,7 @@ flowchart TD
 
 - The API reads `DATABASE_PASSWORD` from Secret Manager; everything else (`DATABASE_URL`, `DATABASE_USERNAME`, `SELENIUM_GRID_URLS`) is plain env injected by Terraform.
 - Selenium services run with `ingress = "internal"` so they're only reachable from the VPC (the browser-service runs through the VPC connector, so it can hit them).
-- The API runs with `ingress = "all"` by default. Flip `browser_service_allow_public = false` to drop the `allUsers` invoker binding once you have auth wired up.
+- The API runs with `ingress = "all"` by default. To restrict to authenticated callers, set `browser_service_allow_public = false` **and** pass the principals you want in `browser_service_invoker_members` (e.g. `["serviceAccount:caller@your-project.iam.gserviceaccount.com"]`). With `allow_public = false` and an empty `invoker_members` list the API has no IAM bindings at all, so it's reachable on the network but every request returns 403.
 
 ## Variables you'll most likely change
 

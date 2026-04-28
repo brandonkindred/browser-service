@@ -37,3 +37,8 @@ output "password_secret_version" {
   description = "Specific version id of the Secret Manager secret created in this run."
   value       = google_secret_manager_secret_version.db_password.id
 }
+
+output "password_secret_version_number" {
+  description = "Version number (e.g. \"1\") of the Secret Manager secret created in this run. Pinned by callers so a stray secret-version add doesn't desync the runtime credential."
+  value       = google_secret_manager_secret_version.db_password.version
+}

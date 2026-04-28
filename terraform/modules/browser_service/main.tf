@@ -58,7 +58,7 @@ resource "google_cloud_run_service" "api" {
           value_from {
             secret_key_ref {
               name = var.database_password_secret_name
-              key  = "latest"
+              key  = var.database_password_secret_version
             }
           }
         }
@@ -100,4 +100,14 @@ resource "google_cloud_run_service_iam_member" "public" {
   service  = google_cloud_run_service.api.name
   role     = "roles/run.invoker"
   member   = "allUsers"
+}
+
+resource "google_cloud_run_service_iam_member" "invoker" {
+  for_each = toset(var.invoker_members)
+
+  location = google_cloud_run_service.api.location
+  project  = google_cloud_run_service.api.project
+  service  = google_cloud_run_service.api.name
+  role     = "roles/run.invoker"
+  member   = each.value
 }

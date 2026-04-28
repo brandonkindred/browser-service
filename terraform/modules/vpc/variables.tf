@@ -39,4 +39,10 @@ variable "connector_cidr" {
   description = "CIDR range for the Serverless VPC Access connector (must be a /28)."
   type        = string
   default     = "10.8.0.0/28"
+
+  validation {
+    # Must be a valid CIDR AND specifically /28 (Serverless VPC Access requirement).
+    condition     = can(cidrnetmask(var.connector_cidr)) && endswith(var.connector_cidr, "/28")
+    error_message = "connector_cidr must be a valid /28 CIDR block (e.g. 10.8.0.0/28). Serverless VPC Access connectors require exactly /28."
+  }
 }

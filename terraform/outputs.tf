@@ -1,5 +1,5 @@
 output "browser_service_url" {
-  description = "Public URL of the browser-service API."
+  description = "URL of the browser-service API. Always reachable on the network with `ingress = all`; whether unauthenticated invocation is allowed depends on `browser_service_allow_public` and `browser_service_invoker_members`."
   value       = module.browser_service.service_url
 }
 

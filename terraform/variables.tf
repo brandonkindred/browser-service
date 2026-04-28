@@ -58,7 +58,7 @@ variable "subnet_name" {
 }
 
 variable "vpc_connector_name" {
-  description = "Name of the Serverless VPC Access connector. Defaults to 'browser-service-conn-<environment>'."
+  description = "Name of the Serverless VPC Access connector. Defaults to 'bs-conn-<environment>' (kept short to fit GCP's 25-char limit)."
   type        = string
   default     = null
 }
@@ -67,6 +67,11 @@ variable "subnet_cidr" {
   description = "Primary subnet CIDR range used by the VPC."
   type        = string
   default     = "10.10.0.0/20"
+
+  validation {
+    condition     = can(cidrnetmask(var.subnet_cidr))
+    error_message = "subnet_cidr must be a valid CIDR block (e.g. 10.10.0.0/20)."
+  }
 }
 
 #########################
@@ -80,15 +85,25 @@ variable "browser_service_image" {
 }
 
 variable "browser_service_service_name" {
-  description = "Cloud Run service name for the browser-service API."
+  description = "Cloud Run service name for the browser-service API. Composed name is `${var}-${environment}` and must fit Cloud Run's 49-char limit; with environment capped at 12 chars, this base is capped at 36."
   type        = string
   default     = "browser-service-api"
+
+  validation {
+    condition     = can(regex("^[a-z]([a-z0-9-]{0,34}[a-z0-9])?$", var.browser_service_service_name))
+    error_message = "browser_service_service_name must be 1-36 chars: lowercase letters/digits/hyphens, starting with a letter and ending with a letter or digit."
+  }
 }
 
 variable "browser_service_min_instances" {
   description = "Minimum number of browser-service Cloud Run instances kept warm."
   type        = number
   default     = 1
+
+  validation {
+    condition     = var.browser_service_min_instances >= 0 && floor(var.browser_service_min_instances) == var.browser_service_min_instances
+    error_message = "browser_service_min_instances must be a non-negative integer."
+  }
 }
 
 variable "browser_service_max_instances" {
@@ -115,9 +130,15 @@ variable "browser_service_cpu" {
 }
 
 variable "browser_service_allow_public" {
-  description = "If true, the browser-service API is invokable by allUsers. Set false to restrict to authenticated callers only."
+  description = "If true, the browser-service API is invokable by allUsers. Set false to restrict to authenticated callers only — pair with `browser_service_invoker_members` to grant specific principals, otherwise the service has no IAM bindings and is unreachable."
   type        = bool
   default     = true
+}
+
+variable "browser_service_invoker_members" {
+  description = "IAM principals granted roles/run.invoker on the browser-service API. Useful when `browser_service_allow_public = false` to grant specific service accounts or groups (e.g. ['serviceAccount:...', 'group:...']). Defaults to empty; combined with allow_public=false this means no IAM bindings and the API is unreachable until you set this."
+  type        = list(string)
+  default     = []
 }
 
 #########################
@@ -131,13 +152,13 @@ variable "selenium_image" {
 }
 
 variable "selenium_instance_count" {
-  description = "Number of Selenium standalone-chrome Cloud Run instances to provision. Must be at least 1 — the API needs at least one Selenium endpoint to open sessions."
+  description = "Number of Selenium standalone-chrome Cloud Run instances to provision. Must be a positive integer — the API needs at least one Selenium endpoint to open sessions, and module count rejects fractional values."
   type        = number
   default     = 10
 
   validation {
-    condition     = var.selenium_instance_count >= 1
-    error_message = "selenium_instance_count must be at least 1 (the API needs at least one Selenium endpoint)."
+    condition     = var.selenium_instance_count >= 1 && floor(var.selenium_instance_count) == var.selenium_instance_count
+    error_message = "selenium_instance_count must be a positive integer (>= 1)."
   }
 }
 
@@ -145,6 +166,11 @@ variable "selenium_min_instances" {
   description = "Per-replica minimum warm Cloud Run instances. Selenium standalone benefits from 1 because cold starts include Chrome boot; drop to 0 in dev to save cost."
   type        = number
   default     = 1
+
+  validation {
+    condition     = var.selenium_min_instances >= 0 && floor(var.selenium_min_instances) == var.selenium_min_instances
+    error_message = "selenium_min_instances must be a non-negative integer."
+  }
 }
 
 variable "selenium_max_instances" {
@@ -174,6 +200,11 @@ variable "selenium_port" {
   description = "Container port that Selenium standalone-chrome listens on."
   type        = number
   default     = 4444
+
+  validation {
+    condition     = var.selenium_port >= 1 && var.selenium_port <= 65535 && floor(var.selenium_port) == var.selenium_port
+    error_message = "selenium_port must be an integer in the range 1-65535."
+  }
 }
 
 variable "selenium_invoker_members" {
@@ -202,18 +233,33 @@ variable "postgres_database_name" {
   description = "Name of the application database."
   type        = string
   default     = "browser_service"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z][a-zA-Z0-9_]{0,62}$", var.postgres_database_name))
+    error_message = "postgres_database_name must be 1-63 chars: letters/digits/underscore, starting with a letter."
+  }
 }
 
 variable "postgres_user" {
   description = "Application database user."
   type        = string
   default     = "browser_service"
+
+  validation {
+    condition     = can(regex("^[a-zA-Z][a-zA-Z0-9_]{0,62}$", var.postgres_user))
+    error_message = "postgres_user must be 1-63 chars: letters/digits/underscore, starting with a letter."
+  }
 }
 
 variable "postgres_disk_size_gb" {
-  description = "Disk size (GB) for the Cloud SQL instance."
+  description = "Disk size (GB) for the Cloud SQL instance. Cloud SQL minimum is 10GB."
   type        = number
   default     = 20
+
+  validation {
+    condition     = var.postgres_disk_size_gb >= 10 && floor(var.postgres_disk_size_gb) == var.postgres_disk_size_gb
+    error_message = "postgres_disk_size_gb must be an integer >= 10 (Cloud SQL minimum)."
+  }
 }
 
 variable "postgres_deletion_protection" {
