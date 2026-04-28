@@ -1,0 +1,21 @@
+# Local Terraform state and plan artifacts
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Local variable files (never commit real secrets / project ids)
+terraform.tfvars
+*.auto.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Editor / OS noise
+.idea/
+.vscode/
+.DS_Store
