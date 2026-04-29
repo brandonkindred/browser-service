@@ -37,6 +37,26 @@ info:
     returns 429 once the cap is reached, until one is closed (either
     explicitly by the caller or by the idle timeout).
 
+    ## Caller identity
+
+    Every operation under `/v1/` requires an `X-Caller-Id` header. The value
+    must be printable ASCII (`0x21`–`0x7E`), no internal whitespace, and at
+    most 128 characters — UUIDs, e-mails, and Kubernetes service-account
+    names all pass. The header is the sole identifier for ownership and
+    isolation; this service does not authenticate it.
+
+    - Missing or blank header → `400 caller_unidentified`.
+    - A request against a session owned by a different caller →
+      `403 session_forbidden`.
+    - `GET /sessions` returns only the calling caller's sessions; one
+      caller cannot see, describe, drive, or close another caller's
+      sessions.
+    - Health probes (`/healthz`, `/readyz`) do not require the header.
+
+    Responses surface the binding via an `owner_id` field on `Session` and
+    `SessionState` so operators can answer "whose session is this?" without
+    correlating against memory state.
+
     ## Not in MVP
 
     - Authentication (service runs on a private network)
@@ -82,6 +102,8 @@ tags:
 
 paths:
   /sessions:
+    parameters:
+      - $ref: "#/components/parameters/CallerId"
     post:
       tags: [Sessions]
       summary: Create a new browser session
@@ -128,6 +150,7 @@ paths:
   /sessions/{id}:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     get:
       tags: [Sessions]
       summary: Get session state
@@ -151,6 +174,7 @@ paths:
   /sessions/{id}/navigate:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     post:
       tags: [Navigation]
       summary: Navigate to a URL
@@ -180,6 +204,7 @@ paths:
   /sessions/{id}/source:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     get:
       tags: [Navigation]
       summary: Get current page HTML source
@@ -196,6 +221,7 @@ paths:
   /sessions/{id}/status:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     get:
       tags: [Navigation]
       summary: Inspect page-level status
@@ -215,6 +241,7 @@ paths:
   /sessions/{id}/screenshot:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     post:
       tags: [Screenshots]
       summary: Capture a screenshot
@@ -251,6 +278,7 @@ paths:
   /sessions/{id}/element/screenshot:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     post:
       tags: [Screenshots]
       summary: Capture a screenshot of a single element
@@ -274,6 +302,7 @@ paths:
   /sessions/{id}/element/find:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     post:
       tags: [Elements]
       summary: Find an element and return its state
@@ -304,6 +333,7 @@ paths:
   /sessions/{id}/element/action:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     post:
       tags: [Elements]
       summary: Perform a desktop action on an element
@@ -329,6 +359,7 @@ paths:
   /sessions/{id}/element/touch:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     post:
       tags: [Touch]
       summary: Perform a touch gesture on an element
@@ -354,6 +385,7 @@ paths:
   /sessions/{id}/scroll:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     post:
       tags: [Scrolling]
       summary: Scroll the viewport
@@ -385,6 +417,7 @@ paths:
   /sessions/{id}/viewport:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     get:
       tags: [Scrolling]
       summary: Get current viewport dimensions and scroll offset
@@ -401,6 +434,7 @@ paths:
   /sessions/{id}/dom/remove:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     post:
       tags: [DOM]
       summary: Remove DOM element(s)
@@ -426,6 +460,7 @@ paths:
   /sessions/{id}/alert:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     get:
       tags: [Alerts]
       summary: Check for a native alert
@@ -442,6 +477,7 @@ paths:
   /sessions/{id}/alert/respond:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     post:
       tags: [Alerts]
       summary: Accept or dismiss a native alert
@@ -462,6 +498,7 @@ paths:
   /sessions/{id}/mouse/move:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     post:
       tags: [Mouse]
       summary: Move the mouse (desktop only)
@@ -487,6 +524,7 @@ paths:
   /sessions/{id}/execute:
     parameters:
       - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/CallerId"
     post:
       tags: [Elements]
       summary: Execute arbitrary JavaScript (escape hatch)
@@ -512,6 +550,8 @@ paths:
         "404": { $ref: "#/components/responses/SessionNotFound" }
 
   /capture:
+    parameters:
+      - $ref: "#/components/parameters/CallerId"
     post:
       tags: [Capture]
       summary: One-shot navigate + capture + close
@@ -547,6 +587,7 @@ paths:
         in: path
         required: true
         schema: { type: string }
+      - $ref: "#/components/parameters/CallerId"
     get:
       tags: [Capture]
       summary: Fetch a one-shot capture's screenshot bytes
@@ -625,6 +666,22 @@ components:
         type: string
         minLength: 1
 
+    CallerId:
+      name: X-Caller-Id
+      in: header
+      required: true
+      description: |
+        Identifier for the caller. Printable ASCII (`0x21`–`0x7E`), no
+        internal whitespace, length 1–128. Sole basis for session
+        ownership and per-caller isolation. Missing or blank →
+        `400 caller_unidentified`; mismatch against an existing session →
+        `403 session_forbidden`.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: '^[\x21-\x7E]+$'
+
   responses:
     BadRequest:
       description: Request was malformed or failed validation
@@ -678,9 +735,12 @@ components:
 
     Session:
       type: object
-      required: [session_id, browser, environment, created_at, expires_at]
+      required: [session_id, owner_id, browser, environment, created_at, expires_at]
       properties:
         session_id: { type: string }
+        owner_id:
+          type: string
+          description: Caller that owns the session — the `X-Caller-Id` of the creator.
         browser: { $ref: "#/components/schemas/BrowserType" }
         environment: { $ref: "#/components/schemas/BrowserEnvironment" }
         created_at: { type: string, format: date-time }

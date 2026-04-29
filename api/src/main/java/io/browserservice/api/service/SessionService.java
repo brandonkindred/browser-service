@@ -127,6 +127,7 @@ public class SessionService {
     ScrollOffset scrollOffset = safeScrollOffset(handle);
     return new SessionStateResponse(
         handle.id(),
+        handle.owner().value(),
         handle.browserType(),
         handle.environment(),
         handle.createdAt(),
@@ -139,6 +140,7 @@ public class SessionService {
   private static SessionResponse toSummary(SessionHandle handle) {
     return new SessionResponse(
         handle.id(),
+        handle.owner().value(),
         handle.browserType(),
         handle.environment(),
         handle.createdAt(),

@@ -65,6 +65,7 @@ class SessionServiceTest {
     assertThat(response.browserType()).isEqualTo(BrowserType.CHROME);
     assertThat(response.environment()).isEqualTo(BrowserEnvironment.TEST);
     assertThat(response.sessionId()).isNotNull();
+    assertThat(response.ownerId()).isEqualTo("alice");
     assertThat(registry.size()).isEqualTo(1);
   }
 
@@ -170,8 +171,14 @@ class SessionServiceTest {
     service.create(
         new CreateSessionRequest(BrowserType.CHROME, BrowserEnvironment.TEST, null), BOB);
 
-    assertThat(service.list(ALICE).sessions()).hasSize(1);
-    assertThat(service.list(BOB).sessions()).hasSize(1);
+    assertThat(service.list(ALICE).sessions())
+        .singleElement()
+        .extracting(SessionResponse::ownerId)
+        .isEqualTo("alice");
+    assertThat(service.list(BOB).sessions())
+        .singleElement()
+        .extracting(SessionResponse::ownerId)
+        .isEqualTo("bob");
     assertThat(service.list(CallerId.parse("eve")).sessions()).isEmpty();
   }
 
@@ -187,6 +194,7 @@ class SessionServiceTest {
     SessionStateResponse state = service.describe(created.sessionId(), ALICE);
 
     assertThat(state.sessionId()).isEqualTo(created.sessionId());
+    assertThat(state.ownerId()).isEqualTo("alice");
     assertThat(state.viewport()).isNotNull();
     assertThat(state.scrollOffset().x()).isEqualTo(10);
     assertThat(state.scrollOffset().y()).isEqualTo(20);

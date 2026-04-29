@@ -111,6 +111,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 sid,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -165,6 +166,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 sid,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -223,6 +225,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 sid,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -258,6 +261,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 sid,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -292,6 +296,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 sid,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -328,6 +333,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 sid,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -336,6 +342,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionStateResponse(
                 sid,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -370,6 +377,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 first,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -377,6 +385,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 second,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -418,6 +427,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 UUID.randomUUID(),
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -460,6 +470,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 sid,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -498,6 +509,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 sid,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -531,6 +543,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 sid,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -577,6 +590,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 sid,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -621,6 +635,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 sid,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -665,6 +680,7 @@ class SessionWebSocketHandlerTest {
         .thenReturn(
             new SessionResponse(
                 sid,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -692,6 +708,7 @@ class SessionWebSocketHandlerTest {
           .thenReturn(
               new SessionStateResponse(
                   sid,
+                  "alice",
                   BrowserType.CHROME,
                   BrowserEnvironment.TEST,
                   Instant.now(),

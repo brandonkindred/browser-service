@@ -32,8 +32,9 @@ public class SessionReaper {
       if (registry.remove(handle.id())) {
         tracker.recordReap(handle.id(), reason);
         log.info(
-            "reaped session id={} browserType={} reason={} idleTtl={}s absoluteTtl={}s",
+            "reaped session id={} owner={} browserType={} reason={} idleTtl={}s absoluteTtl={}s",
             handle.id(),
+            handle.owner().value(),
             handle.browserType(),
             reason,
             handle.idleTtl().toSeconds(),
