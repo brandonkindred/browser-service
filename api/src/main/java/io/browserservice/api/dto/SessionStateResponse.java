@@ -9,6 +9,8 @@ import java.util.UUID;
 @Schema(description = "Session state snapshot including current URL, viewport, and scroll offset.")
 public record SessionStateResponse(
     @Schema(description = "Session identifier") UUID sessionId,
+    @Schema(description = "Caller that owns the session (`X-Caller-Id` of the creator)")
+        String ownerId,
     @Schema(description = "Browser type") BrowserType browserType,
     @Schema(description = "Session environment") BrowserEnvironment environment,
     @Schema(description = "Instant the session was created") Instant createdAt,

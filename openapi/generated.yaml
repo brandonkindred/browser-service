@@ -557,6 +557,9 @@ components:
           description: Instant at which the session will be reaped
           format: date-time
           type: string
+        ownerId:
+          description: Caller that owns the session (`X-Caller-Id` of the creator)
+          type: string
         sessionId:
           description: Session identifier
           format: uuid
@@ -592,6 +595,9 @@ components:
         expiresAt:
           description: Instant at which the session will be reaped
           format: date-time
+          type: string
+        ownerId:
+          description: Caller that owns the session (`X-Caller-Id` of the creator)
           type: string
         scrollOffset:
           $ref: '#/components/schemas/ScrollOffset'

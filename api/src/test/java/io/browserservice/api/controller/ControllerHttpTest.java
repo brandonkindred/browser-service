@@ -161,6 +161,7 @@ class ControllerHttpTest {
         .thenReturn(
             new SessionResponse(
                 id,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -175,7 +176,8 @@ class ControllerHttpTest {
                         new CreateSessionRequest(
                             BrowserType.CHROME, BrowserEnvironment.TEST, null))))
         .andExpect(status().isCreated())
-        .andExpect(jsonPath("$.session_id").value(id.toString()));
+        .andExpect(jsonPath("$.session_id").value(id.toString()))
+        .andExpect(jsonPath("$.owner_id").value("alice"));
   }
 
   @Test
@@ -236,6 +238,7 @@ class ControllerHttpTest {
         .thenReturn(
             new SessionStateResponse(
                 id,
+                "alice",
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
@@ -246,7 +249,8 @@ class ControllerHttpTest {
 
     mvc.perform(get("/v1/sessions/" + id).header("X-Caller-Id", "alice"))
         .andExpect(status().isOk())
-        .andExpect(jsonPath("$.current_url").value("https://x"));
+        .andExpect(jsonPath("$.current_url").value("https://x"))
+        .andExpect(jsonPath("$.owner_id").value("alice"));
   }
 
   @Test
@@ -309,6 +313,7 @@ class ControllerHttpTest {
                     List.of(
                         new SessionResponse(
                             aliceSession,
+                            "alice",
                             BrowserType.CHROME,
                             BrowserEnvironment.TEST,
                             Instant.now(),

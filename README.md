@@ -36,39 +36,57 @@ The HTTP surface below is the asynchronous side of the API. The real-time socket
 ```bash
 # 1. Open a session.
 curl -X POST http://browser-service/v1/sessions \
+  -H 'X-Caller-Id: alice' \
   -H 'Content-Type: application/json' \
   -d '{"browser": "chrome", "environment": "discovery"}'
-# -> {"session_id": "abc123", "expires_at": "2026-04-22T18:35:00Z", ...}
+# -> {"session_id": "abc123", "owner_id": "alice", "expires_at": "2026-04-22T18:35:00Z", ...}
 
 # 2. Navigate.
 curl -X POST http://browser-service/v1/sessions/abc123/navigate \
+  -H 'X-Caller-Id: alice' \
   -H 'Content-Type: application/json' \
   -d '{"url": "https://example.com"}'
 
 # 3. Find an element.
 curl -X POST http://browser-service/v1/sessions/abc123/element/find \
+  -H 'X-Caller-Id: alice' \
   -H 'Content-Type: application/json' \
   -d '{"xpath": "//button[@id=\"submit\"]"}'
 # -> {"element_handle": "el_42", "found": true, "displayed": true, ...}
 
 # 4. Click it.
 curl -X POST http://browser-service/v1/sessions/abc123/element/action \
+  -H 'X-Caller-Id: alice' \
   -H 'Content-Type: application/json' \
   -d '{"element_handle": "el_42", "action": "click"}'
 
 # 5. Screenshot (bytes).
 curl -X POST http://browser-service/v1/sessions/abc123/screenshot \
+  -H 'X-Caller-Id: alice' \
   -H 'Content-Type: application/json' \
   -d '{"strategy": "full_page_shutterbug"}' \
   --output page.png
 
 # 6. Close. Frees the browser and counts against the caller's 10-session cap.
-curl -X DELETE http://browser-service/v1/sessions/abc123
+curl -X DELETE http://browser-service/v1/sessions/abc123 \
+  -H 'X-Caller-Id: alice'
 ```
 
 Idle sessions expire after 5 minutes; all sessions expire after 30 minutes, no matter what. The registry reaps them automatically. Operations against a `session_id` that has been reaped return a `session_expired` error so the caller can react instead of silently retrying on a fresh browser.
 
 For the trivial "open → navigate → screenshot → close" path, `POST /v1/capture` collapses all of the above into one request.
+
+## Caller identity
+
+Every request under `/v1/` must carry an `X-Caller-Id` header. The value is printable ASCII (`0x21`–`0x7E`), 1–128 chars, no internal whitespace — UUIDs, e-mails, and Kubernetes service-account names all pass. The service does not authenticate it; it is the sole identifier used for ownership and per-caller isolation.
+
+- **Missing or blank header** → `400 caller_unidentified`.
+- **Wrong owner** for an existing session → `403 session_forbidden`.
+- `GET /v1/sessions` returns only the calling caller's sessions; one caller cannot see, describe, drive, or close another caller's sessions.
+- The 10-concurrent-session cap is keyed off this header, as is the `owner_id` field returned in `SessionResponse` / `SessionStateResponse`.
+- Health probes (`/healthz`, `/readyz`) do not require the header.
+
+Authentication of the header value (mTLS, signed identity, etc.) is deferred — see [Explicitly out of MVP](#explicitly-out-of-mvp).
 
 ## MVP scope
 
@@ -89,7 +107,7 @@ For the trivial "open → navigate → screenshot → close" path, `POST /v1/cap
 
 Listed here so nothing gets forgotten:
 
-- **Authentication.** Service runs on a private network (VPC-only ingress). API keys / OAuth / per-tenant isolation deferred. The 10-sessions-per-caller cap is keyed off whatever caller identity the network layer surfaces (source IP, header) until proper auth lands.
+- **Authentication.** Service runs on a private network (VPC-only ingress). API keys / OAuth / per-tenant isolation deferred. The required `X-Caller-Id` header is treated as trusted attribution (not authn) until proper auth lands; the 10-sessions-per-caller cap is keyed off it.
 - **Rate limits / quotas beyond the per-caller session cap.** Need auth first to key off properly.
 - **Network egress policy.** SSRF guard against `localhost` / `169.254.169.254` / private CIDRs — defer to post-auth.
 - **Push events on the socket beyond operation results.** The real-time socket carries operation results in this phase. Page-load progress, console logs, network events, DOM mutations come later if a caller asks.

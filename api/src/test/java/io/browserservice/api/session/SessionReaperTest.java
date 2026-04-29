@@ -6,6 +6,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import com.looksee.browser.Browser;
 import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
@@ -15,6 +18,7 @@ import io.browserservice.api.persistence.BrowserSessionTracker;
 import java.time.Duration;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 
 class SessionReaperTest {
 
@@ -77,6 +81,41 @@ class SessionReaperTest {
     new SessionReaper(registry, tracker).reap();
 
     verify(tracker).recordReap(absoluteExpired.id(), ClosedReason.REAPED_ABSOLUTE);
+  }
+
+  @Test
+  void reapLogLineNamesTheOwner() throws Exception {
+    SessionRegistry registry = new SessionRegistry(props());
+    BrowserSessionTracker tracker = mock(BrowserSessionTracker.class);
+    SessionHandle expired =
+        SessionHandle.desktop(
+            mock(Browser.class),
+            CallerId.parse("alice"),
+            BrowserType.CHROME,
+            BrowserEnvironment.TEST,
+            Duration.ofMillis(1),
+            Duration.ofSeconds(60));
+    registry.acquirePermit();
+    registry.register(expired);
+    Thread.sleep(10);
+
+    ch.qos.logback.classic.Logger reaperLogger =
+        (ch.qos.logback.classic.Logger) LoggerFactory.getLogger(SessionReaper.class);
+    ListAppender<ILoggingEvent> appender = new ListAppender<>();
+    appender.start();
+    reaperLogger.addAppender(appender);
+    try {
+      new SessionReaper(registry, tracker).reap();
+    } finally {
+      reaperLogger.detachAppender(appender);
+    }
+
+    assertThat(appender.list)
+        .anySatisfy(
+            event -> {
+              assertThat(event.getLevel()).isEqualTo(Level.INFO);
+              assertThat(event.getFormattedMessage()).contains("owner=alice");
+            });
   }
 
   @Test
