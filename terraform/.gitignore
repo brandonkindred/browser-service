@@ -1,0 +1,22 @@
+# Local Terraform state and plan artifacts. The provider lockfile
+# (.terraform.lock.hcl) is intentionally tracked so provider versions are
+# reproducible across machines and CI runs.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+
+# Local variable files (never commit real secrets / project ids)
+terraform.tfvars
+*.auto.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Editor / OS noise
+.idea/
+.vscode/
+.DS_Store
