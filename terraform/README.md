@@ -134,3 +134,14 @@ These are intentional gaps that match the MVP scope of the service itself:
 - No Cloud Armor / load balancer in front of the API — Cloud Run's default URL is the entry point.
 - No CI pipeline that pushes the container image. Build + push the image manually (or wire it up in the existing GitHub Actions workflow) and point `browser_service_image` at it.
 - No remote Terraform state backend. For shared environments, configure a GCS backend in `versions.tf` (`terraform { backend "gcs" { ... } }`).
+
+## Secrets in Terraform state
+
+Terraform manages the DB user, the generated password, and the Secret Manager version, so the password ends up in state in three places (`random_password.db.result`, `google_sql_user.app.password`, `google_secret_manager_secret_version.db_password.secret_data`). This is inherent to provisioning credentials with Terraform; the only way to avoid it is to externalize secret generation entirely (e.g. let an out-of-band tool create the SQL user + secret and then `terraform import` them).
+
+For any non-throwaway environment:
+
+- **Use a GCS remote backend** with bucket-level IAM (read access restricted to the same principals who can run `terraform apply`).
+- **Enable bucket-level CMEK** so the state object is encrypted with a key whose access is auditable.
+- **Don't commit `terraform.tfstate*` to the repo** — `.gitignore` already excludes it.
+- **Switch to Cloud SQL IAM auth** if you want to drop the password from state entirely. That requires app-side changes (Cloud SQL JDBC connector with IAM authentication) and is out of scope for this terraform PR.
