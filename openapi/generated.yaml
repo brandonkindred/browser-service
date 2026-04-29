@@ -568,6 +568,10 @@ components:
     SessionStateResponse:
       description: Session state snapshot including current URL, viewport, and scroll offset.
       properties:
+        absoluteTtlSeconds:
+          description: Absolute TTL in seconds
+          format: int64
+          type: integer
         browserType:
           description: Browser type
           enum:
@@ -594,6 +598,14 @@ components:
           type: string
         expiresAt:
           description: Instant at which the session will be reaped
+          format: date-time
+          type: string
+        idleTtlSeconds:
+          description: Idle TTL in seconds
+          format: int64
+          type: integer
+        lastUsedAt:
+          description: Instant of the most recent operation that refreshed the idle clock — read-only endpoints (this one included) do not advance it
           format: date-time
           type: string
         ownerId:

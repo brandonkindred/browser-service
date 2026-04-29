@@ -242,6 +242,9 @@ class ControllerHttpTest {
                 BrowserType.CHROME,
                 BrowserEnvironment.TEST,
                 Instant.now(),
+                Instant.now(),
+                300L,
+                1800L,
                 Instant.now().plusSeconds(60),
                 "https://x",
                 new Viewport(100, 200),
@@ -250,7 +253,10 @@ class ControllerHttpTest {
     mvc.perform(get("/v1/sessions/" + id).header("X-Caller-Id", "alice"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.current_url").value("https://x"))
-        .andExpect(jsonPath("$.owner_id").value("alice"));
+        .andExpect(jsonPath("$.owner_id").value("alice"))
+        .andExpect(jsonPath("$.last_used_at").exists())
+        .andExpect(jsonPath("$.idle_ttl_seconds").value(300))
+        .andExpect(jsonPath("$.absolute_ttl_seconds").value(1800));
   }
 
   @Test

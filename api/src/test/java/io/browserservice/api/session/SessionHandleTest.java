@@ -155,6 +155,85 @@ class SessionHandleTest {
   }
 
   @Test
+  void expiryReasonReturnsIdleWhenIdleDeadlineCrossesFirst() {
+    SessionHandle handle =
+        SessionHandle.desktop(
+            mock(Browser.class),
+            CallerId.parse("alice"),
+            BrowserType.CHROME,
+            BrowserEnvironment.TEST,
+            Duration.ofSeconds(10),
+            Duration.ofSeconds(60));
+    Instant pastIdle = handle.lastUsedAt().plus(Duration.ofSeconds(15));
+    assertThat(handle.expiryReason(pastIdle)).isEqualTo(SessionHandle.ExpiryReason.IDLE);
+  }
+
+  @Test
+  void expiryReasonReturnsAbsoluteWhenAbsoluteDeadlineCrossesFirst() {
+    SessionHandle handle =
+        SessionHandle.desktop(
+            mock(Browser.class),
+            CallerId.parse("alice"),
+            BrowserType.CHROME,
+            BrowserEnvironment.TEST,
+            Duration.ofSeconds(60),
+            Duration.ofSeconds(10));
+    Instant pastAbsolute = handle.createdAt().plus(Duration.ofSeconds(15));
+    assertThat(handle.expiryReason(pastAbsolute)).isEqualTo(SessionHandle.ExpiryReason.ABSOLUTE);
+  }
+
+  @Test
+  void expiryReasonAtAbsoluteBoundaryReturnsAbsolute() {
+    // now == absoluteDeadline, idle has not been crossed → ABSOLUTE.
+    SessionHandle handle =
+        SessionHandle.desktop(
+            mock(Browser.class),
+            CallerId.parse("alice"),
+            BrowserType.CHROME,
+            BrowserEnvironment.TEST,
+            Duration.ofSeconds(60),
+            Duration.ofSeconds(10));
+    Instant boundary = handle.createdAt().plus(Duration.ofSeconds(10));
+    assertThat(handle.expiryReason(boundary)).isEqualTo(SessionHandle.ExpiryReason.ABSOLUTE);
+  }
+
+  @Test
+  void expiryReasonBeforeAnyDeadlineFallsBackToEarlierDeadline() {
+    // Neither deadline crossed yet — helper still returns whichever will trip first
+    // so callers can reason about the next reap. Idle (10s) trips before absolute (60s).
+    SessionHandle handle =
+        SessionHandle.desktop(
+            mock(Browser.class),
+            CallerId.parse("alice"),
+            BrowserType.CHROME,
+            BrowserEnvironment.TEST,
+            Duration.ofSeconds(10),
+            Duration.ofSeconds(60));
+    assertThat(handle.expiryReason(handle.createdAt())).isEqualTo(SessionHandle.ExpiryReason.IDLE);
+  }
+
+  @Test
+  void expiryReasonWhenBothCrossedPicksTheEarlierDeadline() {
+    // Both crossed; absolute deadline is earlier than idle deadline → ABSOLUTE.
+    SessionHandle handle =
+        SessionHandle.desktop(
+            mock(Browser.class),
+            CallerId.parse("alice"),
+            BrowserType.CHROME,
+            BrowserEnvironment.TEST,
+            Duration.ofSeconds(30),
+            Duration.ofSeconds(5));
+    Instant farFuture = handle.createdAt().plus(Duration.ofMinutes(10));
+    assertThat(handle.expiryReason(farFuture)).isEqualTo(SessionHandle.ExpiryReason.ABSOLUTE);
+  }
+
+  @Test
+  void expiryReasonWireValueIsLowercase() {
+    assertThat(SessionHandle.ExpiryReason.IDLE.wireValue()).isEqualTo("idle");
+    assertThat(SessionHandle.ExpiryReason.ABSOLUTE.wireValue()).isEqualTo("absolute");
+  }
+
+  @Test
   void closeOnceReturnsTrueFirstTimeAndFalseAfter() {
     Browser browser = mock(Browser.class);
     SessionHandle handle =

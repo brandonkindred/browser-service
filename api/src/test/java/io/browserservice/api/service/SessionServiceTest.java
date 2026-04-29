@@ -198,6 +198,12 @@ class SessionServiceTest {
     assertThat(state.viewport()).isNotNull();
     assertThat(state.scrollOffset().x()).isEqualTo(10);
     assertThat(state.scrollOffset().y()).isEqualTo(20);
+    assertThat(state.lastUsedAt()).isNotNull();
+    assertThat(state.idleTtlSeconds()).isPositive();
+    assertThat(state.absoluteTtlSeconds()).isPositive();
+    assertThat(state.expiresAt())
+        .as("expiresAt is min(lastUsedAt + idleTtl, createdAt + absoluteTtl)")
+        .isEqualTo(state.lastUsedAt().plusSeconds(state.idleTtlSeconds()));
   }
 
   @Test
