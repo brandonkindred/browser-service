@@ -163,6 +163,35 @@ public final class SessionHandle {
     return now.isAfter(createdAt.plus(absoluteTtl)) || now.isAfter(lastUsedAt.plus(idleTtl));
   }
 
+  /**
+   * Reports which deadline is responsible for this session's expiry at {@code now}. Mirrors what
+   * the reaper records in logs and metrics. If both deadlines have passed, the chronologically
+   * earlier one wins; if neither has passed, the soonest-to-trip one is returned so callers can
+   * still reason about the next reap.
+   */
+  public ExpiryReason expiryReason(Instant now) {
+    Instant idleDeadline = lastUsedAt.plus(idleTtl);
+    Instant absoluteDeadline = createdAt.plus(absoluteTtl);
+    boolean idleCrossed = !now.isBefore(idleDeadline);
+    boolean absoluteCrossed = !now.isBefore(absoluteDeadline);
+    if (absoluteCrossed && !idleCrossed) {
+      return ExpiryReason.ABSOLUTE;
+    }
+    if (idleCrossed && !absoluteCrossed) {
+      return ExpiryReason.IDLE;
+    }
+    return absoluteDeadline.isBefore(idleDeadline) ? ExpiryReason.ABSOLUTE : ExpiryReason.IDLE;
+  }
+
+  public enum ExpiryReason {
+    IDLE,
+    ABSOLUTE;
+
+    public String wireValue() {
+      return name().toLowerCase(java.util.Locale.ROOT);
+    }
+  }
+
   public boolean closeOnce() {
     if (!closed.compareAndSet(false, true)) {
       return false;

@@ -750,7 +750,26 @@ components:
       allOf:
         - $ref: "#/components/schemas/Session"
         - type: object
+          required: [last_used_at, idle_ttl_seconds, absolute_ttl_seconds]
           properties:
+            last_used_at:
+              type: string
+              format: date-time
+              description: |
+                Instant of the most recent operation that refreshed the idle clock.
+                Read-only endpoints (this one included) do not advance it. Clients
+                can compute remaining idle as
+                `last_used_at + idle_ttl_seconds - now`.
+            idle_ttl_seconds:
+              type: integer
+              format: int64
+              minimum: 1
+              description: Idle TTL applied to this session (seconds).
+            absolute_ttl_seconds:
+              type: integer
+              format: int64
+              minimum: 1
+              description: Absolute TTL applied to this session (seconds).
             current_url: { type: string }
             viewport: { $ref: "#/components/schemas/Viewport" }
             scroll_offset: { $ref: "#/components/schemas/ScrollOffset" }
