@@ -4,7 +4,6 @@ import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.ScrollOffset;
 import io.browserservice.api.dto.ScrollRequest;
 import io.browserservice.api.service.BrowserOperationsService;
-import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -24,29 +23,23 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Scrolling", description = "Viewport scrolling operations")
 public class ScrollController {
 
-  private final BrowserOperationsService service;
+    private final BrowserOperationsService service;
 
-  public ScrollController(BrowserOperationsService service) {
-    this.service = service;
-  }
+    public ScrollController(BrowserOperationsService service) {
+        this.service = service;
+    }
 
-  @PostMapping("/scroll")
-  @Operation(summary = "Scroll the viewport", operationId = "scroll")
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        content = @Content(schema = @Schema(implementation = ScrollOffset.class))),
-    @ApiResponse(
-        responseCode = "400",
-        description = "Validation failed",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-    @ApiResponse(
-        responseCode = "404",
-        description = "Session or element handle not found",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  public ScrollOffset scroll(
-      @PathVariable UUID id, CallerId caller, @Valid @RequestBody ScrollRequest req) {
-    return service.scroll(id, caller, req);
-  }
+    @PostMapping("/scroll")
+    @Operation(summary = "Scroll the viewport", operationId = "scroll")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200",
+                    content = @Content(schema = @Schema(implementation = ScrollOffset.class))),
+            @ApiResponse(responseCode = "400", description = "Validation failed",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Session or element handle not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ScrollOffset scroll(@PathVariable UUID id, @Valid @RequestBody ScrollRequest req) {
+        return service.scroll(id, req);
+    }
 }

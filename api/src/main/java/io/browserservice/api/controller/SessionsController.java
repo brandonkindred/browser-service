@@ -6,7 +6,6 @@ import io.browserservice.api.dto.SessionListResponse;
 import io.browserservice.api.dto.SessionResponse;
 import io.browserservice.api.dto.SessionStateResponse;
 import io.browserservice.api.service.SessionService;
-import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -30,76 +29,60 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Sessions", description = "Session lifecycle")
 public class SessionsController {
 
-  private final SessionService sessionService;
+    private final SessionService sessionService;
 
-  public SessionsController(SessionService sessionService) {
-    this.sessionService = sessionService;
-  }
+    public SessionsController(SessionService sessionService) {
+        this.sessionService = sessionService;
+    }
 
-  @PostMapping
-  @ResponseStatus(HttpStatus.CREATED)
-  @Operation(summary = "Create a browser session", operationId = "createSession")
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "201",
-        description = "Created",
-        content = @Content(schema = @Schema(implementation = SessionResponse.class))),
-    @ApiResponse(
-        responseCode = "400",
-        description = "Validation failed",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-    @ApiResponse(
-        responseCode = "429",
-        description = "Concurrent session cap exceeded",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-    @ApiResponse(
-        responseCode = "502",
-        description = "Upstream hub unavailable",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  public SessionResponse create(@Valid @RequestBody CreateSessionRequest req, CallerId caller) {
-    return sessionService.create(req, caller);
-  }
+    @PostMapping
+    @ResponseStatus(HttpStatus.CREATED)
+    @Operation(summary = "Create a browser session", operationId = "createSession")
+    @ApiResponses({
+            @ApiResponse(responseCode = "201", description = "Created",
+                    content = @Content(schema = @Schema(implementation = SessionResponse.class))),
+            @ApiResponse(responseCode = "400", description = "Validation failed",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "429", description = "Concurrent session cap exceeded",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "502", description = "Upstream hub unavailable",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public SessionResponse create(@Valid @RequestBody CreateSessionRequest req) {
+        return sessionService.create(req);
+    }
 
-  @GetMapping
-  @Operation(summary = "List active sessions", operationId = "listSessions")
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        description = "Session list",
-        content = @Content(schema = @Schema(implementation = SessionListResponse.class)))
-  })
-  public SessionListResponse list(CallerId caller) {
-    return sessionService.list(caller);
-  }
+    @GetMapping
+    @Operation(summary = "List active sessions", operationId = "listSessions")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Session list",
+                    content = @Content(schema = @Schema(implementation = SessionListResponse.class)))
+    })
+    public SessionListResponse list() {
+        return sessionService.list();
+    }
 
-  @GetMapping("/{id}")
-  @Operation(summary = "Describe a session", operationId = "getSession")
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        description = "Session state",
-        content = @Content(schema = @Schema(implementation = SessionStateResponse.class))),
-    @ApiResponse(
-        responseCode = "404",
-        description = "Session not found",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  public SessionStateResponse get(@PathVariable UUID id, CallerId caller) {
-    return sessionService.describe(id, caller);
-  }
+    @GetMapping("/{id}")
+    @Operation(summary = "Describe a session", operationId = "getSession")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Session state",
+                    content = @Content(schema = @Schema(implementation = SessionStateResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Session not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public SessionStateResponse get(@PathVariable UUID id) {
+        return sessionService.describe(id);
+    }
 
-  @DeleteMapping("/{id}")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  @Operation(summary = "Close a session", operationId = "deleteSession")
-  @ApiResponses({
-    @ApiResponse(responseCode = "204", description = "Closed"),
-    @ApiResponse(
-        responseCode = "404",
-        description = "Session not found",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  public void delete(@PathVariable UUID id, CallerId caller) {
-    sessionService.close(id, caller);
-  }
+    @DeleteMapping("/{id}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Close a session", operationId = "deleteSession")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Closed"),
+            @ApiResponse(responseCode = "404", description = "Session not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public void delete(@PathVariable UUID id) {
+        sessionService.close(id);
+    }
 }

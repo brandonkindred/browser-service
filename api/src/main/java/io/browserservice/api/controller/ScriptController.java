@@ -4,7 +4,6 @@ import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.ExecuteRequest;
 import io.browserservice.api.dto.ExecuteResponse;
 import io.browserservice.api.service.BrowserOperationsService;
-import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -24,25 +23,21 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Script", description = "Arbitrary JavaScript execution")
 public class ScriptController {
 
-  private final BrowserOperationsService service;
+    private final BrowserOperationsService service;
 
-  public ScriptController(BrowserOperationsService service) {
-    this.service = service;
-  }
+    public ScriptController(BrowserOperationsService service) {
+        this.service = service;
+    }
 
-  @PostMapping("/execute")
-  @Operation(summary = "Execute arbitrary JavaScript", operationId = "executeScript")
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        content = @Content(schema = @Schema(implementation = ExecuteResponse.class))),
-    @ApiResponse(
-        responseCode = "404",
-        description = "Session not found",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  public ExecuteResponse execute(
-      @PathVariable UUID id, CallerId caller, @Valid @RequestBody ExecuteRequest req) {
-    return service.executeScript(id, caller, req);
-  }
+    @PostMapping("/execute")
+    @Operation(summary = "Execute arbitrary JavaScript", operationId = "executeScript")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200",
+                    content = @Content(schema = @Schema(implementation = ExecuteResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Session not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ExecuteResponse execute(@PathVariable UUID id, @Valid @RequestBody ExecuteRequest req) {
+        return service.executeScript(id, req);
+    }
 }

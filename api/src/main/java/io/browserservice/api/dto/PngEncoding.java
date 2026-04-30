@@ -5,14 +5,14 @@ import io.swagger.v3.oas.annotations.media.Schema;
 
 @Schema(description = "Screenshot output encoding.")
 public enum PngEncoding {
-  BINARY,
-  BASE64;
+    BINARY,
+    BASE64;
 
-  @JsonCreator
-  public static PngEncoding fromString(String value) {
-    if (value == null) {
-      return null;
+    @JsonCreator
+    public static PngEncoding fromString(String value) {
+        if (value == null) {
+            return null;
+        }
+        return PngEncoding.valueOf(value.trim().toUpperCase());
     }
-    return PngEncoding.valueOf(value.trim().toUpperCase());
-  }
 }

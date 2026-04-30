@@ -14,7 +14,6 @@ import io.browserservice.api.dto.ScreenshotRequest;
 import io.browserservice.api.dto.ScreenshotStrategy;
 import java.time.Duration;
 import java.util.UUID;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -29,81 +28,67 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 /**
- * End-to-end smoke test that spins up a Selenium standalone-chrome container and exercises the
- * canonical create → navigate → screenshot → delete path against the real API stack.
+ * End-to-end smoke test that spins up a Selenium standalone-chrome container and
+ * exercises the canonical create → navigate → screenshot → delete path against
+ * the real API stack.
  *
- * <p>Requires a working Docker daemon. Skipped via surefire (included by failsafe's {@code
- * *IT.java} naming convention).
- *
- * <p><b>Currently excluded from CI</b> via the {@code requires-selenium-grid} JUnit tag, because
- * the engine's {@link com.looksee.browser.helpers.BrowserConnectionHelper#getConnection} only
- * consumes the configured Selenium URLs when {@link com.looksee.browser.enums.BrowserEnvironment}
- * is {@code DISCOVERY} — and even that branch hardcodes {@code https://}, which doesn't match
- * Testcontainers' HTTP Selenium endpoint. Re-enable once the engine accepts injected URLs
- * unconditionally; tracked in #43.
- *
- * <p>To run locally despite the tag: {@code ./mvnw -B -ntp -DexcludedGroups= verify}.
+ * <p>Requires a working Docker daemon. Skipped via surefire (included by
+ * failsafe's {@code *IT.java} naming convention).
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
-@org.springframework.test.context.ActiveProfiles("test")
-@Tag("requires-selenium-grid")
 @Testcontainers
 class SeleniumGridIT {
 
-  @Container
-  static final BrowserWebDriverContainer<?> chrome =
-      new BrowserWebDriverContainer<>(DockerImageName.parse("selenium/standalone-chrome:latest"))
-          .withStartupTimeout(Duration.ofMinutes(3));
+    @Container
+    static final BrowserWebDriverContainer<?> chrome =
+            new BrowserWebDriverContainer<>(DockerImageName.parse("selenium/standalone-chrome:latest"))
+                    .withStartupTimeout(Duration.ofMinutes(3));
 
-  @DynamicPropertySource
-  static void seleniumProps(DynamicPropertyRegistry registry) {
-    registry.add("browserservice.selenium.urls", () -> chrome.getSeleniumAddress().toString());
-    registry.add("browserservice.appium.urls", () -> "");
-    registry.add("browserservice.browserstack.enabled", () -> "false");
-  }
+    @DynamicPropertySource
+    static void seleniumProps(DynamicPropertyRegistry registry) {
+        registry.add("browserservice.selenium.urls", () -> chrome.getSeleniumAddress().toString());
+        registry.add("browserservice.appium.urls", () -> "");
+        registry.add("browserservice.browserstack.enabled", () -> "false");
+    }
 
-  @Autowired private MockMvc mvc;
+    @Autowired
+    private MockMvc mvc;
 
-  @Autowired private ObjectMapper json;
+    @Autowired
+    private ObjectMapper json;
 
-  @Test
-  void createNavigateScreenshotDeleteSmokeTest() throws Exception {
-    CreateSessionRequest createReq =
-        new CreateSessionRequest(
-            com.looksee.browser.enums.BrowserType.CHROME,
-            com.looksee.browser.enums.BrowserEnvironment.TEST,
-            null);
+    @Test
+    void createNavigateScreenshotDeleteSmokeTest() throws Exception {
+        CreateSessionRequest createReq = new CreateSessionRequest(
+                com.looksee.browser.enums.BrowserType.CHROME,
+                com.looksee.browser.enums.BrowserEnvironment.TEST,
+                null);
 
-    String createResponse =
-        mvc.perform(
-                post("/v1/sessions")
-                    .contentType(MediaType.APPLICATION_JSON)
-                    .content(json.writeValueAsString(createReq)))
-            .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.session_id", notNullValue()))
-            .andReturn()
-            .getResponse()
-            .getContentAsString();
+        String createResponse = mvc.perform(post("/v1/sessions")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(createReq)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.session_id", notNullValue()))
+                .andReturn().getResponse().getContentAsString();
 
-    UUID sessionId = UUID.fromString(json.readTree(createResponse).get("session_id").asText());
+        UUID sessionId = UUID.fromString(json.readTree(createResponse).get("session_id").asText());
 
-    NavigateRequest navigateReq = new NavigateRequest("about:blank", null);
-    mvc.perform(
-            post("/v1/sessions/" + sessionId + "/navigate")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json.writeValueAsString(navigateReq)))
-        .andExpect(status().isOk())
-        .andExpect(jsonPath("$.status", is("LOADED")));
+        NavigateRequest navigateReq = new NavigateRequest("about:blank", null);
+        mvc.perform(post("/v1/sessions/" + sessionId + "/navigate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(navigateReq)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status", is("LOADED")));
 
-    ScreenshotRequest screenshotReq = new ScreenshotRequest(ScreenshotStrategy.VIEWPORT, null);
-    mvc.perform(
-            post("/v1/sessions/" + sessionId + "/screenshot")
-                .accept(MediaType.IMAGE_PNG)
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(json.writeValueAsString(screenshotReq)))
-        .andExpect(status().isOk());
+        ScreenshotRequest screenshotReq = new ScreenshotRequest(ScreenshotStrategy.VIEWPORT, null);
+        mvc.perform(post("/v1/sessions/" + sessionId + "/screenshot")
+                        .accept(MediaType.IMAGE_PNG)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(screenshotReq)))
+                .andExpect(status().isOk());
 
-    mvc.perform(delete("/v1/sessions/" + sessionId)).andExpect(status().isNoContent());
-  }
+        mvc.perform(delete("/v1/sessions/" + sessionId))
+                .andExpect(status().isNoContent());
+    }
 }

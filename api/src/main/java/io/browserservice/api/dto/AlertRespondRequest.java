@@ -6,5 +6,6 @@ import jakarta.validation.constraints.NotNull;
 
 @Schema(description = "Respond to the current browser alert.")
 public record AlertRespondRequest(
-    @NotNull @Schema(description = "Alert choice") AlertChoice choice,
-    @Schema(description = "Optional input for prompt alerts", nullable = true) String input) {}
+        @NotNull @Schema(description = "Alert choice") AlertChoice choice,
+        @Schema(description = "Optional input for prompt alerts", nullable = true) String input) {
+}

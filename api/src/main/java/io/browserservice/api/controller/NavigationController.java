@@ -6,7 +6,6 @@ import io.browserservice.api.dto.NavigateResponse;
 import io.browserservice.api.dto.PageSourceResponse;
 import io.browserservice.api.dto.PageStatusResponse;
 import io.browserservice.api.service.BrowserOperationsService;
-import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -27,62 +26,48 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Navigation", description = "Page navigation and source")
 public class NavigationController {
 
-  private final BrowserOperationsService service;
+    private final BrowserOperationsService service;
 
-  public NavigationController(BrowserOperationsService service) {
-    this.service = service;
-  }
+    public NavigationController(BrowserOperationsService service) {
+        this.service = service;
+    }
 
-  @PostMapping("/navigate")
-  @Operation(summary = "Navigate to a URL", operationId = "navigate")
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        description = "Navigation complete",
-        content = @Content(schema = @Schema(implementation = NavigateResponse.class))),
-    @ApiResponse(
-        responseCode = "404",
-        description = "Session not found",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-    @ApiResponse(
-        responseCode = "502",
-        description = "Upstream error",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  public NavigateResponse navigate(
-      @PathVariable UUID id, CallerId caller, @Valid @RequestBody NavigateRequest req) {
-    return service.navigate(id, caller, req);
-  }
+    @PostMapping("/navigate")
+    @Operation(summary = "Navigate to a URL", operationId = "navigate")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Navigation complete",
+                    content = @Content(schema = @Schema(implementation = NavigateResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Session not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "502", description = "Upstream error",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public NavigateResponse navigate(@PathVariable UUID id, @Valid @RequestBody NavigateRequest req) {
+        return service.navigate(id, req);
+    }
 
-  @GetMapping("/source")
-  @Operation(summary = "Get the current page source (HTML)", operationId = "getSource")
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        content = @Content(schema = @Schema(implementation = PageSourceResponse.class))),
-    @ApiResponse(
-        responseCode = "404",
-        description = "Session not found",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  public PageSourceResponse source(@PathVariable UUID id, CallerId caller) {
-    return service.getSource(id, caller);
-  }
+    @GetMapping("/source")
+    @Operation(summary = "Get the current page source (HTML)", operationId = "getSource")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200",
+                    content = @Content(schema = @Schema(implementation = PageSourceResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Session not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public PageSourceResponse source(@PathVariable UUID id) {
+        return service.getSource(id);
+    }
 
-  @GetMapping("/status")
-  @Operation(
-      summary = "Get derived page status (current URL + 503 detection)",
-      operationId = "getPageStatus")
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        content = @Content(schema = @Schema(implementation = PageStatusResponse.class))),
-    @ApiResponse(
-        responseCode = "404",
-        description = "Session not found",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  public PageStatusResponse status(@PathVariable UUID id, CallerId caller) {
-    return service.getStatus(id, caller);
-  }
+    @GetMapping("/status")
+    @Operation(summary = "Get derived page status (current URL + 503 detection)",
+            operationId = "getPageStatus")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200",
+                    content = @Content(schema = @Schema(implementation = PageStatusResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Session not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public PageStatusResponse status(@PathVariable UUID id) {
+        return service.getStatus(id);
+    }
 }

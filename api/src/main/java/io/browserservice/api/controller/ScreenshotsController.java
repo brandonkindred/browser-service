@@ -7,7 +7,6 @@ import io.browserservice.api.dto.ScreenshotBase64Response;
 import io.browserservice.api.dto.ScreenshotRequest;
 import io.browserservice.api.service.BrowserOperationsService;
 import io.browserservice.api.service.ElementOperationsService;
-import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -31,78 +30,69 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Screenshots", description = "Page and element screenshots")
 public class ScreenshotsController {
 
-  private final BrowserOperationsService browserOps;
-  private final ElementOperationsService elementOps;
+    private final BrowserOperationsService browserOps;
+    private final ElementOperationsService elementOps;
 
-  public ScreenshotsController(
-      BrowserOperationsService browserOps, ElementOperationsService elementOps) {
-    this.browserOps = browserOps;
-    this.elementOps = elementOps;
-  }
-
-  static {
-    // Eagerly load the PNG writer to avoid ServiceLoader edge cases under virtual threads.
-    ImageIO.scanForPlugins();
-  }
-
-  @PostMapping(
-      value = "/screenshot",
-      produces = {MediaType.IMAGE_PNG_VALUE, MediaType.APPLICATION_JSON_VALUE})
-  @Operation(summary = "Capture a page screenshot", operationId = "captureScreenshot")
-  @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "PNG bytes or base64 JSON"),
-    @ApiResponse(
-        responseCode = "400",
-        description = "Validation failed",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-    @ApiResponse(
-        responseCode = "404",
-        description = "Session not found",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  public ResponseEntity<?> capture(
-      @PathVariable UUID id, CallerId caller, @Valid @RequestBody ScreenshotRequest req) {
-    byte[] pngBytes = browserOps.pageScreenshot(id, caller, req.strategy());
-    return respond(pngBytes, req.encoding());
-  }
-
-  @PostMapping(
-      value = "/element/screenshot",
-      produces = {MediaType.IMAGE_PNG_VALUE, MediaType.APPLICATION_JSON_VALUE})
-  @Operation(
-      summary = "Capture a screenshot of a single element",
-      operationId = "captureElementScreenshot")
-  @ApiResponses({
-    @ApiResponse(responseCode = "200", description = "PNG bytes or base64 JSON"),
-    @ApiResponse(
-        responseCode = "404",
-        description = "Session or element handle not found",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  public ResponseEntity<?> captureElement(
-      @PathVariable UUID id, CallerId caller, @Valid @RequestBody ElementScreenshotRequest req) {
-    byte[] pngBytes = elementOps.elementScreenshot(id, caller, req);
-    return respond(pngBytes, req.encoding());
-  }
-
-  private ResponseEntity<?> respond(byte[] pngBytes, PngEncoding encoding) {
-    if (encoding == PngEncoding.BASE64) {
-      int[] wh = readDimensions(pngBytes);
-      return ResponseEntity.ok(
-          new ScreenshotBase64Response(Base64.getEncoder().encodeToString(pngBytes), wh[0], wh[1]));
+    public ScreenshotsController(BrowserOperationsService browserOps, ElementOperationsService elementOps) {
+        this.browserOps = browserOps;
+        this.elementOps = elementOps;
     }
-    return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(pngBytes);
-  }
 
-  private static int[] readDimensions(byte[] pngBytes) {
-    try (var in = new java.io.ByteArrayInputStream(pngBytes)) {
-      var image = ImageIO.read(in);
-      if (image == null) {
-        return new int[] {0, 0};
-      }
-      return new int[] {image.getWidth(), image.getHeight()};
-    } catch (Exception e) {
-      return new int[] {0, 0};
+    static {
+        // Eagerly load the PNG writer to avoid ServiceLoader edge cases under virtual threads.
+        ImageIO.scanForPlugins();
     }
-  }
+
+    @PostMapping(value = "/screenshot",
+            produces = {MediaType.IMAGE_PNG_VALUE, MediaType.APPLICATION_JSON_VALUE})
+    @Operation(summary = "Capture a page screenshot", operationId = "captureScreenshot")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "PNG bytes or base64 JSON"),
+            @ApiResponse(responseCode = "400", description = "Validation failed",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Session not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<?> capture(@PathVariable UUID id, @Valid @RequestBody ScreenshotRequest req) {
+        byte[] pngBytes = browserOps.pageScreenshot(id, req.strategy());
+        return respond(pngBytes, req.encoding());
+    }
+
+    @PostMapping(value = "/element/screenshot",
+            produces = {MediaType.IMAGE_PNG_VALUE, MediaType.APPLICATION_JSON_VALUE})
+    @Operation(summary = "Capture a screenshot of a single element",
+            operationId = "captureElementScreenshot")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "PNG bytes or base64 JSON"),
+            @ApiResponse(responseCode = "404", description = "Session or element handle not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ResponseEntity<?> captureElement(@PathVariable UUID id,
+                                            @Valid @RequestBody ElementScreenshotRequest req) {
+        byte[] pngBytes = elementOps.elementScreenshot(id, req);
+        return respond(pngBytes, req.encoding());
+    }
+
+    private ResponseEntity<?> respond(byte[] pngBytes, PngEncoding encoding) {
+        if (encoding == PngEncoding.BASE64) {
+            int[] wh = readDimensions(pngBytes);
+            return ResponseEntity.ok(new ScreenshotBase64Response(
+                    Base64.getEncoder().encodeToString(pngBytes), wh[0], wh[1]));
+        }
+        return ResponseEntity.ok()
+                .contentType(MediaType.IMAGE_PNG)
+                .body(pngBytes);
+    }
+
+    private static int[] readDimensions(byte[] pngBytes) {
+        try (var in = new java.io.ByteArrayInputStream(pngBytes)) {
+            var image = ImageIO.read(in);
+            if (image == null) {
+                return new int[]{0, 0};
+            }
+            return new int[]{image.getWidth(), image.getHeight()};
+        } catch (Exception e) {
+            return new int[]{0, 0};
+        }
+    }
 }

@@ -557,9 +557,6 @@ components:
           description: Instant at which the session will be reaped
           format: date-time
           type: string
-        ownerId:
-          description: Caller that owns the session (`X-Caller-Id` of the creator)
-          type: string
         sessionId:
           description: Session identifier
           format: uuid
@@ -568,10 +565,6 @@ components:
     SessionStateResponse:
       description: Session state snapshot including current URL, viewport, and scroll offset.
       properties:
-        absoluteTtlSeconds:
-          description: Absolute TTL in seconds
-          format: int64
-          type: integer
         browserType:
           description: Browser type
           enum:
@@ -599,17 +592,6 @@ components:
         expiresAt:
           description: Instant at which the session will be reaped
           format: date-time
-          type: string
-        idleTtlSeconds:
-          description: Idle TTL in seconds
-          format: int64
-          type: integer
-        lastUsedAt:
-          description: Instant of the most recent operation that refreshed the idle clock — read-only endpoints (this one included) do not advance it
-          format: date-time
-          type: string
-        ownerId:
-          description: Caller that owns the session (`X-Caller-Id` of the creator)
           type: string
         scrollOffset:
           $ref: '#/components/schemas/ScrollOffset'
@@ -680,14 +662,6 @@ paths:
   /v1/capture:
     post:
       operationId: capture
-      parameters:
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       requestBody:
         content:
           application/json:
@@ -732,13 +706,6 @@ paths:
         schema:
           format: uuid
           type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       responses:
         '200':
           content:
@@ -765,14 +732,6 @@ paths:
   /v1/sessions:
     get:
       operationId: listSessions
-      parameters:
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       responses:
         '200':
           content:
@@ -785,14 +744,6 @@ paths:
       - Sessions
     post:
       operationId: createSession
-      parameters:
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       requestBody:
         content:
           application/json:
@@ -837,13 +788,6 @@ paths:
         schema:
           format: uuid
           type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       responses:
         '204':
           description: Closed
@@ -864,13 +808,6 @@ paths:
         required: true
         schema:
           format: uuid
-          type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
           type: string
       responses:
         '200':
@@ -898,13 +835,6 @@ paths:
         schema:
           format: uuid
           type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       responses:
         '200':
           content:
@@ -930,13 +860,6 @@ paths:
         required: true
         schema:
           format: uuid
-          type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
           type: string
       requestBody:
         content:
@@ -965,13 +888,6 @@ paths:
         required: true
         schema:
           format: uuid
-          type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
           type: string
       requestBody:
         content:
@@ -1013,13 +929,6 @@ paths:
         schema:
           format: uuid
           type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       requestBody:
         content:
           application/json:
@@ -1054,13 +963,6 @@ paths:
         schema:
           format: uuid
           type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       requestBody:
         content:
           application/json:
@@ -1092,13 +994,6 @@ paths:
         required: true
         schema:
           format: uuid
-          type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
           type: string
       requestBody:
         content:
@@ -1138,13 +1033,6 @@ paths:
         schema:
           format: uuid
           type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       requestBody:
         content:
           application/json:
@@ -1179,13 +1067,6 @@ paths:
         schema:
           format: uuid
           type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       requestBody:
         content:
           application/json:
@@ -1217,13 +1098,6 @@ paths:
         required: true
         schema:
           format: uuid
-          type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
           type: string
       requestBody:
         content:
@@ -1265,13 +1139,6 @@ paths:
         schema:
           format: uuid
           type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       requestBody:
         content:
           application/json:
@@ -1309,13 +1176,6 @@ paths:
         required: true
         schema:
           format: uuid
-          type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
           type: string
       requestBody:
         content:
@@ -1364,13 +1224,6 @@ paths:
         schema:
           format: uuid
           type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       requestBody:
         content:
           application/json:
@@ -1409,13 +1262,6 @@ paths:
         schema:
           format: uuid
           type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       responses:
         '200':
           content:
@@ -1442,13 +1288,6 @@ paths:
         schema:
           format: uuid
           type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
-          type: string
       responses:
         '200':
           content:
@@ -1474,13 +1313,6 @@ paths:
         required: true
         schema:
           format: uuid
-          type: string
-      - description: Identifies the calling client. Bound to created sessions for ownership.
-        in: header
-        name: X-Caller-Id
-        required: true
-        schema:
-          maxLength: 128
           type: string
       responses:
         '200':

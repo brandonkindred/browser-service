@@ -14,24 +14,23 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Ops", description = "Health, readiness, metrics")
 public class OpsController {
 
-  private final ReadinessService readinessService;
+    private final ReadinessService readinessService;
 
-  public OpsController(ReadinessService readinessService) {
-    this.readinessService = readinessService;
-  }
+    public OpsController(ReadinessService readinessService) {
+        this.readinessService = readinessService;
+    }
 
-  @GetMapping("/healthz")
-  @Operation(summary = "Liveness probe", operationId = "healthz")
-  public HealthResponse healthz() {
-    return HealthResponse.ok();
-  }
+    @GetMapping("/healthz")
+    @Operation(summary = "Liveness probe", operationId = "healthz")
+    public HealthResponse healthz() {
+        return HealthResponse.ok();
+    }
 
-  @GetMapping("/readyz")
-  @Operation(summary = "Readiness probe", operationId = "readyz")
-  public ResponseEntity<ReadinessResponse> readyz() {
-    ReadinessResponse body = readinessService.probe();
-    HttpStatus status =
-        "ready".equals(body.status()) ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
-    return ResponseEntity.status(status).body(body);
-  }
+    @GetMapping("/readyz")
+    @Operation(summary = "Readiness probe", operationId = "readyz")
+    public ResponseEntity<ReadinessResponse> readyz() {
+        ReadinessResponse body = readinessService.probe();
+        HttpStatus status = "ready".equals(body.status()) ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
+        return ResponseEntity.status(status).body(body);
+    }
 }

@@ -3,7 +3,6 @@ package io.browserservice.api.controller;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.ViewportStateResponse;
 import io.browserservice.api.service.BrowserOperationsService;
-import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -21,24 +20,21 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "Scrolling")
 public class ViewportController {
 
-  private final BrowserOperationsService service;
+    private final BrowserOperationsService service;
 
-  public ViewportController(BrowserOperationsService service) {
-    this.service = service;
-  }
+    public ViewportController(BrowserOperationsService service) {
+        this.service = service;
+    }
 
-  @GetMapping("/viewport")
-  @Operation(summary = "Get current viewport size and scroll offset", operationId = "getViewport")
-  @ApiResponses({
-    @ApiResponse(
-        responseCode = "200",
-        content = @Content(schema = @Schema(implementation = ViewportStateResponse.class))),
-    @ApiResponse(
-        responseCode = "404",
-        description = "Session not found",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  public ViewportStateResponse viewport(@PathVariable UUID id, CallerId caller) {
-    return service.getViewport(id, caller);
-  }
+    @GetMapping("/viewport")
+    @Operation(summary = "Get current viewport size and scroll offset", operationId = "getViewport")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200",
+                    content = @Content(schema = @Schema(implementation = ViewportStateResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Session not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public ViewportStateResponse viewport(@PathVariable UUID id) {
+        return service.getViewport(id);
+    }
 }

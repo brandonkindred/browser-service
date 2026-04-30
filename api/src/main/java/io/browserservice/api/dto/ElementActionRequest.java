@@ -7,6 +7,7 @@ import jakarta.validation.constraints.NotNull;
 
 @Schema(description = "Perform a desktop action on an element.")
 public record ElementActionRequest(
-    @NotBlank @Schema(description = "Element handle to act on") String elementHandle,
-    @NotNull @Schema(description = "Desktop action to perform") Action action,
-    @Schema(description = "Optional input (used by SEND_KEYS)", nullable = true) String input) {}
+        @NotBlank @Schema(description = "Element handle to act on") String elementHandle,
+        @NotNull @Schema(description = "Desktop action to perform") Action action,
+        @Schema(description = "Optional input (used by SEND_KEYS)", nullable = true) String input) {
+}

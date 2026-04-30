@@ -3,7 +3,6 @@ package io.browserservice.api.controller;
 import io.browserservice.api.dto.DomRemoveRequest;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.service.BrowserOperationsService;
-import io.browserservice.api.session.CallerId;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -25,34 +24,26 @@ import org.springframework.web.bind.annotation.RestController;
 @Tag(name = "DOM", description = "Direct DOM manipulation helpers")
 public class DomController {
 
-  private final BrowserOperationsService service;
+    private final BrowserOperationsService service;
 
-  public DomController(BrowserOperationsService service) {
-    this.service = service;
-  }
+    public DomController(BrowserOperationsService service) {
+        this.service = service;
+    }
 
-  @PostMapping("/dom/remove")
-  @ResponseStatus(HttpStatus.NO_CONTENT)
-  @Operation(
-      summary = "Remove DOM overlays by preset or class name",
-      operationId = "removeDomElement")
-  @ApiResponses({
-    @ApiResponse(responseCode = "204", description = "Removed (idempotent)"),
-    @ApiResponse(
-        responseCode = "400",
-        description = "Validation failed",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-    @ApiResponse(
-        responseCode = "404",
-        description = "Session not found",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-    @ApiResponse(
-        responseCode = "409",
-        description = "Mobile session (desktop required)",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  public void remove(
-      @PathVariable UUID id, CallerId caller, @Valid @RequestBody DomRemoveRequest req) {
-    service.removeDom(id, caller, req);
-  }
+    @PostMapping("/dom/remove")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Remove DOM overlays by preset or class name",
+            operationId = "removeDomElement")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Removed (idempotent)"),
+            @ApiResponse(responseCode = "400", description = "Validation failed",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "404", description = "Session not found",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @ApiResponse(responseCode = "409", description = "Mobile session (desktop required)",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+    })
+    public void remove(@PathVariable UUID id, @Valid @RequestBody DomRemoveRequest req) {
+        service.removeDom(id, req);
+    }
 }

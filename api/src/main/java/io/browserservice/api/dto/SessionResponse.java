@@ -8,10 +8,9 @@ import java.util.UUID;
 
 @Schema(description = "Summary of an active browser session.")
 public record SessionResponse(
-    @Schema(description = "Session identifier") UUID sessionId,
-    @Schema(description = "Caller that owns the session (`X-Caller-Id` of the creator)")
-        String ownerId,
-    @Schema(description = "Browser type") BrowserType browserType,
-    @Schema(description = "Session environment") BrowserEnvironment environment,
-    @Schema(description = "Instant the session was created") Instant createdAt,
-    @Schema(description = "Instant at which the session will be reaped") Instant expiresAt) {}
+        @Schema(description = "Session identifier") UUID sessionId,
+        @Schema(description = "Browser type") BrowserType browserType,
+        @Schema(description = "Session environment") BrowserEnvironment environment,
+        @Schema(description = "Instant the session was created") Instant createdAt,
+        @Schema(description = "Instant at which the session will be reaped") Instant expiresAt) {
+}
