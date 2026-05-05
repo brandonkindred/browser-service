@@ -7,7 +7,7 @@ services:
       POSTGRES_USER: browser_service
       POSTGRES_PASSWORD: browser_service
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -15,6 +15,23 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: browser-service-api:local
+    container_name: browser-service-api
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: jdbc:postgresql://postgres:5432/browser_service
+      DATABASE_USERNAME: browser_service
+      DATABASE_PASSWORD: browser_service
+    ports:
+      - "9999:8080"
     restart: unless-stopped
 
 volumes:

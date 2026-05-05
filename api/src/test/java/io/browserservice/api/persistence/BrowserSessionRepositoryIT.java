@@ -21,7 +21,7 @@ import org.testcontainers.utility.DockerImageName;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class BrowserSessionRepositoryIT {
 
   @Container
