@@ -1,18 +1,14 @@
 package io.browserservice.api.config;
 
-import org.springframework.boot.jackson.JsonComponent;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import io.quarkus.jackson.ObjectMapperCustomizer;
+import jakarta.inject.Singleton;
 
-@Configuration
-@JsonComponent
-public class JacksonConfig {
+@Singleton
+public class JacksonConfig implements ObjectMapperCustomizer {
 
-  @Bean
-  public org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer
-      jacksonCustomizer() {
-    return builder ->
-        builder.featuresToDisable(
-            com.fasterxml.jackson.databind.SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+  @Override
+  public void customize(com.fasterxml.jackson.databind.ObjectMapper mapper) {
+    mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
   }
 }

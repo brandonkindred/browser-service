@@ -2,7 +2,7 @@ package io.browserservice.api.dto;
 
 import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
-import io.swagger.v3.oas.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import java.time.Instant;
 import java.util.UUID;
 

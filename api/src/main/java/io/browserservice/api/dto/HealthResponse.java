@@ -1,12 +1,12 @@
 package io.browserservice.api.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 @Schema(description = "Liveness probe response.")
 public record HealthResponse(
     @Schema(
             description = "Always \"ok\" when the process is alive",
-            allowableValues = {"ok"})
+            enumeration = {"ok"})
         String status) {
 
   public static HealthResponse ok() {

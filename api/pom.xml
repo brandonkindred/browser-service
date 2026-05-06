@@ -41,7 +41,15 @@
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-resteasy-reactive-jackson</artifactId>
+      <artifactId>quarkus-spring-data-jpa</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-spring-boot-properties</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-rest-jackson</artifactId>
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
@@ -61,7 +69,7 @@
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-websockets-next</artifactId>
+      <artifactId>quarkus-websockets</artifactId>
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>

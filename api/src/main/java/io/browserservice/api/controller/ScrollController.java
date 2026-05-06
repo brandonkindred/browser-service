@@ -5,16 +5,17 @@ import io.browserservice.api.dto.ScrollOffset;
 import io.browserservice.api.dto.ScrollRequest;
 import io.browserservice.api.service.BrowserOperationsService;
 import io.browserservice.api.session.CallerId;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
-import io.swagger.v3.oas.annotations.responses.ApiResponse;
-import io.swagger.v3.oas.annotations.responses.ApiResponses;
-import io.swagger.v3.oas.annotations.tags.Tag;
+import org.eclipse.microprofile.openapi.annotations.Operation;
+import org.eclipse.microprofile.openapi.annotations.media.Content;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
+import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,21 +33,21 @@ public class ScrollController {
 
   @PostMapping("/scroll")
   @Operation(summary = "Scroll the viewport", operationId = "scroll")
-  @ApiResponses({
-    @ApiResponse(
+  @APIResponses({
+    @APIResponse(
         responseCode = "200",
         content = @Content(schema = @Schema(implementation = ScrollOffset.class))),
-    @ApiResponse(
+    @APIResponse(
         responseCode = "400",
         description = "Validation failed",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
-    @ApiResponse(
+    @APIResponse(
         responseCode = "404",
         description = "Session or element handle not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   public ScrollOffset scroll(
-      @PathVariable UUID id, CallerId caller, @Valid @RequestBody ScrollRequest req) {
+      @PathVariable UUID id, @RequestHeader("X-Caller-Id") CallerId caller, @Valid @RequestBody ScrollRequest req) {
     return service.scroll(id, caller, req);
   }
 }

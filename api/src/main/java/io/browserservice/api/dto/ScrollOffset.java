@@ -1,6 +1,6 @@
 package io.browserservice.api.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 @Schema(description = "Current page scroll offset in CSS pixels.")
 public record ScrollOffset(

@@ -1,6 +1,6 @@
 package io.browserservice.api.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import java.util.List;
 
 @Schema(description = "List of active sessions.")
