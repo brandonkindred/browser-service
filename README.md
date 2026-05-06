@@ -12,7 +12,7 @@
 [![Spring Boot 3.3](https://img.shields.io/badge/Spring%20Boot-3.3-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
 [![Selenium 4](https://img.shields.io/badge/Selenium-4-43B02A?logo=selenium&logoColor=white)](https://www.selenium.dev/)
 [![Appium 8](https://img.shields.io/badge/Appium-8-662D91?logo=appium&logoColor=white)](https://appium.io/)
-[![OpenAPI 3.1](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)](openapi/generated.yaml)
+[![OpenAPI 3.0](https://img.shields.io/badge/OpenAPI-3.0-6BA539?logo=openapiinitiative&logoColor=white)](openapi/generated.yaml)
 [![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#extraction-program-full-context)
 [![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
@@ -48,17 +48,14 @@ Browser interactions are inherently **stateful** — checking email, filling out
 ## 🚀 Quick start
 
 ```bash
-# Build and run locally
+# Build and run locally (brings up Postgres + the API together)
 ./mvnw clean verify
 docker compose up
-
-# Or run against an existing Selenium Grid:
-docker run -p 8080:8080 \
-  -e SELENIUM_GRID_URLS=http://your-grid:4444/wd/hub \
-  ghcr.io/brandonkindred/browser-service:latest
 ```
 
-With `docker compose up`, the API is published on host port **9999** — browse <http://localhost:9999/swagger-ui.html>. With the bare `docker run` above (or running the JAR directly), the service listens on `:8080`.
+Compose publishes the API on host port **9999** — browse <http://localhost:9999/swagger-ui.html>.
+
+To point at an external Selenium Grid, add `SELENIUM_GRID_URLS=http://your-grid:4444/wd/hub` to the `api` service's `environment:` block in `docker-compose.yml` (the app reads `browserservice.selenium.urls` from that variable). For deployments without Compose, the app needs at minimum a reachable `DATABASE_URL` and `SELENIUM_GRID_URLS` — see `api/src/main/resources/application.yaml` for the full env-var surface.
 
 ---
 
