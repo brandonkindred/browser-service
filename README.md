@@ -54,11 +54,11 @@ docker compose up
 
 # Or run against an existing Selenium Grid:
 docker run -p 8080:8080 \
-  -e GRID_URL=http://your-grid:4444 \
+  -e SELENIUM_GRID_URLS=http://your-grid:4444/wd/hub \
   ghcr.io/brandonkindred/browser-service:latest
 ```
 
-The service listens on `:8080`. Browse the live API at <http://localhost:8080/swagger-ui.html>.
+With `docker compose up`, the API is published on host port **9999** — browse <http://localhost:9999/swagger-ui.html>. With the bare `docker run` above (or running the JAR directly), the service listens on `:8080`.
 
 ---
 
@@ -101,7 +101,7 @@ The HTTP surface below is the asynchronous side of the API. The real-time socket
 curl -X POST http://browser-service/v1/sessions \
   -H 'X-Caller-Id: alice' \
   -H 'Content-Type: application/json' \
-  -d '{"browser": "chrome", "environment": "discovery"}'
+  -d '{"browser_type": "chrome", "environment": "discovery"}'
 # -> {"session_id": "abc123", "owner_id": "alice", "expires_at": "2026-04-22T18:35:00Z", ...}
 
 # 2. Navigate.
