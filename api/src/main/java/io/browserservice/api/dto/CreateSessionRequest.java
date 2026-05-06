@@ -2,9 +2,9 @@ package io.browserservice.api.dto;
 
 import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 @Schema(description = "Request to create a new browser session.")
 public record CreateSessionRequest(

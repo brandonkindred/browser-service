@@ -7,19 +7,20 @@ import io.browserservice.api.dto.PageSourceResponse;
 import io.browserservice.api.dto.PageStatusResponse;
 import io.browserservice.api.service.BrowserOperationsService;
 import io.browserservice.api.session.CallerId;
+import io.browserservice.api.web.CallerIdParamConverterProvider;
+import jakarta.validation.Valid;
+import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import java.util.UUID;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -51,7 +52,9 @@ public class NavigationController {
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   public NavigateResponse navigate(
-      @PathVariable UUID id, @RequestHeader("X-Caller-Id") CallerId caller, @Valid @RequestBody NavigateRequest req) {
+      @PathVariable UUID id,
+      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
+      @Valid @RequestBody NavigateRequest req) {
     return service.navigate(id, caller, req);
   }
 
@@ -66,7 +69,9 @@ public class NavigationController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public PageSourceResponse source(@PathVariable UUID id, @RequestHeader("X-Caller-Id") CallerId caller) {
+  public PageSourceResponse source(
+      @PathVariable UUID id,
+      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
     return service.getSource(id, caller);
   }
 
@@ -83,7 +88,9 @@ public class NavigationController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public PageStatusResponse status(@PathVariable UUID id, @RequestHeader("X-Caller-Id") CallerId caller) {
+  public PageStatusResponse status(
+      @PathVariable UUID id,
+      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
     return service.getStatus(id, caller);
   }
 }

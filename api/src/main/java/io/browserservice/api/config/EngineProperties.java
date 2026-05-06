@@ -7,14 +7,19 @@ import io.smallrye.config.WithName;
 @ConfigMapping(prefix = "browserservice")
 public interface EngineProperties {
 
+  /** Session lifecycle limits (TTLs, concurrency cap). */
   SessionProps session();
 
+  /** Selenium hub configuration consumed by the engine. */
   SeleniumProps selenium();
 
+  /** Appium server configuration consumed by the engine. */
   AppiumProps appium();
 
+  /** BrowserStack remote-grid configuration consumed by the engine. */
   BrowserStackProps browserstack();
 
+  /** WebSocket transport tuning (paths, queue depth, watcher cadences). */
   @WithName("web-socket")
   WebSocketProps webSocket();
 

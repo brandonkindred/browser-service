@@ -1,8 +1,8 @@
 package io.browserservice.api.dto;
 
 import com.looksee.browser.enums.AlertChoice;
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 @Schema(description = "Respond to the current browser alert.")
 public record AlertRespondRequest(

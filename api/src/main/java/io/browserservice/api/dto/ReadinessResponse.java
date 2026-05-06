@@ -1,7 +1,7 @@
 package io.browserservice.api.dto;
 
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import java.util.List;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 @Schema(description = "Readiness probe result including reachability of each upstream hub/server.")
 public record ReadinessResponse(

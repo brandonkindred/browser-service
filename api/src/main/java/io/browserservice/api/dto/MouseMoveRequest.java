@@ -1,7 +1,7 @@
 package io.browserservice.api.dto;
 
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 @Schema(description = "Move the mouse to a predefined destination.")
 public record MouseMoveRequest(

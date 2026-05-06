@@ -5,6 +5,7 @@ import io.browserservice.api.persistence.BrowserSessionEntity.Status;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionRegistry;
 import io.quarkus.runtime.StartupEvent;
+import io.quarkus.scheduler.Scheduled;
 import jakarta.enterprise.event.Observes;
 import jakarta.transaction.Transactional;
 import java.time.Instant;
@@ -15,7 +16,6 @@ import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -66,7 +66,7 @@ public class BrowserSessionTracker {
     }
   }
 
-  @Scheduled(fixedDelay = 30_000)
+  @Scheduled(every = "30s")
   @Transactional
   public void flushLastUsed() {
     List<SessionHandle> snapshot = registry.snapshot();

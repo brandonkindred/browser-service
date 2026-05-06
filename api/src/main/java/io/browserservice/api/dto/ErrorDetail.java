@@ -1,7 +1,7 @@
 package io.browserservice.api.dto;
 
-import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import java.util.Map;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 @Schema(description = "Error detail envelope.")
 public record ErrorDetail(

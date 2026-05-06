@@ -8,8 +8,17 @@ import jakarta.ws.rs.ext.Provider;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 
+/**
+ * Routes the {@code X-Caller-Id} request header into a {@link CallerId} parameter on JAX-RS
+ * controller methods. Replaces the Spring {@code HandlerMethodArgumentResolver} pattern used
+ * pre-migration. Throws {@link CallerUnidentifiedException} on missing/invalid headers; the global
+ * exception mapper translates those to {@code 400}.
+ */
 @Provider
 public class CallerIdParamConverterProvider implements ParamConverterProvider {
+
+  /** HTTP header that carries the caller identifier on every {@code /v1/} request. */
+  public static final String HEADER = "X-Caller-Id";
 
   @Override
   @SuppressWarnings("unchecked")

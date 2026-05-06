@@ -79,9 +79,7 @@ public class SessionWebSocketHandler {
                 .get(CallerIdHandshakeInterceptor.CALLER_HEADER_RAW_ATTRIBUTE);
     String connectionId =
         (String)
-            session
-                .getUserProperties()
-                .get(CallerIdHandshakeInterceptor.CONNECTION_ID_ATTRIBUTE);
+            session.getUserProperties().get(CallerIdHandshakeInterceptor.CONNECTION_ID_ATTRIBUTE);
     CallerId caller;
     try {
       caller = CallerId.parse(rawCaller);

@@ -8,22 +8,23 @@ import io.browserservice.api.dto.ScreenshotRequest;
 import io.browserservice.api.service.BrowserOperationsService;
 import io.browserservice.api.service.ElementOperationsService;
 import io.browserservice.api.session.CallerId;
+import io.browserservice.api.web.CallerIdParamConverterProvider;
+import jakarta.validation.Valid;
+import java.util.Base64;
+import java.util.UUID;
+import javax.imageio.ImageIO;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import java.util.Base64;
-import java.util.UUID;
-import javax.imageio.ImageIO;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -62,7 +63,9 @@ public class ScreenshotsController {
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   public ResponseEntity<?> capture(
-      @PathVariable UUID id, @RequestHeader("X-Caller-Id") CallerId caller, @Valid @RequestBody ScreenshotRequest req) {
+      @PathVariable UUID id,
+      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
+      @Valid @RequestBody ScreenshotRequest req) {
     byte[] pngBytes = browserOps.pageScreenshot(id, caller, req.strategy());
     return respond(pngBytes, req.encoding());
   }
@@ -81,7 +84,9 @@ public class ScreenshotsController {
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   public ResponseEntity<?> captureElement(
-      @PathVariable UUID id, @RequestHeader("X-Caller-Id") CallerId caller, @Valid @RequestBody ElementScreenshotRequest req) {
+      @PathVariable UUID id,
+      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
+      @Valid @RequestBody ElementScreenshotRequest req) {
     byte[] pngBytes = elementOps.elementScreenshot(id, caller, req);
     return respond(pngBytes, req.encoding());
   }

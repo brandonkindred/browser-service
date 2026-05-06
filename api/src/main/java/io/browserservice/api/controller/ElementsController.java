@@ -6,19 +6,20 @@ import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.FindElementRequest;
 import io.browserservice.api.service.ElementOperationsService;
 import io.browserservice.api.session.CallerId;
+import io.browserservice.api.web.CallerIdParamConverterProvider;
+import jakarta.validation.Valid;
+import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -46,7 +47,9 @@ public class ElementsController {
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   public ElementStateResponse find(
-      @PathVariable UUID id, @RequestHeader("X-Caller-Id") CallerId caller, @Valid @RequestBody FindElementRequest req) {
+      @PathVariable UUID id,
+      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
+      @Valid @RequestBody FindElementRequest req) {
     return service.find(id, caller, req);
   }
 
@@ -67,7 +70,9 @@ public class ElementsController {
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   public void action(
-      @PathVariable UUID id, @RequestHeader("X-Caller-Id") CallerId caller, @Valid @RequestBody ElementActionRequest req) {
+      @PathVariable UUID id,
+      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
+      @Valid @RequestBody ElementActionRequest req) {
     service.action(id, caller, req);
   }
 }

@@ -7,21 +7,22 @@ import io.browserservice.api.dto.SessionResponse;
 import io.browserservice.api.dto.SessionStateResponse;
 import io.browserservice.api.service.SessionService;
 import io.browserservice.api.session.CallerId;
+import io.browserservice.api.web.CallerIdParamConverterProvider;
+import jakarta.validation.Valid;
+import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
 import org.eclipse.microprofile.openapi.annotations.media.Schema;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponse;
 import org.eclipse.microprofile.openapi.annotations.responses.APIResponses;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
-import jakarta.validation.Valid;
-import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -58,7 +59,9 @@ public class SessionsController {
         description = "Upstream hub unavailable",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public SessionResponse create(@Valid @RequestBody CreateSessionRequest req, @RequestHeader("X-Caller-Id") CallerId caller) {
+  public SessionResponse create(
+      @Valid @RequestBody CreateSessionRequest req,
+      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
     return sessionService.create(req, caller);
   }
 
@@ -70,7 +73,8 @@ public class SessionsController {
         description = "Session list",
         content = @Content(schema = @Schema(implementation = SessionListResponse.class)))
   })
-  public SessionListResponse list(@RequestHeader("X-Caller-Id") CallerId caller) {
+  public SessionListResponse list(
+      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
     return sessionService.list(caller);
   }
 
@@ -86,7 +90,9 @@ public class SessionsController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public SessionStateResponse get(@PathVariable UUID id, @RequestHeader("X-Caller-Id") CallerId caller) {
+  public SessionStateResponse get(
+      @PathVariable UUID id,
+      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
     return sessionService.describe(id, caller);
   }
 
@@ -100,7 +106,9 @@ public class SessionsController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public void delete(@PathVariable UUID id, @RequestHeader("X-Caller-Id") CallerId caller) {
+  public void delete(
+      @PathVariable UUID id,
+      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
     sessionService.close(id, caller);
   }
 }

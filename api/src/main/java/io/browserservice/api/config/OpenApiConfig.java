@@ -52,11 +52,11 @@ public class OpenApiConfig implements OASFilter {
    * Endpoints outside that prefix (e.g. {@code /healthz}, {@code /readyz}) are unaffected.
    */
   @Override
-  public void filterOpenAPI(OpenAPI openAPI) {
-    if (openAPI.getPaths() == null || openAPI.getPaths().getPathItems() == null) {
+  public void filterOpenAPI(OpenAPI openApi) {
+    if (openApi.getPaths() == null || openApi.getPaths().getPathItems() == null) {
       return;
     }
-    openAPI
+    openApi
         .getPaths()
         .getPathItems()
         .forEach(
@@ -91,7 +91,7 @@ public class OpenApiConfig implements OASFilter {
       return false;
     }
     for (Parameter p : op.getParameters()) {
-      if (Parameter.In.HEADER.equals(p.getIn()) && CALLER_HEADER.equals(p.getName())) {
+      if (p.getIn() == Parameter.In.HEADER && CALLER_HEADER.equals(p.getName())) {
         return true;
       }
     }
@@ -105,6 +105,8 @@ public class OpenApiConfig implements OASFilter {
         .required(true)
         .description("Identifies the calling client. Bound to created sessions for ownership.")
         .schema(
-            OASFactory.createSchema().type(Schema.SchemaType.STRING).maxLength(CallerId.MAX_LENGTH));
+            OASFactory.createSchema()
+                .type(Schema.SchemaType.STRING)
+                .maxLength(CallerId.MAX_LENGTH));
   }
 }
