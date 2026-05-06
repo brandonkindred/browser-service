@@ -109,7 +109,7 @@ variable "database_password_secret_version" {
 }
 
 variable "selenium_grid_urls" {
-  description = "List of bare Selenium hostnames (no scheme, no path) joined with commas into SELENIUM_GRID_URLS. The engine's BrowserConnectionHelper prepends https:// and appends /wd/hub at runtime, so passing fully-qualified URLs would yield https://https://.../wd/hub/wd/hub."
+  description = "List of fully qualified Selenium URLs (scheme + host + /wd/hub) joined with commas into SELENIUM_GRID_URLS. The engine's BrowserConnectionHelper consumes each entry verbatim — no scheme rewriting and no path appending."
   type        = list(string)
 }
 
