@@ -13,14 +13,14 @@
 [![Selenium 4](https://img.shields.io/badge/Selenium-4-43B02A?logo=selenium&logoColor=white)](https://www.selenium.dev/)
 [![Appium 8](https://img.shields.io/badge/Appium-8-662D91?logo=appium&logoColor=white)](https://appium.io/)
 [![OpenAPI 3.0](https://img.shields.io/badge/OpenAPI-3.0-6BA539?logo=openapiinitiative&logoColor=white)](openapi/generated.yaml)
-[![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#extraction-program-full-context)
-[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
+[![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#-extraction-program-full-context)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#-contributing)
 
 [**Quick start**](#-quick-start) ·
 [**API**](#-session-model) ·
 [**Caller identity**](#-caller-identity) ·
 [**MVP scope**](#-mvp-scope) ·
-[**Roadmap**](#extraction-program-full-context)
+[**Roadmap**](#-extraction-program-full-context)
 
 </div>
 
@@ -36,7 +36,7 @@ Browser interactions are inherently **stateful** — checking email, filling out
 |---|---|
 | 🧷 **Sticky sessions** | Each `session_id` is pinned to one browser instance. Same browser, every step. |
 | ⚡ **Real-time socket** | Primary channel is a per-session socket — drive the browser and stream results back live. |
-| 🔁 **HTTP fallback** | Full async REST API (OpenAPI 3.1) for callers that prefer request/response. |
+| 🔁 **HTTP fallback** | Full async REST API (OpenAPI 3.0) for callers that prefer request/response. |
 | 📱 **Web + mobile** | Selenium 4 for desktop, Appium 8 for Android & iOS. Same session API for both. |
 | 🌍 **Polyglot** | Java client for JVM consumers; anything else talks plain HTTP/JSON. |
 | 🧹 **Self-healing** | 5-min idle TTL + 30-min absolute TTL. Sessions are reaped automatically. |
