@@ -32,6 +32,11 @@ public record EngineProperties(
       @DefaultValue("50") int watcherLockTimeoutMs,
       @DefaultValue("16777216") int maxBinaryFrameBytes) {}
 
+  /**
+   * @param urls comma-separated, fully qualified Selenium hub URLs including scheme and path, e.g.
+   *     {@code http://host:4444/wd/hub}. The engine consumes entries verbatim and does not rewrite
+   *     scheme or append path segments.
+   */
   public record SeleniumProps(
       @DefaultValue("http://localhost:4444/wd/hub") String urls,
       @DefaultValue("15000") int connectTimeoutMs,
@@ -40,6 +45,11 @@ public record EngineProperties(
       @DefaultValue("false") boolean implicitWaitEnabled,
       @DefaultValue("10") int implicitWaitSeconds) {}
 
+  /**
+   * @param urls comma-separated, fully qualified Appium server URLs including scheme and path, e.g.
+   *     {@code http://host:4723/wd/hub}. Empty disables mobile support. The engine consumes entries
+   *     verbatim and does not rewrite scheme or append path segments.
+   */
   public record AppiumProps(
       @DefaultValue("") String urls,
       @DefaultValue("ANDROID") String platform,

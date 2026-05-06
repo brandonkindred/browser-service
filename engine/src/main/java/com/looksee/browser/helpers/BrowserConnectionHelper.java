@@ -47,8 +47,9 @@ public class BrowserConnectionHelper {
   private static BrowserStackProperties browserStackProperties = null;
 
   /**
-   * Gets the selenium hub URLs, either from environment variable SELENIUM_URLS or fallback to
-   * hardcoded list
+   * Sets the Selenium hub URLs used to round-robin chrome/firefox driver connections. Each entry
+   * must be a fully qualified URL including scheme and path, e.g. {@code http://host:4444/wd/hub}.
+   * No scheme or path rewriting is performed.
    *
    * @param urls the selenium hub URLs
    *     <p>precondition: urls != null
@@ -59,7 +60,9 @@ public class BrowserConnectionHelper {
   }
 
   /**
-   * Sets the Appium server URLs for mobile driver connections
+   * Sets the Appium server URLs for mobile driver connections. Each entry must be a fully qualified
+   * URL including scheme and path, e.g. {@code http://host:4723/wd/hub}. No scheme or path
+   * rewriting is performed.
    *
    * @param urls the Appium server URLs
    *     <p>precondition: urls != null
@@ -96,13 +99,19 @@ public class BrowserConnectionHelper {
   }
 
   /**
-   * Creates a {@link Browser} connection
+   * Creates a {@link Browser} connection.
+   *
+   * <p>For chrome/firefox the configured hub URLs (see {@link #setConfiguredSeleniumUrls}) are
+   * round-robined and used verbatim — entries are expected to be fully qualified, e.g. {@code
+   * http://host:4444/wd/hub}. The {@code environment} parameter is currently unused for URL
+   * selection and is reserved for future per-environment routing.
    *
    * @param browser the browser to connect to
    * @param environment the environment to connect to
    * @return the browser connection
    *     <p>precondition: browser != null precondition: environment != null
    * @throws MalformedURLException if the url is malformed
+   * @throws IllegalStateException if no Selenium hub URLs are configured for chrome/firefox
    */
   public static Browser getConnection(BrowserType browser, BrowserEnvironment environment)
       throws MalformedURLException {
@@ -117,11 +126,13 @@ public class BrowserConnectionHelper {
 
     URL server_url = null;
 
-    if (environment.equals(BrowserEnvironment.DISCOVERY)
-        && ("chrome".equalsIgnoreCase(browser.toString())
-            || "firefox".equalsIgnoreCase(browser.toString()))) {
-      server_url = new URL("https://" + HUB_URLS[SELENIUM_HUB_IDX % HUB_URLS.length] + "/wd/hub");
-      SELENIUM_HUB_IDX++;
+    if ("chrome".equalsIgnoreCase(browser.toString())
+        || "firefox".equalsIgnoreCase(browser.toString())) {
+      if (HUB_URLS == null || HUB_URLS.length == 0) {
+        throw new IllegalStateException(
+            "No Selenium hub URLs configured. Set browserservice.selenium.urls.");
+      }
+      server_url = new URL(HUB_URLS[Math.floorMod(SELENIUM_HUB_IDX++, HUB_URLS.length)]);
     }
 
     return BrowserFactory.createBrowser(browser.toString(), server_url);
@@ -151,12 +162,10 @@ public class BrowserConnectionHelper {
     }
 
     if (APPIUM_URLS == null || APPIUM_URLS.length == 0) {
-      throw new IllegalStateException("Appium URLs not configured. Set appium.urls property.");
+      throw new IllegalStateException("No Appium URLs configured. Set browserservice.appium.urls.");
     }
 
-    URL server_url =
-        new URL("http://" + APPIUM_URLS[APPIUM_SERVER_IDX % APPIUM_URLS.length] + "/wd/hub");
-    APPIUM_SERVER_IDX++;
+    URL server_url = new URL(APPIUM_URLS[Math.floorMod(APPIUM_SERVER_IDX++, APPIUM_URLS.length)]);
 
     return MobileFactory.createMobileDevice(browser.toString(), server_url);
   }
