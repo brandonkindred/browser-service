@@ -33,6 +33,8 @@ public record EngineProperties(
       @DefaultValue("16777216") int maxBinaryFrameBytes) {}
 
   /**
+   * Selenium hub configuration consumed by the engine for chrome/firefox driver creation.
+   *
    * @param urls comma-separated, fully qualified Selenium hub URLs including scheme and path, e.g.
    *     {@code http://host:4444/wd/hub}. The engine consumes entries verbatim and does not rewrite
    *     scheme or append path segments.
@@ -46,6 +48,8 @@ public record EngineProperties(
       @DefaultValue("10") int implicitWaitSeconds) {}
 
   /**
+   * Appium server configuration consumed by the engine for mobile driver creation.
+   *
    * @param urls comma-separated, fully qualified Appium server URLs including scheme and path, e.g.
    *     {@code http://host:4723/wd/hub}. Empty disables mobile support. The engine consumes entries
    *     verbatim and does not rewrite scheme or append path segments.
