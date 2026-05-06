@@ -144,7 +144,7 @@ module "browser_service" {
   database_password_secret_name    = module.postgres.password_secret_name
   database_password_secret_version = module.postgres.password_secret_version_number
 
-  selenium_grid_urls = [for s in module.selenium : s.grid_host]
+  selenium_grid_urls = [for s in module.selenium : s.grid_url]
 
   labels = local.base_labels
 

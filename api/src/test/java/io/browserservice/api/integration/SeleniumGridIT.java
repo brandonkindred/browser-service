@@ -14,7 +14,6 @@ import io.browserservice.api.dto.ScreenshotRequest;
 import io.browserservice.api.dto.ScreenshotStrategy;
 import java.time.Duration;
 import java.util.UUID;
-import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -34,20 +33,10 @@ import org.testcontainers.utility.DockerImageName;
  *
  * <p>Requires a working Docker daemon. Skipped via surefire (included by failsafe's {@code
  * *IT.java} naming convention).
- *
- * <p><b>Currently excluded from CI</b> via the {@code requires-selenium-grid} JUnit tag, because
- * the engine's {@link com.looksee.browser.helpers.BrowserConnectionHelper#getConnection} only
- * consumes the configured Selenium URLs when {@link com.looksee.browser.enums.BrowserEnvironment}
- * is {@code DISCOVERY} — and even that branch hardcodes {@code https://}, which doesn't match
- * Testcontainers' HTTP Selenium endpoint. Re-enable once the engine accepts injected URLs
- * unconditionally; tracked in #43.
- *
- * <p>To run locally despite the tag: {@code ./mvnw -B -ntp -DexcludedGroups= verify}.
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.MOCK)
 @AutoConfigureMockMvc
 @org.springframework.test.context.ActiveProfiles("test")
-@Tag("requires-selenium-grid")
 @Testcontainers
 class SeleniumGridIT {
 
@@ -67,6 +56,8 @@ class SeleniumGridIT {
 
   @Autowired private ObjectMapper json;
 
+  private static final String CALLER_ID = "selenium-grid-it";
+
   @Test
   void createNavigateScreenshotDeleteSmokeTest() throws Exception {
     CreateSessionRequest createReq =
@@ -78,6 +69,7 @@ class SeleniumGridIT {
     String createResponse =
         mvc.perform(
                 post("/v1/sessions")
+                    .header("X-Caller-Id", CALLER_ID)
                     .contentType(MediaType.APPLICATION_JSON)
                     .content(json.writeValueAsString(createReq)))
             .andExpect(status().isCreated())
@@ -91,6 +83,7 @@ class SeleniumGridIT {
     NavigateRequest navigateReq = new NavigateRequest("about:blank", null);
     mvc.perform(
             post("/v1/sessions/" + sessionId + "/navigate")
+                .header("X-Caller-Id", CALLER_ID)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(navigateReq)))
         .andExpect(status().isOk())
@@ -99,11 +92,13 @@ class SeleniumGridIT {
     ScreenshotRequest screenshotReq = new ScreenshotRequest(ScreenshotStrategy.VIEWPORT, null);
     mvc.perform(
             post("/v1/sessions/" + sessionId + "/screenshot")
+                .header("X-Caller-Id", CALLER_ID)
                 .accept(MediaType.IMAGE_PNG)
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json.writeValueAsString(screenshotReq)))
         .andExpect(status().isOk());
 
-    mvc.perform(delete("/v1/sessions/" + sessionId)).andExpect(status().isNoContent());
+    mvc.perform(delete("/v1/sessions/" + sessionId).header("X-Caller-Id", CALLER_ID))
+        .andExpect(status().isNoContent());
   }
 }

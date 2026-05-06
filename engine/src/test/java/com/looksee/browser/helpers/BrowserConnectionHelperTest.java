@@ -25,13 +25,15 @@ public class BrowserConnectionHelperTest {
 
   @Test
   public void testSetConfiguredSeleniumUrls() {
-    String[] urls = {"hub1.example.com", "hub2.example.com"};
+    String[] urls = {"http://hub1.example.com:4444/wd/hub", "http://hub2.example.com:4444/wd/hub"};
     assertDoesNotThrow(() -> BrowserConnectionHelper.setConfiguredSeleniumUrls(urls));
   }
 
   @Test
   public void testSetConfiguredAppiumUrls() {
-    String[] urls = {"appium1.example.com:4723", "appium2.example.com:4723"};
+    String[] urls = {
+      "http://appium1.example.com:4723/wd/hub", "http://appium2.example.com:4723/wd/hub"
+    };
     assertDoesNotThrow(() -> BrowserConnectionHelper.setConfiguredAppiumUrls(urls));
   }
 
@@ -108,7 +110,8 @@ public class BrowserConnectionHelperTest {
 
   @Test
   public void testGetConnectionWithDiscoveryEnvironmentChrome() {
-    BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[] {"localhost:4444"});
+    BrowserConnectionHelper.setConfiguredSeleniumUrls(
+        new String[] {"http://localhost:4444/wd/hub"});
     // Will fail when trying to connect to hub, but exercises the round-robin path
     assertThrows(
         Exception.class,
@@ -119,7 +122,8 @@ public class BrowserConnectionHelperTest {
 
   @Test
   public void testGetConnectionWithDiscoveryEnvironmentFirefox() {
-    BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[] {"localhost:4444"});
+    BrowserConnectionHelper.setConfiguredSeleniumUrls(
+        new String[] {"http://localhost:4444/wd/hub"});
     assertThrows(
         Exception.class,
         () ->
@@ -128,12 +132,28 @@ public class BrowserConnectionHelperTest {
   }
 
   @Test
-  public void testGetConnectionWithTestEnvironment() {
-    BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[] {"localhost:4444"});
-    // TEST environment with chrome won't match DISCOVERY branch, server_url remains null
-    // which triggers an assertion error in BrowserFactory.createBrowser
+  public void testGetConnectionWithTestEnvironmentChromeUsesConfiguredUrl() {
+    // Regression for #43: TEST environment must honor configured hub URLs (previously the
+    // helper short-circuited to a null server_url for non-DISCOVERY env, causing an NPE in
+    // RemoteWebDriver.<init>). The connect attempt itself will still fail since nothing is
+    // listening — but the exception must come from the network layer, not a NullPointerException.
+    BrowserConnectionHelper.setConfiguredSeleniumUrls(
+        new String[] {"http://localhost:4444/wd/hub"});
+    Exception ex =
+        assertThrows(
+            Exception.class,
+            () ->
+                BrowserConnectionHelper.getConnection(BrowserType.CHROME, BrowserEnvironment.TEST));
+    assertFalse(
+        ex instanceof NullPointerException,
+        "TEST environment should not fall through to a null server URL: " + ex);
+  }
+
+  @Test
+  public void testGetConnectionThrowsWhenNoSeleniumUrlsConfigured() {
+    BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[] {});
     assertThrows(
-        Throwable.class,
+        IllegalStateException.class,
         () -> BrowserConnectionHelper.getConnection(BrowserType.CHROME, BrowserEnvironment.TEST));
   }
 
@@ -176,7 +196,11 @@ public class BrowserConnectionHelperTest {
 
   @Test
   public void testSetConfiguredSeleniumUrlsMultiple() {
-    String[] urls = {"hub1.example.com", "hub2.example.com", "hub3.example.com"};
+    String[] urls = {
+      "http://hub1.example.com:4444/wd/hub",
+      "http://hub2.example.com:4444/wd/hub",
+      "http://hub3.example.com:4444/wd/hub"
+    };
     assertDoesNotThrow(() -> BrowserConnectionHelper.setConfiguredSeleniumUrls(urls));
   }
 

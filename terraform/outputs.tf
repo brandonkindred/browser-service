@@ -8,9 +8,9 @@ output "browser_service_name" {
   value       = module.browser_service.service_name
 }
 
-output "selenium_grid_hosts" {
-  description = "Bare Selenium hostnames (no scheme/path) injected into SELENIUM_GRID_URLS on the API. The engine prepends https:// and appends /wd/hub at runtime."
-  value       = [for s in module.selenium : s.grid_host]
+output "selenium_grid_urls" {
+  description = "Fully qualified Selenium URLs (scheme + host + /wd/hub) injected into SELENIUM_GRID_URLS on the API. Consumed verbatim by the engine."
+  value       = [for s in module.selenium : s.grid_url]
 }
 
 output "selenium_service_urls" {
