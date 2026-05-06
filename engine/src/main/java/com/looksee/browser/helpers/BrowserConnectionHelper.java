@@ -132,7 +132,9 @@ public class BrowserConnectionHelper {
         throw new IllegalStateException(
             "No Selenium hub URLs configured. Set browserservice.selenium.urls.");
       }
-      server_url = new URL(HUB_URLS[Math.floorMod(SELENIUM_HUB_IDX++, HUB_URLS.length)]);
+      int idx = Math.floorMod(SELENIUM_HUB_IDX, HUB_URLS.length);
+      SELENIUM_HUB_IDX++;
+      server_url = new URL(HUB_URLS[idx]);
     }
 
     return BrowserFactory.createBrowser(browser.toString(), server_url);
@@ -165,7 +167,9 @@ public class BrowserConnectionHelper {
       throw new IllegalStateException("No Appium URLs configured. Set browserservice.appium.urls.");
     }
 
-    URL server_url = new URL(APPIUM_URLS[Math.floorMod(APPIUM_SERVER_IDX++, APPIUM_URLS.length)]);
+    int idx = Math.floorMod(APPIUM_SERVER_IDX, APPIUM_URLS.length);
+    APPIUM_SERVER_IDX++;
+    URL server_url = new URL(APPIUM_URLS[idx]);
 
     return MobileFactory.createMobileDevice(browser.toString(), server_url);
   }
