@@ -1,6 +1,6 @@
 package io.browserservice.api.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 @Schema(description = "Base64-encoded screenshot response.")
 public record ScreenshotBase64Response(

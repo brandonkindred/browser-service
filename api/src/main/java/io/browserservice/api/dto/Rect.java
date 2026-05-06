@@ -1,6 +1,6 @@
 package io.browserservice.api.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 @Schema(description = "Axis-aligned bounding rectangle in CSS pixels.")
 public record Rect(

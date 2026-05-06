@@ -1,16 +1,18 @@
 package io.browserservice.api.error;
 
 import io.browserservice.api.dto.ErrorResponse;
-import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.ExceptionHandler;
-import org.springframework.web.bind.annotation.RestControllerAdvice;
+import jakarta.ws.rs.core.Response;
+import jakarta.ws.rs.ext.ExceptionMapper;
+import jakarta.ws.rs.ext.Provider;
 
-@RestControllerAdvice
-public class GlobalExceptionHandler {
+@Provider
+public class GlobalExceptionHandler implements ExceptionMapper<Throwable> {
 
-  @ExceptionHandler(Throwable.class)
-  public ResponseEntity<ErrorResponse> handle(Throwable ex) {
+  @Override
+  public Response toResponse(Throwable ex) {
     ErrorMapper.Mapped mapped = ErrorMapper.map(ex, RequestIdFilter.currentRequestId());
-    return ResponseEntity.status(mapped.status()).body(new ErrorResponse(mapped.body()));
+    return Response.status(mapped.status().value())
+        .entity(new ErrorResponse(mapped.body()))
+        .build();
   }
 }

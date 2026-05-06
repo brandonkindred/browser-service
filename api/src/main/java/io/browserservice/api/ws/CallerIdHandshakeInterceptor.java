@@ -1,53 +1,29 @@
 package io.browserservice.api.ws;
 
-import io.browserservice.api.session.CallerId;
-import java.util.Map;
+import jakarta.websocket.HandshakeResponse;
+import jakarta.websocket.server.HandshakeRequest;
+import jakarta.websocket.server.ServerEndpointConfig;
+import java.util.List;
 import java.util.UUID;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.server.ServerHttpRequest;
-import org.springframework.http.server.ServerHttpResponse;
-import org.springframework.stereotype.Component;
-import org.springframework.web.socket.WebSocketHandler;
-import org.springframework.web.socket.server.HandshakeInterceptor;
 
-@Component
-public class CallerIdHandshakeInterceptor implements HandshakeInterceptor {
+/**
+ * JSR-356 handshake configurator. Stashes the raw {@code X-Caller-Id} header into the endpoint's
+ * user-properties map; {@link SessionWebSocketHandler#onOpen} parses and validates the value and
+ * closes the socket with code 4401 if it is missing or malformed.
+ */
+public class CallerIdHandshakeInterceptor extends ServerEndpointConfig.Configurator {
 
+  public static final String CALLER_HEADER = "X-Caller-Id";
+  public static final String CALLER_HEADER_RAW_ATTRIBUTE = "ws.caller.raw";
   public static final String CALLER_ATTRIBUTE = "ws.caller";
   public static final String CONNECTION_ID_ATTRIBUTE = "ws.connectionId";
-  public static final String CALLER_HEADER = "X-Caller-Id";
-
-  private static final Logger log = LoggerFactory.getLogger(CallerIdHandshakeInterceptor.class);
 
   @Override
-  public boolean beforeHandshake(
-      ServerHttpRequest request,
-      ServerHttpResponse response,
-      WebSocketHandler wsHandler,
-      Map<String, Object> attributes) {
-    HttpHeaders headers = request.getHeaders();
-    String raw = headers.getFirst(CALLER_HEADER);
-    try {
-      CallerId caller = CallerId.parse(raw);
-      attributes.put(CALLER_ATTRIBUTE, caller);
-      attributes.put(CONNECTION_ID_ATTRIBUTE, UUID.randomUUID().toString());
-      return true;
-    } catch (IllegalArgumentException e) {
-      log.debug("rejecting WS handshake: {}", e.getMessage());
-      response.setStatusCode(HttpStatus.UNAUTHORIZED);
-      return false;
-    }
-  }
-
-  @Override
-  public void afterHandshake(
-      ServerHttpRequest request,
-      ServerHttpResponse response,
-      WebSocketHandler wsHandler,
-      Exception exception) {
-    // no-op
+  public void modifyHandshake(
+      ServerEndpointConfig sec, HandshakeRequest request, HandshakeResponse response) {
+    List<String> values = request.getHeaders().get(CALLER_HEADER);
+    String raw = (values == null || values.isEmpty()) ? null : values.get(0);
+    sec.getUserProperties().put(CALLER_HEADER_RAW_ATTRIBUTE, raw == null ? "" : raw);
+    sec.getUserProperties().put(CONNECTION_ID_ATTRIBUTE, UUID.randomUUID().toString());
   }
 }

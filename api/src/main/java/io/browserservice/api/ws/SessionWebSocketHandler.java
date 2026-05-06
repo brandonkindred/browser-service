@@ -14,7 +14,18 @@ import io.browserservice.api.ws.dto.BinaryHeaderFrame;
 import io.browserservice.api.ws.dto.CommandFrame;
 import io.browserservice.api.ws.dto.ResponseFrame;
 import io.browserservice.api.ws.push.WatcherCoordinator;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
+import jakarta.inject.Named;
+import jakarta.websocket.CloseReason;
+import jakarta.websocket.OnClose;
+import jakarta.websocket.OnError;
+import jakarta.websocket.OnMessage;
+import jakarta.websocket.OnOpen;
+import jakarta.websocket.Session;
+import jakarta.websocket.server.ServerEndpoint;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
@@ -28,19 +39,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
-import org.springframework.stereotype.Component;
-import org.springframework.web.socket.BinaryMessage;
-import org.springframework.web.socket.CloseStatus;
-import org.springframework.web.socket.TextMessage;
-import org.springframework.web.socket.WebSocketSession;
-import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
-import org.springframework.web.socket.handler.TextWebSocketHandler;
 
-@Component
-public class SessionWebSocketHandler extends TextWebSocketHandler {
+@ApplicationScoped
+@ServerEndpoint(value = "/v1/ws/sessions", configurator = CallerIdHandshakeInterceptor.class)
+public class SessionWebSocketHandler {
 
-  public static final CloseStatus IDLE_TIMEOUT = new CloseStatus(4408, "idle_timeout");
-  public static final CloseStatus SESSION_FORBIDDEN = new CloseStatus(4403, "session_forbidden");
+  public static final CloseReason.CloseCode CALLER_UNIDENTIFIED = () -> 4401;
+  public static final CloseReason.CloseCode SESSION_FORBIDDEN_CODE = () -> 4403;
+  public static final CloseReason.CloseCode IDLE_TIMEOUT_CODE = () -> 4408;
 
   private static final Logger log = LoggerFactory.getLogger(SessionWebSocketHandler.class);
 
@@ -50,10 +56,11 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
   private final WatcherCoordinator watchers;
   private final EngineProperties.WebSocketProps props;
 
+  @Inject
   public SessionWebSocketHandler(
       CommandDispatcher dispatcher,
       ObjectMapper mapper,
-      ScheduledExecutorService webSocketScheduler,
+      @Named("webSocketScheduler") ScheduledExecutorService webSocketScheduler,
       WatcherCoordinator watchers,
       EngineProperties props) {
     this.dispatcher = dispatcher;
@@ -63,28 +70,39 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
     this.props = props.webSocket();
   }
 
-  @Override
-  public void afterConnectionEstablished(WebSocketSession session) {
-    CallerId caller =
-        (CallerId) session.getAttributes().get(CallerIdHandshakeInterceptor.CALLER_ATTRIBUTE);
+  @OnOpen
+  public void onOpen(Session session) {
+    String rawCaller =
+        (String)
+            session
+                .getUserProperties()
+                .get(CallerIdHandshakeInterceptor.CALLER_HEADER_RAW_ATTRIBUTE);
     String connectionId =
-        (String) session.getAttributes().get(CallerIdHandshakeInterceptor.CONNECTION_ID_ATTRIBUTE);
-    if (caller == null || connectionId == null) {
-      safeClose(session, new CloseStatus(4401, "caller_unidentified"));
+        (String)
+            session.getUserProperties().get(CallerIdHandshakeInterceptor.CONNECTION_ID_ATTRIBUTE);
+    CallerId caller;
+    try {
+      caller = CallerId.parse(rawCaller);
+    } catch (IllegalArgumentException e) {
+      log.debug("rejecting WS handshake: {}", e.getMessage());
+      safeClose(session, new CloseReason(CALLER_UNIDENTIFIED, "caller_unidentified"));
       return;
     }
-    ConcurrentWebSocketSessionDecorator out =
-        new ConcurrentWebSocketSessionDecorator(
-            session, props.sendTimeLimitMs(), props.outboundBufferKiB() * 1024);
+    if (connectionId == null) {
+      safeClose(session, new CloseReason(CALLER_UNIDENTIFIED, "caller_unidentified"));
+      return;
+    }
+    session.getUserProperties().put(CallerIdHandshakeInterceptor.CALLER_ATTRIBUTE, caller);
+
     ThreadFactory tf = namedThreadFactory("ws-cmd-" + connectionId);
     Connection conn =
         new Connection(
             caller,
             connectionId,
-            out,
+            session,
             Executors.newSingleThreadExecutor(tf),
             new Semaphore(props.commandQueueDepth()));
-    session.getAttributes().put(Connection.ATTRIBUTE, conn);
+    session.getUserProperties().put(Connection.ATTRIBUTE, conn);
 
     long idleNanos = TimeUnit.SECONDS.toNanos(props.idleCloseSeconds());
     ScheduledFuture<?> watchdog =
@@ -92,28 +110,28 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
             () -> {
               if (!session.isOpen()) return;
               if (System.nanoTime() - conn.lastActivityNanos() > idleNanos) {
-                safeClose(session, IDLE_TIMEOUT);
+                safeClose(session, new CloseReason(IDLE_TIMEOUT_CODE, "idle_timeout"));
               }
             },
             1,
             1,
             TimeUnit.SECONDS);
-    session.getAttributes().put("ws.watchdog", watchdog);
+    session.getUserProperties().put("ws.watchdog", watchdog);
 
     log.debug("ws established connectionId={} caller={}", connectionId, caller);
   }
 
-  @Override
-  protected void handleTextMessage(WebSocketSession session, TextMessage message) {
-    Connection conn = (Connection) session.getAttributes().get(Connection.ATTRIBUTE);
+  @OnMessage
+  public void onMessage(String payload, Session session) {
+    Connection conn = (Connection) session.getUserProperties().get(Connection.ATTRIBUTE);
     if (conn == null) {
-      safeClose(session, CloseStatus.SERVER_ERROR);
+      safeClose(session, new CloseReason(CloseReason.CloseCodes.UNEXPECTED_CONDITION, "no_state"));
       return;
     }
     conn.touchActivity();
 
     if (!conn.queue().tryAcquire()) {
-      CommandFrame parsed = tryParse(message.getPayload());
+      CommandFrame parsed = tryParse(payload);
       String cmdId = parsed == null ? null : parsed.id();
       String requestId = UUID.randomUUID().toString();
       ErrorMapper.Mapped mapped =
@@ -126,7 +144,7 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
         .submit(
             () -> {
               try {
-                dispatch(conn, message.getPayload());
+                dispatch(conn, payload);
               } finally {
                 conn.queue().release();
               }
@@ -165,7 +183,7 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
     } catch (SessionForbiddenException forbidden) {
       log.info(
           "ws ownership mismatch caller={} sessionId={}", conn.caller(), forbidden.sessionId());
-      safeClose(conn.out(), SESSION_FORBIDDEN);
+      safeClose(conn.out(), new CloseReason(SESSION_FORBIDDEN_CODE, "session_forbidden"));
     } catch (Throwable t) {
       ErrorMapper.Mapped m = ErrorMapper.map(t, requestId);
       String cmdId = frame == null ? null : frame.id();
@@ -175,25 +193,25 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
     }
   }
 
-  @Override
-  public void afterConnectionClosed(WebSocketSession session, CloseStatus status) {
-    Object watchdog = session.getAttributes().remove("ws.watchdog");
+  @OnClose
+  public void onClose(Session session, CloseReason reason) {
+    Object watchdog = session.getUserProperties().remove("ws.watchdog");
     if (watchdog instanceof ScheduledFuture<?> sf) {
       sf.cancel(false);
     }
-    Connection conn = (Connection) session.getAttributes().remove(Connection.ATTRIBUTE);
+    Connection conn = (Connection) session.getUserProperties().remove(Connection.ATTRIBUTE);
     if (conn != null) {
       UUID bound = conn.boundSessionId();
       if (bound != null) {
         watchers.onSessionDetached(bound, conn);
       }
       conn.commands().shutdownNow();
-      log.debug("ws closed connectionId={} status={}", conn.connectionId(), status);
+      log.debug("ws closed connectionId={} reason={}", conn.connectionId(), reason);
     }
   }
 
-  @Override
-  public void handleTransportError(WebSocketSession session, Throwable exception) {
+  @OnError
+  public void onError(Session session, Throwable exception) {
     log.warn("ws transport error: {}", exception.toString());
   }
 
@@ -209,7 +227,7 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
     try {
       String json = mapper.writeValueAsString(frame);
       synchronized (conn.writeLock()) {
-        conn.out().sendMessage(new TextMessage(json));
+        conn.out().getBasicRemote().sendText(json);
       }
     } catch (IOException e) {
       log.warn("ws write failed connectionId={}: {}", conn.connectionId(), e.toString());
@@ -242,8 +260,8 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
     // never interleaved with watcher events or another command response.
     synchronized (conn.writeLock()) {
       try {
-        conn.out().sendMessage(new TextMessage(headerJson));
-        conn.out().sendMessage(new BinaryMessage(bytes));
+        conn.out().getBasicRemote().sendText(headerJson);
+        conn.out().getBasicRemote().sendBinary(ByteBuffer.wrap(bytes));
       } catch (IOException e) {
         log.warn("ws binary write failed connectionId={}: {}", conn.connectionId(), e.toString());
       }
@@ -264,10 +282,10 @@ public class SessionWebSocketHandler extends TextWebSocketHandler {
     }
   }
 
-  private static void safeClose(WebSocketSession session, CloseStatus status) {
+  private static void safeClose(Session session, CloseReason reason) {
     try {
       if (session.isOpen()) {
-        session.close(status);
+        session.close(reason);
       }
     } catch (IOException e) {
       log.debug("ws close failed: {}", e.toString());

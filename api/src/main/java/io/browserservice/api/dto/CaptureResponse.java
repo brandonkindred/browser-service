@@ -1,7 +1,7 @@
 package io.browserservice.api.dto;
 
-import io.swagger.v3.oas.annotations.media.Schema;
 import java.util.UUID;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 @Schema(description = "One-shot capture result.")
 public record CaptureResponse(

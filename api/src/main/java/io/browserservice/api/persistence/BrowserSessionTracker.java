@@ -4,6 +4,10 @@ import io.browserservice.api.persistence.BrowserSessionEntity.ClosedReason;
 import io.browserservice.api.persistence.BrowserSessionEntity.Status;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionRegistry;
+import io.quarkus.runtime.StartupEvent;
+import io.quarkus.scheduler.Scheduled;
+import jakarta.enterprise.event.Observes;
+import jakarta.transaction.Transactional;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -12,11 +16,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
-import org.springframework.context.event.EventListener;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 @Component
 public class BrowserSessionTracker {
@@ -66,7 +66,7 @@ public class BrowserSessionTracker {
     }
   }
 
-  @Scheduled(fixedDelay = 30_000)
+  @Scheduled(every = "30s")
   @Transactional
   public void flushLastUsed() {
     List<SessionHandle> snapshot = registry.snapshot();
@@ -99,9 +99,8 @@ public class BrowserSessionTracker {
   // Sessions left ACTIVE in the DB by a prior process can never be operated on again — the
   // in-memory WebDriver they reference is gone. Mark them EXPIRED on startup so the table
   // reflects reality.
-  @EventListener(ApplicationReadyEvent.class)
   @Transactional
-  public void recoverOrphanedActiveSessions() {
+  public void recoverOrphanedActiveSessions(@Observes StartupEvent ev) {
     try {
       Instant now = Instant.now();
       List<BrowserSessionEntity> orphans = repository.findByStatus(Status.ACTIVE);
