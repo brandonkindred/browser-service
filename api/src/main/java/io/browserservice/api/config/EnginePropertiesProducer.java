@@ -96,8 +96,12 @@ public class EnginePropertiesProducer {
   }
 
   private static EngineProperties.WebSocketProps webSocketProps(Config config) {
+    // Note: the WS path is fixed at /v1/ws/sessions by the @ServerEndpoint annotation on
+    // SessionWebSocketHandler -- JSR-356 requires a compile-time constant. The historical
+    // browserservice.web-socket.path config key is intentionally not exposed here because
+    // honouring it would require switching to programmatic ServerApplicationConfig
+    // registration. See PR #60 review for context.
     return new EngineProperties.WebSocketProps(
-        str(config, "browserservice.web-socket.path", "/v1/ws/sessions"),
         intv(config, "browserservice.web-socket.command-queue-depth", 32),
         intv(config, "browserservice.web-socket.idle-close-seconds", 300),
         intv(config, "browserservice.web-socket.outbound-buffer-ki-b", 64),

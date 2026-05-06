@@ -45,19 +45,7 @@ class AlertWatcherTest {
                 new EngineProperties.BrowserStackProps(
                     false, "", "", "", "", "", "", "", "", "", "", "", false, false, false),
                 new EngineProperties.WebSocketProps(
-                    "/v1/ws/sessions",
-                    32,
-                    300,
-                    64,
-                    10000,
-                    true,
-                    250,
-                    true,
-                    1000,
-                    true,
-                    2000,
-                    50,
-                    16777216)));
+                    32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50, 16777216)));
     broadcaster = mock(EventBroadcaster.class);
     Browser browser = mock(Browser.class);
     driver = mock(WebDriver.class, org.mockito.Mockito.RETURNS_DEEP_STUBS);

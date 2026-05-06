@@ -19,7 +19,6 @@ public record EngineProperties(
       int idleTtlSeconds, int absoluteTtlSeconds, int maxConcurrent, long lockAcquireTimeoutMs) {}
 
   public record WebSocketProps(
-      String path,
       int commandQueueDepth,
       int idleCloseSeconds,
       int outboundBufferKiB,
