@@ -1,35 +1,98 @@
-# What is browser-service?
+<div align="center">
 
-**Browsers as a service.** A standalone service that hands out live, dedicated browser instances to other applications and agents on demand, so they can drive a real browser without embedding a WebDriver library.
+# 🌐 browser-service
 
-The engine is being lifted almost verbatim from `LookseeCore/looksee-browser/` (already a self-contained Java module with zero intra-repo coupling) and wrapped in a Spring Boot service layer. Selenium 3 / Appium 7 get upgraded to Selenium 4 / Appium 8 during the move.
+### Browsers as a service — live, dedicated browser instances on demand.
 
-## Goal
+*Drive a real browser from any language, over the wire, without embedding a WebDriver library.*
 
-Browser interactions are inherently stateful — checking email, filling out a form, completing a checkout flow, etc. all rely on the browser remembering what just happened. A caller can't drive that kind of multi-step task across stateless, ephemeral sessions; the browser needs continuity from one step to the next.
+[![CI](https://github.com/brandonkindred/browser-service/actions/workflows/ci.yml/badge.svg)](https://github.com/brandonkindred/browser-service/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Java 21](https://img.shields.io/badge/Java-21-007396?logo=openjdk&logoColor=white)](https://openjdk.org/projects/jdk/21/)
+[![Spring Boot 3.3](https://img.shields.io/badge/Spring%20Boot-3.3-6DB33F?logo=springboot&logoColor=white)](https://spring.io/projects/spring-boot)
+[![Selenium 4](https://img.shields.io/badge/Selenium-4-43B02A?logo=selenium&logoColor=white)](https://www.selenium.dev/)
+[![Appium 8](https://img.shields.io/badge/Appium-8-662D91?logo=appium&logoColor=white)](https://appium.io/)
+[![OpenAPI 3.1](https://img.shields.io/badge/OpenAPI-3.1-6BA539?logo=openapiinitiative&logoColor=white)](openapi/generated.yaml)
+[![Status: Alpha](https://img.shields.io/badge/status-alpha-orange.svg)](#extraction-program-full-context)
+[![PRs welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](#contributing)
 
-This service provides that continuity:
+[**Quick start**](#-quick-start) ·
+[**API**](#-session-model) ·
+[**Caller identity**](#-caller-identity) ·
+[**MVP scope**](#-mvp-scope) ·
+[**Roadmap**](#extraction-program-full-context)
 
-1. A caller asks the service for a connection.
-2. The service routes them to a specific browser instance and **holds that connection open for the duration of the session**.
-3. Every step the caller performs — navigate, click, extract, screenshot — runs against the same browser instance the connection was opened against.
-4. When the caller is done with their task, they close the connection, which frees the browser for the next caller.
+</div>
 
-The primary connection is a **socket connection** so the caller can interact with the browser in real time and stream results back. On top of that socket, the service also exposes the full set of asynchronous HTTP endpoints (navigate, click, find element, extract, screenshot, scroll, etc.) so callers that prefer a request/response style can use those instead — provided they include the `session_id` so the operation lands on the right browser.
+---
 
-If a caller goes idle for **5 minutes** the session times out and the browser is closed automatically. If that caller later comes back asking for the same `session_id`, the service responds with a clear "session expired and has been closed" error so the caller knows it has to open a new connection rather than silently resuming on a fresh browser.
+## ✨ Why browser-service?
 
-Each caller is capped at **10 concurrent sessions**. Beyond that, requests for new sessions are rejected until one is closed (either explicitly by the caller or by the idle timeout).
+Browser interactions are inherently **stateful** — checking email, filling out a form, completing a checkout flow all rely on the browser remembering what just happened. A caller can't drive that across stateless, ephemeral sessions; the browser needs continuity from one step to the next.
 
-## Who this is for
+**browser-service hands out a real, dedicated browser** and holds the connection open for the duration of a session. Every navigate, click, extract, and screenshot runs against the *same* browser the connection was opened against.
 
-- **LookseeCore** — today's consumer. Existing services (PageBuilder, element-enrichment, journeyExecutor, audits, etc.) migrate behind a compatibility shim: `BrowserService` keeps its public signatures but delegates to a remote client instead of an in-process `Browser`.
-- **Khala** ([brandonkindred/Khala-Agentic-AI-Teams](https://github.com/brandonkindred/Khala-Agentic-AI-Teams)) — Python agentic-teams project that needs a browsing capability. Talks to this service over the wire; no Java dependency.
-- **Anyone else** — the service is open source (MIT) and intentionally generic. No Look-see domain concepts leak into the public API.
+| | |
+|---|---|
+| 🧷 **Sticky sessions** | Each `session_id` is pinned to one browser instance. Same browser, every step. |
+| ⚡ **Real-time socket** | Primary channel is a per-session socket — drive the browser and stream results back live. |
+| 🔁 **HTTP fallback** | Full async REST API (OpenAPI 3.1) for callers that prefer request/response. |
+| 📱 **Web + mobile** | Selenium 4 for desktop, Appium 8 for Android & iOS. Same session API for both. |
+| 🌍 **Polyglot** | Java client for JVM consumers; anything else talks plain HTTP/JSON. |
+| 🧹 **Self-healing** | 5-min idle TTL + 30-min absolute TTL. Sessions are reaped automatically. |
+| 🛡️ **Per-caller isolation** | `X-Caller-Id` header scopes ownership; 10 concurrent sessions per caller. |
+| 📦 **Docker-ready** | Multi-stage image (`eclipse-temurin:21-jre`). Cloud Run-friendly. |
 
-## Session model
+---
 
-Browser interactions are stateful. The shape is: **open connection → interact → close connection**. Every operation in a session runs against the same dedicated browser instance the connection was opened against.
+## 🚀 Quick start
+
+```bash
+# Build and run locally
+./mvnw clean verify
+docker compose up
+
+# Or run against an existing Selenium Grid:
+docker run -p 8080:8080 \
+  -e GRID_URL=http://your-grid:4444 \
+  ghcr.io/brandonkindred/browser-service:latest
+```
+
+The service listens on `:8080`. Browse the live API at <http://localhost:8080/swagger-ui.html>.
+
+---
+
+## 🧭 Session model
+
+The shape is: **open → interact → close**. Every operation in a session runs against the same dedicated browser the connection was opened against.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Caller
+    participant browser-service
+    participant Browser as 🧭 Browser instance
+
+    Caller->>browser-service: POST /v1/sessions { browser, environment }
+    browser-service->>Browser: allocate & pin
+    browser-service-->>Caller: { session_id, owner_id, expires_at }
+
+    rect rgb(245, 245, 250)
+    note right of Caller: connection held open for the session
+    Caller->>browser-service: POST /v1/sessions/{id}/navigate
+    browser-service->>Browser: drive
+    Browser-->>browser-service: result
+    browser-service-->>Caller: 200 OK
+    Caller->>browser-service: POST /v1/sessions/{id}/element/find
+    browser-service-->>Caller: { element_handle }
+    Caller->>browser-service: POST /v1/sessions/{id}/screenshot
+    browser-service-->>Caller: image/png bytes
+    end
+
+    Caller->>browser-service: DELETE /v1/sessions/{id}
+    browser-service->>Browser: release
+    browser-service-->>Caller: 204 No Content
+```
 
 The HTTP surface below is the asynchronous side of the API. The real-time socket connection (the primary interaction channel) is layered on top of the same `session_id` and is documented in the OpenAPI spec.
 
@@ -74,9 +137,19 @@ curl -X DELETE http://browser-service/v1/sessions/abc123 \
 
 Idle sessions expire after 5 minutes; all sessions expire after 30 minutes, no matter what. The registry reaps them automatically. Operations against a `session_id` that has been reaped return a `session_expired` error so the caller can react instead of silently retrying on a fresh browser.
 
-For the trivial "open → navigate → screenshot → close" path, `POST /v1/capture` collapses all of the above into one request.
+> 💡 **Shortcut:** for the trivial *open → navigate → screenshot → close* path, `POST /v1/capture` collapses all of the above into one request.
 
-## Caller identity
+---
+
+## 👥 Who this is for
+
+- **LookseeCore** — today's consumer. Existing services (PageBuilder, element-enrichment, journeyExecutor, audits, etc.) migrate behind a compatibility shim: `BrowserService` keeps its public signatures but delegates to a remote client instead of an in-process `Browser`.
+- **Khala** ([brandonkindred/Khala-Agentic-AI-Teams](https://github.com/brandonkindred/Khala-Agentic-AI-Teams)) — Python agentic-teams project that needs a browsing capability. Talks to this service over the wire; no Java dependency.
+- **Anyone else** — the service is open source (MIT) and intentionally generic. No Look-see domain concepts leak into the public API.
+
+---
+
+## 🪪 Caller identity
 
 Every request under `/v1/` must carry an `X-Caller-Id` header. The value is printable ASCII (`0x21`–`0x7E`), 1–128 chars, no internal whitespace — UUIDs, e-mails, and Kubernetes service-account names all pass. The service does not authenticate it; it is the sole identifier used for ownership and per-caller isolation.
 
@@ -88,7 +161,9 @@ Every request under `/v1/` must carry an `X-Caller-Id` header. The value is prin
 
 Authentication of the header value (mTLS, signed identity, etc.) is deferred — see [Explicitly out of MVP](#explicitly-out-of-mvp).
 
-## MVP scope
+---
+
+## 🎯 MVP scope
 
 | Area | Decision |
 |---|---|
@@ -103,7 +178,7 @@ Authentication of the header value (mTLS, signed identity, etc.) is deferred —
 | Concurrency | **10 concurrent sessions per caller**; further `POST /sessions` requests get a 429 until one is closed. Horizontal scale via replicas |
 | Licence | MIT (inherited from Look-see) |
 
-## Explicitly out of MVP
+### Explicitly out of MVP
 
 Listed here so nothing gets forgotten:
 
@@ -116,7 +191,22 @@ Listed here so nothing gets forgotten:
 - **Cloud-storage backends.** Service never uploads to GCS/S3; callers handle storage.
 - **Chrome extension loading.** `LookseeChromeExtension` is a user-facing product unrelated to this service and is not bundled.
 
-## Repo layout
+---
+
+## 📁 Repo layout
+
+```mermaid
+graph LR
+    A[browser-service] --> B[engine/]
+    A --> C[api/]
+    A --> D[openapi/]
+    A --> E[Dockerfile]
+    A --> F[terraform/]
+    B -->|framework-free jar| B1[Selenium 4 + Appium 8]
+    C -->|Spring Boot 3| C1[/v1/... endpoints]
+    C -->|wraps| B
+    C -.SpecExportTest.-> D
+```
 
 - `pom.xml` — parent aggregator.
 - `engine/` — framework-free Selenium/Appium engine (artifactId `browser-service-engine`). Consumable as a plain jar by downstream callers that want the engine in-process.
@@ -125,14 +215,16 @@ Listed here so nothing gets forgotten:
 - `docs/design/openapi-draft-v1.yaml` — archived pre-implementation design draft.
 - `Dockerfile` — multi-stage image (maven → layertools → eclipse-temurin:21-jre).
 
-## How to review
+---
+
+## 🔍 How to review
 
 1. **Build everything.** `mvn clean verify` from the repo root — both modules build, tests pass, and `SpecExportTest` enforces that `openapi/generated.yaml` matches the current controller annotations.
 2. **Render the spec.** Open `openapi/generated.yaml` in <https://editor.swagger.io>, or run `npx @redocly/cli preview-docs openapi/generated.yaml` for a browsable view. During development, `/swagger-ui.html` on a running instance offers the same view.
 3. **Lint.** `npx @redocly/cli lint openapi/generated.yaml` — should be clean.
 4. **Coverage walk.** Open `engine/src/main/java/com/looksee/browser/Browser.java` and `MobileDevice.java`. Every `public` method should map to an endpoint — or be intentionally collapsed (e.g., the four screenshot variants live under one endpoint with a `strategy` field).
 
-## Engine → endpoint map (for the coverage walk)
+### Engine → endpoint map (for the coverage walk)
 
 | Engine method (`Browser.java` / `MobileDevice.java`) | Endpoint |
 |---|---|
@@ -162,17 +254,33 @@ Engine methods that are intentionally **not** exposed:
 - `waitForPageToLoad()` standalone — always called after `navigate`, so merged.
 - Private helpers (`extractYOffset`, `extractViewportWidth`, etc.) — internal.
 
-## Extraction program (full context)
+---
+
+## 🗺️ Extraction program (full context)
 
 This spec is **phase 0**. The whole program, for reviewers who want it:
 
 | Phase | Work | Status |
 |---|---|---|
-| 0 | Lock the API contract (this directory) | in progress |
-| 1 | Stand up `brandonkindred/browser-service` repo; subtree-move `looksee-browser`; upgrade Selenium 3→4 / Appium 7→8; build Spring Boot REST layer | blocked on phase 0 |
-| 2 | Deploy to staging (Cloud Run via LookseeIaC pattern); load test | |
-| 3 | LookseeCore shim: `BrowsingClient` HTTP client + `mode=local\|remote` flag on `BrowserService`. One `looksee-core` minor-version bump | |
-| 4 | Per-consumer cutover (qa-testbed → element-enrichment → PageBuilder → audits → journeyExecutor/Expander). Each bumps `LOOKSEE_CORE_VERSION`, sets `mode=remote`, canaries | |
-| 5 | Remove `mode=local` path; delete `looksee-browser` module from LookseeCore; major-version bump | |
+| 0 | Lock the API contract (this directory) | 🟡 in progress |
+| 1 | Stand up `brandonkindred/browser-service` repo; subtree-move `looksee-browser`; upgrade Selenium 3→4 / Appium 7→8; build Spring Boot REST layer | ⛔ blocked on phase 0 |
+| 2 | Deploy to staging (Cloud Run via LookseeIaC pattern); load test | ⚪ |
+| 3 | LookseeCore shim: `BrowsingClient` HTTP client + `mode=local\|remote` flag on `BrowserService`. One `looksee-core` minor-version bump | ⚪ |
+| 4 | Per-consumer cutover (qa-testbed → element-enrichment → PageBuilder → audits → journeyExecutor/Expander). Each bumps `LOOKSEE_CORE_VERSION`, sets `mode=remote`, canaries | ⚪ |
+| 5 | Remove `mode=local` path; delete `looksee-browser` module from LookseeCore; major-version bump | ⚪ |
 
 Each phase ends in a shippable, revertible state.
+
+---
+
+## 🤝 Contributing
+
+Issues and PRs are welcome. Before opening a PR:
+
+- `./mvnw clean verify` is green.
+- If you touched a controller or DTO, regenerate the spec: `./mvnw test -pl api -Dtest=SpecExportTest -Dopenapi.update=true`.
+- See [`API_TESTING.md`](API_TESTING.md) and [`TESTING.md`](TESTING.md) for the testing playbook.
+
+## 📄 Licence
+
+[MIT](LICENSE) — inherited from Look-see. Use it, fork it, ship it.
