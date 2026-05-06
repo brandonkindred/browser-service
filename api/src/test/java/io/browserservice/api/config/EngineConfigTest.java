@@ -26,7 +26,7 @@ class EngineConfigTest {
             new EngineProperties.BrowserStackProps(
                 false, "", "", "", "", "", "", "", "", "", "", "", true, false, true),
             new EngineProperties.WebSocketProps(
-                32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50, 16777216));
+                32, 300, 10000, true, 250, true, 1000, true, 2000, 50, 16777216));
 
     EngineConfig cfg = new EngineConfig(props);
     cfg.seedConnectionHelper();
@@ -54,7 +54,7 @@ class EngineConfigTest {
             new EngineProperties.BrowserStackProps(
                 false, "", "", "", "", "", "", "", "", "", "", "", false, false, false),
             new EngineProperties.WebSocketProps(
-                32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50, 16777216));
+                32, 300, 10000, true, 250, true, 1000, true, 2000, 50, 16777216));
 
     new EngineConfig(props).seedConnectionHelper();
     // No exception, no URLs set — success is simply not throwing.
@@ -85,7 +85,7 @@ class EngineConfigTest {
                 false,
                 true),
             new EngineProperties.WebSocketProps(
-                32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50, 16777216));
+                32, 300, 10000, true, 250, true, 1000, true, 2000, 50, 16777216));
 
     new EngineConfig(props).seedConnectionHelper();
     assertThat(true).isTrue();
@@ -101,7 +101,7 @@ class EngineConfigTest {
             new EngineProperties.BrowserStackProps(
                 true, "", "u", "k", "", "", "", "", "", "", "", "", true, false, true),
             new EngineProperties.WebSocketProps(
-                32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50, 16777216));
+                32, 300, 10000, true, 250, true, 1000, true, 2000, 50, 16777216));
 
     new EngineConfig(props).seedConnectionHelper();
     assertThat(true).isTrue();

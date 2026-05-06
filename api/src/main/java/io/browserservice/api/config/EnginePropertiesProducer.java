@@ -104,7 +104,6 @@ public class EnginePropertiesProducer {
     return new EngineProperties.WebSocketProps(
         intv(config, "browserservice.web-socket.command-queue-depth", 32),
         intv(config, "browserservice.web-socket.idle-close-seconds", 300),
-        intv(config, "browserservice.web-socket.outbound-buffer-ki-b", 64),
         intv(config, "browserservice.web-socket.send-time-limit-ms", 10000),
         bool(config, "browserservice.web-socket.alert-push-enabled", true),
         intv(config, "browserservice.web-socket.alert-poll-ms", 250),

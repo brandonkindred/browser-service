@@ -21,7 +21,6 @@ public record EngineProperties(
   public record WebSocketProps(
       int commandQueueDepth,
       int idleCloseSeconds,
-      int outboundBufferKiB,
       int sendTimeLimitMs,
       boolean alertPushEnabled,
       int alertPollMs,
