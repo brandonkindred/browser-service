@@ -17,8 +17,9 @@ import lombok.Setter;
 public class AppiumProperties {
 
   /**
-   * Comma-separated list of Appium server URLs. Example:
-   * "appium-server-1:4723,appium-server-2:4723"
+   * Comma-separated list of Appium server URLs. Each entry must be a fully qualified URL including
+   * scheme and path; values are passed verbatim to the driver. Example:
+   * "http://appium-server-1:4723/wd/hub,http://appium-server-2:4723/wd/hub"
    */
   private String urls;
 
