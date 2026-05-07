@@ -43,6 +43,9 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-scheduler</artifactId>
     </dependency>
+    <!-- Spring Data JPA compatibility layer; required while
+         BrowserSessionRepository still extends JpaRepository. Removed in #18
+         when persistence is rewritten to Panache. -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-spring-data-jpa</artifactId>
@@ -67,6 +70,9 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-hibernate-validator</artifactId>
     </dependency>
+    <!-- Legacy JSR-356 extension matches the current SessionWebSocketHandler
+         (@ServerEndpoint, jakarta.websocket.*). Swapped to
+         quarkus-websockets-next in #20 alongside the @WebSocket rewrite. -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-websockets</artifactId>
@@ -218,7 +224,6 @@
         <version>${jacoco.version}</version>
         <configuration>
           <excludes>
-            <exclude>io/browserservice/api/BrowserServiceApplication.class</exclude>
             <exclude>io/browserservice/api/dto/**</exclude>
           </excludes>
         </configuration>
