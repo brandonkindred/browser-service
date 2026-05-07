@@ -1,7 +1,7 @@
 package io.browserservice.api.dto;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import io.swagger.v3.oas.annotations.media.Schema;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 @Schema(description = "Screenshot capture strategy.")
 public enum ScreenshotStrategy {

@@ -2,9 +2,9 @@ package io.browserservice.api.dto;
 
 import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
-import io.swagger.v3.oas.annotations.media.Schema;
 import java.time.Instant;
 import java.util.UUID;
+import org.eclipse.microprofile.openapi.annotations.media.Schema;
 
 @Schema(description = "Summary of an active browser session.")
 public record SessionResponse(

@@ -3,11 +3,11 @@ package io.browserservice.api.session;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.error.CaptureExpiredException;
 import io.browserservice.api.error.CaptureNotFoundException;
+import io.quarkus.scheduler.Scheduled;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -48,7 +48,7 @@ public class CaptureScreenshotCache {
     return defaultTtl;
   }
 
-  @Scheduled(fixedDelay = 30_000)
+  @Scheduled(every = "30s")
   public void reap() {
     Instant now = Instant.now();
     entries.entrySet().removeIf(e -> now.isAfter(e.getValue().expiresAt()));

@@ -1,99 +1,89 @@
 package io.browserservice.api.config;
 
 import io.browserservice.api.session.CallerId;
-import io.browserservice.api.web.CallerIdArgumentResolver;
-import io.swagger.v3.oas.models.Components;
-import io.swagger.v3.oas.models.OpenAPI;
-import io.swagger.v3.oas.models.Operation;
-import io.swagger.v3.oas.models.PathItem;
-import io.swagger.v3.oas.models.info.Info;
-import io.swagger.v3.oas.models.info.License;
-import io.swagger.v3.oas.models.media.StringSchema;
-import io.swagger.v3.oas.models.parameters.HeaderParameter;
-import io.swagger.v3.oas.models.parameters.Parameter;
-import io.swagger.v3.oas.models.servers.Server;
-import io.swagger.v3.oas.models.tags.Tag;
-import java.util.List;
-import org.springdoc.core.customizers.OpenApiCustomizer;
-import org.springdoc.core.utils.SpringDocUtils;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
+import io.quarkus.smallrye.openapi.OpenApiFilter;
+import org.eclipse.microprofile.openapi.OASFactory;
+import org.eclipse.microprofile.openapi.OASFilter;
+import org.eclipse.microprofile.openapi.annotations.OpenAPIDefinition;
+import org.eclipse.microprofile.openapi.annotations.info.Info;
+import org.eclipse.microprofile.openapi.annotations.info.License;
+import org.eclipse.microprofile.openapi.annotations.servers.Server;
+import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.eclipse.microprofile.openapi.models.OpenAPI;
+import org.eclipse.microprofile.openapi.models.Operation;
+import org.eclipse.microprofile.openapi.models.PathItem;
+import org.eclipse.microprofile.openapi.models.media.Schema;
+import org.eclipse.microprofile.openapi.models.parameters.Parameter;
 
-@Configuration
-public class OpenApiConfig {
+@OpenAPIDefinition(
+    info =
+        @Info(
+            title = "Browser Service",
+            version = "v1",
+            description =
+                "Standalone service that exposes Selenium/Appium browser sessions over HTTP. "
+                    + "Remote browser sessions for programmatic web interaction.",
+            license = @License(name = "MIT", url = "https://opensource.org/licenses/MIT")),
+    servers = {
+      @Server(url = "http://browser-service.internal/v1", description = "Internal VPC endpoint"),
+      @Server(url = "http://localhost:8080/v1", description = "Local development")
+    },
+    tags = {
+      @Tag(name = "Sessions", description = "Session lifecycle"),
+      @Tag(name = "Navigation", description = "Page navigation and source"),
+      @Tag(name = "Screenshots", description = "Viewport, full-page, and element screenshots"),
+      @Tag(name = "Elements", description = "Find elements and perform actions on them"),
+      @Tag(name = "Touch", description = "Mobile touch gestures"),
+      @Tag(name = "Scrolling", description = "Viewport scrolling operations"),
+      @Tag(name = "DOM", description = "Direct DOM manipulation helpers"),
+      @Tag(name = "Alerts", description = "Browser alert detection and response"),
+      @Tag(name = "Mouse", description = "Desktop mouse operations"),
+      @Tag(name = "Script", description = "Arbitrary JavaScript execution"),
+      @Tag(name = "Capture", description = "One-shot navigate + capture + close"),
+      @Tag(name = "Ops", description = "Health, readiness, metrics")
+    })
+@OpenApiFilter
+public class OpenApiConfig implements OASFilter {
 
-  static {
-    // Hide CallerId from springdoc's parameter introspection. It is resolved out of the
-    // X-Caller-Id header by CallerIdArgumentResolver, not from request parameters; without this
-    // springdoc would treat each controller's CallerId argument as a query parameter.
-    SpringDocUtils.getConfig().addRequestWrapperToIgnore(CallerId.class);
-  }
-
-  @Bean
-  public OpenAPI browserServiceOpenApi() {
-    return new OpenAPI()
-        .info(
-            new Info()
-                .title("Browser Service")
-                .version("v1")
-                .summary("Remote browser sessions for programmatic web interaction.")
-                .description(
-                    "Standalone service that exposes Selenium/Appium browser sessions over HTTP.")
-                .license(new License().name("MIT").url("https://opensource.org/licenses/MIT")))
-        .servers(
-            List.of(
-                new Server()
-                    .url("http://browser-service.internal/v1")
-                    .description("Internal VPC endpoint"),
-                new Server().url("http://localhost:8080/v1").description("Local development")))
-        .tags(
-            List.of(
-                new Tag().name("Sessions").description("Session lifecycle"),
-                new Tag().name("Navigation").description("Page navigation and source"),
-                new Tag()
-                    .name("Screenshots")
-                    .description("Viewport, full-page, and element screenshots"),
-                new Tag().name("Elements").description("Find elements and perform actions on them"),
-                new Tag().name("Touch").description("Mobile touch gestures"),
-                new Tag().name("Scrolling").description("Viewport scrolling operations"),
-                new Tag().name("DOM").description("Direct DOM manipulation helpers"),
-                new Tag().name("Alerts").description("Browser alert detection and response"),
-                new Tag().name("Mouse").description("Desktop mouse operations"),
-                new Tag().name("Script").description("Arbitrary JavaScript execution"),
-                new Tag().name("Capture").description("One-shot navigate + capture + close"),
-                new Tag().name("Ops").description("Health, readiness, metrics")))
-        .components(new Components());
-  }
+  public static final String CALLER_HEADER = "X-Caller-Id";
 
   /**
    * Documents {@code X-Caller-Id} as a required header on every operation under {@code /v1/}.
    * Endpoints outside that prefix (e.g. {@code /healthz}, {@code /readyz}) are unaffected.
    */
-  @Bean
-  public OpenApiCustomizer callerIdHeaderCustomizer() {
-    return openApi -> {
-      if (openApi.getPaths() == null) {
-        return;
-      }
-      openApi
-          .getPaths()
-          .forEach(
-              (path, pathItem) -> {
-                if (path == null || !path.startsWith("/v1/")) {
-                  return;
+  @Override
+  public void filterOpenAPI(OpenAPI openApi) {
+    if (openApi.getPaths() == null || openApi.getPaths().getPathItems() == null) {
+      return;
+    }
+    openApi
+        .getPaths()
+        .getPathItems()
+        .forEach(
+            (path, pathItem) -> {
+              if (path == null || !path.startsWith("/v1/")) {
+                return;
+              }
+              for (Operation op : operationsOf(pathItem)) {
+                if (op == null || hasCallerIdHeader(op)) {
+                  continue;
                 }
-                for (Operation op : operationsOf(pathItem)) {
-                  if (hasCallerIdHeader(op)) {
-                    continue;
-                  }
-                  op.addParametersItem(callerIdHeaderParameter());
-                }
-              });
-    };
+                op.addParameter(callerIdHeaderParameter());
+              }
+            });
   }
 
-  private static List<Operation> operationsOf(PathItem item) {
-    return item.readOperations();
+  private static Operation[] operationsOf(PathItem item) {
+    return new Operation[] {
+      item.getGET(),
+      item.getPUT(),
+      item.getPOST(),
+      item.getDELETE(),
+      item.getOPTIONS(),
+      item.getHEAD(),
+      item.getPATCH(),
+      item.getTRACE()
+    };
   }
 
   private static boolean hasCallerIdHeader(Operation op) {
@@ -101,8 +91,7 @@ public class OpenApiConfig {
       return false;
     }
     for (Parameter p : op.getParameters()) {
-      if ("header".equals(p.getIn())
-          && CallerIdArgumentResolver.CALLER_HEADER.equals(p.getName())) {
+      if (p.getIn() == Parameter.In.HEADER && CALLER_HEADER.equals(p.getName())) {
         return true;
       }
     }
@@ -110,10 +99,14 @@ public class OpenApiConfig {
   }
 
   private static Parameter callerIdHeaderParameter() {
-    return new HeaderParameter()
-        .name(CallerIdArgumentResolver.CALLER_HEADER)
+    return OASFactory.createParameter()
+        .name(CALLER_HEADER)
+        .in(Parameter.In.HEADER)
         .required(true)
         .description("Identifies the calling client. Bound to created sessions for ownership.")
-        .schema(new StringSchema().maxLength(CallerId.MAX_LENGTH));
+        .schema(
+            OASFactory.createSchema()
+                .type(Schema.SchemaType.STRING)
+                .maxLength(CallerId.MAX_LENGTH));
   }
 }

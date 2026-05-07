@@ -6,6 +6,7 @@ import io.browserservice.api.session.SessionLocks;
 import io.browserservice.api.session.SessionRegistry;
 import io.browserservice.api.ws.Connection;
 import io.browserservice.api.ws.WsSessionConnections;
+import jakarta.inject.Named;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -57,7 +58,7 @@ public class WatcherCoordinator {
       SessionRegistry registry,
       SessionLocks locks,
       EventBroadcaster broadcaster,
-      ScheduledExecutorService webSocketScheduler,
+      @Named("webSocketScheduler") ScheduledExecutorService webSocketScheduler,
       EngineProperties props) {
     this.connections = connections;
     this.registry = registry;

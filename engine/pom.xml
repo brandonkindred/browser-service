@@ -24,6 +24,10 @@
     <jackson.version>2.18.2</jackson.version>
     <commons-codec.version>1.17.1</commons-codec.version>
     <jstyleparser.version>3.5</jstyleparser.version>
+    <!-- jstyleparser 3.5 ships ANTLR-generated CSS lexers with the v3 ATN format. The Quarkus
+         BOM upgrades antlr4-runtime to 4.13 which only loads v4 ATN, so deserialize fails at
+         class-init time. Pin to the runtime that matches the lexer's ATN format. -->
+    <antlr4-runtime.version>4.5.3</antlr4-runtime.version>
     <jsoup.version>1.18.1</jsoup.version>
     <lombok.version>1.18.34</lombok.version>
     <junit.version>5.11.3</junit.version>
@@ -81,6 +85,11 @@
       <groupId>net.sf.cssbox</groupId>
       <artifactId>jstyleparser</artifactId>
       <version>${jstyleparser.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.antlr</groupId>
+      <artifactId>antlr4-runtime</artifactId>
+      <version>${antlr4-runtime.version}</version>
     </dependency>
     <dependency>
       <groupId>org.jsoup</groupId>

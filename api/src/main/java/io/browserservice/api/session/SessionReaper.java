@@ -5,10 +5,10 @@ import io.browserservice.api.persistence.BrowserSessionTracker;
 import io.browserservice.api.session.SessionHandle.ExpiryReason;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.quarkus.scheduler.Scheduled;
 import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 @Component
@@ -41,7 +41,7 @@ public class SessionReaper {
     meters.gauge(ACTIVE_GAUGE_NAME, registry, SessionRegistry::size);
   }
 
-  @Scheduled(fixedDelay = 10_000)
+  @Scheduled(every = "10s")
   public void reap() {
     Instant now = Instant.now();
     for (SessionHandle handle : registry.snapshot()) {

@@ -1,7 +1,9 @@
 package io.browserservice.api.ws.push;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.ws.Connection;
+import io.browserservice.api.ws.WsSends;
 import io.browserservice.api.ws.WsSessionConnections;
 import io.browserservice.api.ws.dto.EventFrame;
 import java.io.IOException;
@@ -9,13 +11,12 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.socket.TextMessage;
 
 /**
  * Serializes event frames once and writes them to every connection currently bound to the given
- * session. Outbound writes go through each connection's {@code
- * ConcurrentWebSocketSessionDecorator}, the same path command responses use, so watcher pushes and
- * command responses cannot interleave on the wire.
+ * session. Outbound writes go through each connection's JSR-356 {@link jakarta.websocket.Session},
+ * the same path command responses use, so watcher pushes and command responses cannot interleave on
+ * the wire.
  */
 @Component
 public class EventBroadcaster {
@@ -24,10 +25,13 @@ public class EventBroadcaster {
 
   private final WsSessionConnections connections;
   private final ObjectMapper mapper;
+  private final EngineProperties.WebSocketProps props;
 
-  public EventBroadcaster(WsSessionConnections connections, ObjectMapper mapper) {
+  public EventBroadcaster(
+      WsSessionConnections connections, ObjectMapper mapper, EngineProperties props) {
     this.connections = connections;
     this.mapper = mapper;
+    this.props = props.webSocket();
   }
 
   public void broadcast(UUID sessionId, EventFrame frame) {
@@ -38,13 +42,12 @@ public class EventBroadcaster {
       log.warn("ws event serialize failed kind={}: {}", frame.kind(), e.toString());
       return;
     }
-    TextMessage msg = new TextMessage(json);
     for (Connection conn : connections.snapshot(sessionId)) {
       try {
-        // Same writeLock the binary-pair emitter takes — guarantees this event frame
+        // Same writeLock the binary-pair emitter takes -- guarantees this event frame
         // never lands between a (binary-header, binary-frame) pair on the wire.
         synchronized (conn.writeLock()) {
-          conn.out().sendMessage(msg);
+          WsSends.sendTextBounded(conn, json, props.sendTimeLimitMs(), log);
         }
       } catch (IOException e) {
         log.debug("ws event push failed connectionId={}: {}", conn.connectionId(), e.toString());
