@@ -29,15 +29,12 @@ import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -230,55 +227,10 @@ public class SessionWebSocketHandler {
     try {
       String json = mapper.writeValueAsString(frame);
       synchronized (conn.writeLock()) {
-        sendTextBounded(conn, json);
+        WsSends.sendTextBounded(conn, json, props.sendTimeLimitMs(), log);
       }
     } catch (IOException e) {
       log.warn("ws write failed connectionId={}: {}", conn.connectionId(), e.toString());
-    }
-  }
-
-  // JSR-356 getBasicRemote().sendText/sendBinary block until the underlying TCP write
-  // drains; if a client stops reading, the calling thread (per-connection command
-  // executor or a watcher scheduler thread) parks indefinitely. To preserve the bound
-  // that browserservice.web-socket.send-time-limit-ms historically gave us via
-  // Spring's ConcurrentWebSocketSessionDecorator, we issue async sends and wait on
-  // the returned Future for at most sendTimeLimitMs. On timeout we close the session
-  // (TRY_AGAIN_LATER 1013) so a stuck client can't hold a thread forever.
-  private void sendTextBounded(Connection conn, String text) throws IOException {
-    Future<Void> f = conn.out().getAsyncRemote().sendText(text);
-    awaitSend(conn, f);
-  }
-
-  private void sendBinaryBounded(Connection conn, ByteBuffer buf) throws IOException {
-    Future<Void> f = conn.out().getAsyncRemote().sendBinary(buf);
-    awaitSend(conn, f);
-  }
-
-  private void awaitSend(Connection conn, Future<Void> f) throws IOException {
-    try {
-      f.get(props.sendTimeLimitMs(), TimeUnit.MILLISECONDS);
-    } catch (TimeoutException e) {
-      f.cancel(true);
-      log.warn(
-          "ws send exceeded {}ms, closing connectionId={}",
-          props.sendTimeLimitMs(),
-          conn.connectionId());
-      try {
-        conn.out().close(new CloseReason(CloseReason.CloseCodes.TRY_AGAIN_LATER, "send timeout"));
-      } catch (IOException ignored) {
-        // best-effort close
-      }
-      throw new IOException("ws send timed out after " + props.sendTimeLimitMs() + "ms", e);
-    } catch (InterruptedException e) {
-      Thread.currentThread().interrupt();
-      throw new IOException("ws send interrupted", e);
-    } catch (ExecutionException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof IOException io) {
-        io.addSuppressed(e);
-        throw io;
-      }
-      throw new IOException("ws send failed", e);
     }
   }
 
@@ -308,8 +260,8 @@ public class SessionWebSocketHandler {
     // never interleaved with watcher events or another command response.
     synchronized (conn.writeLock()) {
       try {
-        sendTextBounded(conn, headerJson);
-        sendBinaryBounded(conn, ByteBuffer.wrap(bytes));
+        WsSends.sendTextBounded(conn, headerJson, props.sendTimeLimitMs(), log);
+        WsSends.sendBinaryBounded(conn, ByteBuffer.wrap(bytes), props.sendTimeLimitMs(), log);
       } catch (IOException e) {
         log.warn("ws binary write failed connectionId={}: {}", conn.connectionId(), e.toString());
       }
