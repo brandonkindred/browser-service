@@ -9,8 +9,6 @@
   fix the violation at the source instead.
 -->
 <suppressions>
-  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]BrowserServiceApplication\.java$" checks="MissingJavadocMethod"/>
-  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]BrowserServiceApplication\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]config[/\\]EngineConfig\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]config[/\\]EngineConfig\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]config[/\\]EngineProperties\.java$" checks="MissingJavadocType"/>

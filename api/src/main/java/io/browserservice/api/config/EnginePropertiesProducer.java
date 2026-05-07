@@ -50,16 +50,17 @@ public class EnginePropertiesProducer {
       @ConfigProperty(name = "browserservice.selenium.implicit-wait-seconds", defaultValue = "10")
           int seleniumImplicitWaitSeconds,
       // appium
-      @ConfigProperty(name = "browserservice.appium.urls", defaultValue = "") String appiumUrls,
       @ConfigProperty(name = "browserservice.appium.platform", defaultValue = "ANDROID")
           String appiumPlatform,
-      @ConfigProperty(name = "browserservice.appium.device-name", defaultValue = "")
-          String appiumDeviceName,
       @ConfigProperty(name = "browserservice.appium.connect-timeout-ms", defaultValue = "60000")
           int appiumConnectTimeoutMs,
       @ConfigProperty(name = "browserservice.appium.max-retries", defaultValue = "3")
           int appiumMaxRetries,
       Config config) {
+    // appium.urls and appium.device-name route through Config.getOptionalValue
+    // because SmallRye Config rejects an empty defaultValue on @ConfigProperty.
+    String appiumUrls = str(config, "browserservice.appium.urls", "");
+    String appiumDeviceName = str(config, "browserservice.appium.device-name", "");
     return new EngineProperties(
         new EngineProperties.SessionProps(
             idleTtlSeconds, absoluteTtlSeconds, maxConcurrent, lockAcquireTimeoutMs),
