@@ -52,8 +52,8 @@ public class OpenApiConfig implements OASFilter {
    * Endpoints outside that prefix (e.g. {@code /healthz}, {@code /readyz}) are unaffected.
    *
    * <p>Smallrye auto-discovers the header from the Spring {@code @RequestHeader} binding but does
-   * not infer {@code required=true} or attach a description, so we enrich the existing parameter
-   * in place when present and add a fresh one otherwise.
+   * not infer {@code required=true} or attach a description, so we enrich the existing parameter in
+   * place when present and add a fresh one otherwise.
    */
   @Override
   public void filterOpenAPI(OpenAPI openApi) {
@@ -125,9 +125,7 @@ public class OpenApiConfig implements OASFilter {
   }
 
   private static Schema callerIdSchema() {
-    return OASFactory.createSchema()
-        .type(Schema.SchemaType.STRING)
-        .maxLength(CallerId.MAX_LENGTH);
+    return OASFactory.createSchema().type(Schema.SchemaType.STRING).maxLength(CallerId.MAX_LENGTH);
   }
 
   private static final String CALLER_DESCRIPTION =
