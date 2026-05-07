@@ -50,6 +50,10 @@ public class OpenApiConfig implements OASFilter {
   /**
    * Documents {@code X-Caller-Id} as a required header on every operation under {@code /v1/}.
    * Endpoints outside that prefix (e.g. {@code /healthz}, {@code /readyz}) are unaffected.
+   *
+   * <p>Smallrye auto-discovers the header from the Spring {@code @RequestHeader} binding but does
+   * not infer {@code required=true} or attach a description, so we enrich the existing parameter
+   * in place when present and add a fresh one otherwise.
    */
   @Override
   public void filterOpenAPI(OpenAPI openApi) {
@@ -65,10 +69,15 @@ public class OpenApiConfig implements OASFilter {
                 return;
               }
               for (Operation op : operationsOf(pathItem)) {
-                if (op == null || hasCallerIdHeader(op)) {
+                if (op == null) {
                   continue;
                 }
-                op.addParameter(callerIdHeaderParameter());
+                Parameter existing = findCallerIdHeader(op);
+                if (existing == null) {
+                  op.addParameter(callerIdHeaderParameter());
+                } else {
+                  enrichCallerIdHeader(existing);
+                }
               }
             });
   }
@@ -86,16 +95,24 @@ public class OpenApiConfig implements OASFilter {
     };
   }
 
-  private static boolean hasCallerIdHeader(Operation op) {
+  private static Parameter findCallerIdHeader(Operation op) {
     if (op.getParameters() == null) {
-      return false;
+      return null;
     }
     for (Parameter p : op.getParameters()) {
       if (p.getIn() == Parameter.In.HEADER && CALLER_HEADER.equals(p.getName())) {
-        return true;
+        return p;
       }
     }
-    return false;
+    return null;
+  }
+
+  private static void enrichCallerIdHeader(Parameter param) {
+    param.setRequired(true);
+    if (param.getDescription() == null || param.getDescription().isBlank()) {
+      param.setDescription(CALLER_DESCRIPTION);
+    }
+    param.setSchema(callerIdSchema());
   }
 
   private static Parameter callerIdHeaderParameter() {
@@ -103,10 +120,16 @@ public class OpenApiConfig implements OASFilter {
         .name(CALLER_HEADER)
         .in(Parameter.In.HEADER)
         .required(true)
-        .description("Identifies the calling client. Bound to created sessions for ownership.")
-        .schema(
-            OASFactory.createSchema()
-                .type(Schema.SchemaType.STRING)
-                .maxLength(CallerId.MAX_LENGTH));
+        .description(CALLER_DESCRIPTION)
+        .schema(callerIdSchema());
   }
+
+  private static Schema callerIdSchema() {
+    return OASFactory.createSchema()
+        .type(Schema.SchemaType.STRING)
+        .maxLength(CallerId.MAX_LENGTH);
+  }
+
+  private static final String CALLER_DESCRIPTION =
+      "Identifies the calling client. Bound to created sessions for ownership.";
 }
