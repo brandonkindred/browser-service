@@ -48,11 +48,14 @@ browserservice:
     implicit-wait-enabled: false
     implicit-wait-seconds: 10
   appium:
+    urls: "${APPIUM_URLS:}"
     platform: "ANDROID"
     connect-timeout-ms: 60000
     max-retries: 3
   browserstack:
     enabled: false
+    username: "${BROWSERSTACK_USERNAME:}"
+    access-key: "${BROWSERSTACK_ACCESS_KEY:}"
     real-mobile: true
     local: false
     debug: true
