@@ -43,44 +43,32 @@ Both run in Docker containers below.
 
 ## 2. Bring up the dependencies
 
-### Postgres
-
-`docker-compose.yml` ships a Postgres on host port **5433** so it does not
-collide with anything you already run on `5432`:
+`docker-compose.yml` ships both upstreams the API needs — Postgres (host port
+**5433** to avoid colliding with anything on `5432`) and a Selenium standalone
+Chrome (host ports **4444** for the WebDriver hub and **7900** for noVNC).
+Bring them both up together:
 
 ```bash
-docker compose up -d postgres
+docker compose up -d postgres selenium
 ```
 
-Verify:
+Verify Postgres:
 
 ```bash
 docker compose ps postgres
 docker compose exec postgres pg_isready -U browser_service -d browser_service
 ```
 
-### Selenium Grid (Chrome)
-
-The default config points at `http://localhost:4444/wd/hub`. The simplest way
-to satisfy that is the Selenium standalone image:
+Verify Selenium:
 
 ```bash
-docker run -d --rm --name selenium-chrome \
-  -p 4444:4444 -p 7900:7900 \
-  --shm-size=2g \
-  selenium/standalone-chrome:latest
-```
-
-- `4444` — WebDriver hub.
-- `7900` — noVNC (open `http://localhost:7900`, password `secret`) so you can
-  watch the browser drive itself while you test.
-
-Verify:
-
-```bash
+docker compose ps selenium
 curl -s http://localhost:4444/status | jq .value.ready
 # -> true
 ```
+
+Open `http://localhost:7900` (password `secret`) to watch the browser drive
+itself while you run the walkthrough below.
 
 Appium is **not** required unless you want to drive `ANDROID` / `IOS` sessions.
 Leave `APPIUM_URLS` unset and stick to `CHROME`.
@@ -107,18 +95,18 @@ DATABASE_URL=jdbc:postgresql://localhost:5433/browser_service \
 java -jar api/target/browser-service-api-*-exec.jar
 ```
 
-### C. Full docker-compose (api + postgres in containers)
+### C. Full docker-compose (api + postgres + selenium in containers)
 
 ```bash
 docker compose up -d --build
 ```
 
-This exposes the API on **host port 9999** (mapped to container `8080`). Every
-example below assumes the local-Maven setup on `:8080` — substitute `:9999` if
-you go this route. Note that the containerised API will resolve
-`http://localhost:4444` from inside the container, not the host, so you will
-also need to either run Selenium in the same compose network or pass
-`-e SELENIUM_GRID_URLS=http://host.docker.internal:4444/wd/hub`.
+This brings up Postgres, the Selenium standalone Chrome, **and** the API in
+one shot. No extra `docker run` needed. The API is exposed on **host port
+9999** (mapped to container `8080`); every example below assumes the
+local-Maven setup on `:8080`, so substitute `:9999` if you go this route. The
+API service is wired with `SELENIUM_GRID_URLS=http://selenium:4444/wd/hub` so
+it talks to the Selenium container over the compose network.
 
 ### Pick a caller ID
 
@@ -426,7 +414,7 @@ open api/target/site/jacoco/index.html
 | `404 session_not_found` | Session was closed or never existed | Open a new one. |
 | `410 session_expired` | Idle (5 min) or absolute (30 min) TTL fired | Open a new one. |
 | `429 session_cap_exceeded` | More than 20 concurrent sessions for this caller (see `application.yaml`) | Close some. |
-| `502 upstream_unavailable` on `POST /v1/sessions` | Selenium hub not reachable | `curl http://localhost:4444/status`; check the `selenium-chrome` container. |
+| `502 upstream_unavailable` on `POST /v1/sessions` | Selenium hub not reachable | `curl http://localhost:4444/status`; check the `selenium` compose service. |
 | `readyz` returns 503 | Postgres or Selenium probe failed | Inspect the JSON body — it names the failing dependency. |
 | App fails to boot with `password authentication failed` / `Connection refused` on `:5432` | Postgres is on host `:5433` from compose, but the app's default is `:5432` | Pass `--spring.datasource.url=jdbc:postgresql://localhost:5433/browser_service` (see § 3.A). |
 | WebSocket handshake closed immediately | Missing `X-Caller-Id` header on the upgrade | Pass it via `-H` to `websocat`. |
