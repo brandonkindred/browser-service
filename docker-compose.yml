@@ -17,6 +17,21 @@ services:
       retries: 10
     restart: unless-stopped
 
+  selenium:
+    image: selenium/standalone-chrome:latest
+    container_name: browser-service-selenium
+    shm_size: 2gb
+    ports:
+      - "4444:4444"
+      - "7900:7900"
+    healthcheck:
+      test: ["CMD", "/opt/bin/check-grid.sh", "--host", "0.0.0.0", "--port", "4444"]
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 30s
+    restart: unless-stopped
+
   api:
     build:
       context: .
@@ -26,10 +41,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      selenium:
+        condition: service_healthy
     environment:
       DATABASE_URL: jdbc:postgresql://postgres:5432/browser_service
       DATABASE_USERNAME: browser_service
       DATABASE_PASSWORD: browser_service
+      SELENIUM_GRID_URLS: http://selenium:4444/wd/hub
     ports:
       - "9999:8080"
     restart: unless-stopped

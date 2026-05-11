@@ -48,14 +48,14 @@ Browser interactions are inherently **stateful** — checking email, filling out
 ## 🚀 Quick start
 
 ```bash
-# Build and run locally (brings up Postgres + the API together)
+# Build and run locally (brings up Postgres, Selenium, and the API together)
 ./mvnw clean verify
 docker compose up
 ```
 
-Compose publishes the API on host port **9999** — browse <http://localhost:9999/swagger-ui.html>.
+Compose publishes the API on host port **9999** — browse <http://localhost:9999/swagger-ui.html>. The bundled Selenium standalone Chrome is published on **4444** (WebDriver hub) and **7900** (noVNC, password `secret`), so you can watch sessions drive themselves while you test.
 
-To point at an external Selenium Grid, add `SELENIUM_GRID_URLS=http://your-grid:4444/wd/hub` to the `api` service's `environment:` block in `docker-compose.yml` (the app reads `browserservice.selenium.urls` from that variable). For deployments without Compose, the app needs at minimum a reachable `DATABASE_URL` and `SELENIUM_GRID_URLS` — see `api/src/main/resources/application.yaml` for the full env-var surface.
+To point at an **external** Selenium Grid instead of the bundled one, override `SELENIUM_GRID_URLS` on the `api` service in `docker-compose.yml` (the app reads `browserservice.selenium.urls` from that variable) — e.g. `SELENIUM_GRID_URLS=http://your-grid:4444/wd/hub`. For deployments without Compose, the app needs at minimum a reachable `DATABASE_URL` and `SELENIUM_GRID_URLS` — see `api/src/main/resources/application.yaml` for the full env-var surface.
 
 ---
 
