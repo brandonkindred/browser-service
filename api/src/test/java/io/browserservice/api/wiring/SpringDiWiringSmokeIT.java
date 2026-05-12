@@ -45,16 +45,14 @@ class SpringDiWiringSmokeIT {
     public Map<String, String> getConfigOverrides() {
       return Map.ofEntries(
           Map.entry("quarkus.datasource.devservices.enabled", "false"),
+          Map.entry("quarkus.datasource.db-kind", "h2"),
           Map.entry(
               "quarkus.datasource.jdbc.url",
-              "jdbc:postgresql://localhost:5432/wiring-smoke-no-connect"),
-          Map.entry("quarkus.datasource.username", "noop"),
-          Map.entry("quarkus.datasource.password", "noop"),
-          Map.entry("quarkus.datasource.jdbc.initial-size", "0"),
-          Map.entry("quarkus.datasource.jdbc.min-size", "0"),
-          Map.entry("quarkus.datasource.health.enabled", "false"),
+              "jdbc:h2:mem:wiring-smoke;DB_CLOSE_DELAY=-1;MODE=PostgreSQL"),
+          Map.entry("quarkus.datasource.username", "sa"),
+          Map.entry("quarkus.datasource.password", ""),
           Map.entry("quarkus.flyway.migrate-at-start", "false"),
-          Map.entry("quarkus.hibernate-orm.database.generation", "none"),
+          Map.entry("quarkus.hibernate-orm.database.generation", "drop-and-create"),
           Map.entry("browserservice.selenium.urls", "http://localhost:4444/wd/hub"),
           Map.entry("quarkus.http.test-port", "0"));
     }
