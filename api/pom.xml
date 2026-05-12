@@ -43,13 +43,6 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-scheduler</artifactId>
     </dependency>
-    <!-- Spring Data JPA compatibility layer; required while
-         BrowserSessionRepository still extends JpaRepository. Removed in #18
-         when persistence is rewritten to Panache. -->
-    <dependency>
-      <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-spring-data-jpa</artifactId>
-    </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-rest-jackson</artifactId>

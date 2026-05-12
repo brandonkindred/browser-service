@@ -1,5 +1,6 @@
 package io.browserservice.api.persistence;
 
+import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -11,7 +12,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "browser_sessions")
-public class BrowserSessionEntity {
+public class BrowserSessionEntity extends PanacheEntityBase {
 
   @Id
   @Column(name = "id", nullable = false, updatable = false)
