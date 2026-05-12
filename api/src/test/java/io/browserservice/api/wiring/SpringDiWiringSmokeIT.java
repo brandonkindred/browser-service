@@ -16,7 +16,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.junit.jupiter.api.Test;
 
 @QuarkusTest
-@TestProfile(SpringDiWiringSmokeIT.NoDbProfile.class)
+@TestProfile(SpringDiWiringSmokeIT.WiringProfile.class)
 class SpringDiWiringSmokeIT {
 
   @Inject SessionService sessionService;
@@ -40,7 +40,7 @@ class SpringDiWiringSmokeIT {
     assertThat(watcherCoordinator).isNotNull();
   }
 
-  public static class NoDbProfile implements QuarkusTestProfile {
+  public static class WiringProfile implements QuarkusTestProfile {
     @Override
     public Map<String, String> getConfigOverrides() {
       return Map.ofEntries(
