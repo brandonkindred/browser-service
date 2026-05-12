@@ -212,6 +212,7 @@
   <suppress files="api[/\\]src[/\\]test[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]SessionWebSocketHandlerTest\.java$" checks="NeedBraces"/>
   <suppress files="api[/\\]src[/\\]test[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]push[/\\]AlertWatcherTest\.java$" checks="EmptyCatchBlock"/>
   <suppress files="api[/\\]src[/\\]test[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]push[/\\]AlertWatcherTest\.java$" checks="VariableDeclarationUsageDistance"/>
+  <suppress files="api[/\\]src[/\\]test[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]wiring[/\\]SpringDiWiringSmokeIT\.java$" checks="AbbreviationAsWordInName"/>
   <suppress files="api[/\\]src[/\\]test[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]push[/\\]WatcherCoordinatorTest\.java$" checks="EmptyCatchBlock"/>
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]ActionFactory\.java$" checks="FileTabCharacter"/>
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]ActionFactory\.java$" checks="SummaryJavadoc"/>
