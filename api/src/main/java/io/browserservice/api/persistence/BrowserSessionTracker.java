@@ -23,11 +23,9 @@ public class BrowserSessionTracker {
 
   private static final Logger log = LoggerFactory.getLogger(BrowserSessionTracker.class);
 
-  private final BrowserSessionRepository repository;
   private final SessionRegistry registry;
 
-  public BrowserSessionTracker(BrowserSessionRepository repository, SessionRegistry registry) {
-    this.repository = repository;
+  public BrowserSessionTracker(SessionRegistry registry) {
     this.registry = registry;
   }
 
@@ -45,7 +43,7 @@ public class BrowserSessionTracker {
             handle.expiresAt(),
             (int) handle.idleTtl().toSeconds(),
             (int) handle.absoluteTtl().toSeconds());
-    repository.save(entity);
+    entity.persist();
   }
 
   @Transactional
@@ -83,7 +81,8 @@ public class BrowserSessionTracker {
       return;
     }
     try {
-      for (BrowserSessionEntity entity : repository.findAllById(live.keySet())) {
+      List<BrowserSessionEntity> rows = BrowserSessionEntity.list("id in ?1", live.keySet());
+      for (BrowserSessionEntity entity : rows) {
         if (entity.getStatus() != Status.ACTIVE) {
           continue;
         }
@@ -103,7 +102,7 @@ public class BrowserSessionTracker {
   public void recoverOrphanedActiveSessions(@Observes StartupEvent ev) {
     try {
       Instant now = Instant.now();
-      List<BrowserSessionEntity> orphans = repository.findByStatus(Status.ACTIVE);
+      List<BrowserSessionEntity> orphans = BrowserSessionEntity.list("status", Status.ACTIVE);
       if (orphans.isEmpty()) {
         return;
       }
@@ -120,7 +119,7 @@ public class BrowserSessionTracker {
   }
 
   private void updateClosed(UUID id, Status status, ClosedReason reason) {
-    Optional<BrowserSessionEntity> maybe = repository.findById(id);
+    Optional<BrowserSessionEntity> maybe = BrowserSessionEntity.findByIdOptional(id);
     if (maybe.isEmpty()) {
       log.warn("no browser_sessions row found for id={} while recording {}", id, status);
       return;
