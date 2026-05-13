@@ -80,6 +80,7 @@ public class BrowserSessionTracker {
     if (live.isEmpty()) {
       return;
     }
+    log.debug("flushLastUsed: updating last_used_at for {} live sessions", live.size());
     try {
       List<BrowserSessionEntity> rows = BrowserSessionEntity.list("id in ?1", live.keySet());
       for (BrowserSessionEntity entity : rows) {
@@ -101,6 +102,7 @@ public class BrowserSessionTracker {
   @Transactional
   public void recoverOrphanedActiveSessions(@Observes StartupEvent ev) {
     try {
+      log.info("startup: scanning browser_sessions for orphaned ACTIVE rows");
       Instant now = Instant.now();
       List<BrowserSessionEntity> orphans = BrowserSessionEntity.list("status", Status.ACTIVE);
       if (orphans.isEmpty()) {
