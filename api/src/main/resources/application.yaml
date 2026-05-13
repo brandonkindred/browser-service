@@ -34,11 +34,7 @@ quarkus:
       prometheus:
         path: "/metrics"
         enabled: true
-# Dev-mode override: when Docker (and therefore Dev Services / Postgres) is
-# unavailable, fall back to an in-memory H2 instance so `quarkus:dev` boots
-# for local smoke. Requires quarkus-jdbc-h2 on the dev classpath (scope
-# 'provided' in pom.xml). Production keeps the postgresql defaults above.
-"%dev":
+'%dev':
   quarkus:
     datasource:
       db-kind: "h2"
