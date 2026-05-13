@@ -34,6 +34,11 @@ quarkus:
       prometheus:
         path: "/metrics"
         enabled: true
+  log:
+    category:
+      io.smallrye.openapi.runtime.scanner.spi:
+        level: "ERROR"
+        min-level: "ERROR"
 '%dev':
   quarkus:
     datasource:

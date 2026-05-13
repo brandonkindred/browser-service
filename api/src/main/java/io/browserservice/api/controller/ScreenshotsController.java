@@ -1,12 +1,10 @@
 package io.browserservice.api.controller;
 
-import io.browserservice.api.dto.ElementScreenshotRequest;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.PngEncoding;
 import io.browserservice.api.dto.ScreenshotBase64Response;
 import io.browserservice.api.dto.ScreenshotRequest;
 import io.browserservice.api.service.BrowserOperationsService;
-import io.browserservice.api.service.ElementOperationsService;
 import io.browserservice.api.session.CallerId;
 import io.browserservice.api.web.CallerIdParamConverterProvider;
 import jakarta.validation.Valid;
@@ -28,18 +26,18 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+// Page-level screenshot only. The element-level variant lives on
+// ElementScreenshotsController — hosting both POST methods on one class trips a
+// quarkus-spring-web path-merge bug where the second mapping fails to dispatch.
 @RestController
 @RequestMapping("/v1/sessions/{id}")
 @Tag(name = "Screenshots", description = "Page and element screenshots")
 public class ScreenshotsController {
 
   private final BrowserOperationsService browserOps;
-  private final ElementOperationsService elementOps;
 
-  public ScreenshotsController(
-      BrowserOperationsService browserOps, ElementOperationsService elementOps) {
+  public ScreenshotsController(BrowserOperationsService browserOps) {
     this.browserOps = browserOps;
-    this.elementOps = elementOps;
   }
 
   static {
@@ -70,28 +68,7 @@ public class ScreenshotsController {
     return respond(pngBytes, req.encoding());
   }
 
-  @PostMapping(
-      value = "/element/screenshot",
-      produces = {MediaType.IMAGE_PNG_VALUE, MediaType.APPLICATION_JSON_VALUE})
-  @Operation(
-      summary = "Capture a screenshot of a single element",
-      operationId = "captureElementScreenshot")
-  @APIResponses({
-    @APIResponse(responseCode = "200", description = "PNG bytes or base64 JSON"),
-    @APIResponse(
-        responseCode = "404",
-        description = "Session or element handle not found",
-        content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
-  })
-  public ResponseEntity<?> captureElement(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
-      @Valid @RequestBody ElementScreenshotRequest req) {
-    byte[] pngBytes = elementOps.elementScreenshot(id, caller, req);
-    return respond(pngBytes, req.encoding());
-  }
-
-  private ResponseEntity<?> respond(byte[] pngBytes, PngEncoding encoding) {
+  static ResponseEntity<?> respond(byte[] pngBytes, PngEncoding encoding) {
     if (encoding == PngEncoding.BASE64) {
       int[] wh = readDimensions(pngBytes);
       return ResponseEntity.ok(
