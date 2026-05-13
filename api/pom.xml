@@ -138,10 +138,13 @@
       <artifactId>h2</artifactId>
       <scope>test</scope>
     </dependency>
+    <!-- 'provided' (not 'test') so `quarkus:dev` can boot against in-memory
+         H2 when Docker / Dev Services / Postgres are unavailable locally.
+         Excluded from the production uber-jar — runtime uses postgresql. -->
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-jdbc-h2</artifactId>
-      <scope>test</scope>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
 
