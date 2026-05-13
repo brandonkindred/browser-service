@@ -136,7 +136,7 @@
     <dependency>
       <groupId>com.h2database</groupId>
       <artifactId>h2</artifactId>
-      <scope>test</scope>
+      <scope>provided</scope>
     </dependency>
     <!-- 'provided' (not 'test') so `quarkus:dev` can boot against in-memory
          H2 when Docker / Dev Services / Postgres are unavailable locally.
