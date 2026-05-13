@@ -12,6 +12,10 @@ public final class CallerId {
     this.value = value;
   }
 
+  public static CallerId valueOf(String raw) {
+    return parse(raw);
+  }
+
   public static CallerId parse(String raw) {
     if (raw == null) {
       throw new IllegalArgumentException("caller id is required");
