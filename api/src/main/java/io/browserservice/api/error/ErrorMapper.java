@@ -3,6 +3,10 @@ package io.browserservice.api.error;
 import com.fasterxml.jackson.core.JacksonException;
 import io.browserservice.api.dto.ErrorDetail;
 import jakarta.validation.ConstraintViolationException;
+import jakarta.ws.rs.NotAcceptableException;
+import jakarta.ws.rs.NotAllowedException;
+import jakarta.ws.rs.NotFoundException;
+import jakarta.ws.rs.NotSupportedException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -52,6 +56,24 @@ public final class ErrorMapper {
     if (t instanceof JacksonException) {
       return build(
           HttpStatus.BAD_REQUEST, "validation_failed", "malformed request body", null, requestId);
+    }
+    if (t instanceof NotFoundException) {
+      return build(HttpStatus.NOT_FOUND, "route_not_found", safeMessage(t), null, requestId);
+    }
+    if (t instanceof NotAllowedException) {
+      return build(
+          HttpStatus.METHOD_NOT_ALLOWED, "method_not_allowed", safeMessage(t), null, requestId);
+    }
+    if (t instanceof NotAcceptableException) {
+      return build(HttpStatus.NOT_ACCEPTABLE, "not_acceptable", safeMessage(t), null, requestId);
+    }
+    if (t instanceof NotSupportedException) {
+      return build(
+          HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+          "unsupported_media_type",
+          safeMessage(t),
+          null,
+          requestId);
     }
     if (t instanceof NoSuchElementException) {
       return build(HttpStatus.NOT_FOUND, "element_not_found", safeMessage(t), null, requestId);
