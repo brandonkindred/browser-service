@@ -14,7 +14,6 @@ import io.browserservice.api.session.SessionLocks;
 import io.browserservice.api.session.SessionRegistry;
 import io.browserservice.api.ws.WsConnectionState;
 import io.browserservice.api.ws.WsSessionConnections;
-import io.quarkus.websockets.next.WebSocketConnection;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -155,10 +154,12 @@ class WatcherCoordinatorTest {
   }
 
   private static WsConnectionState newConnection(String id) {
-    WebSocketConnection out = mock(WebSocketConnection.class);
-    when(out.isOpen()).thenReturn(true);
     return new WsConnectionState(
-        CallerId.parse("alice"), id, out, Executors.newSingleThreadExecutor(), new Semaphore(8));
+        CallerId.parse("alice"),
+        id,
+        "ws-" + id,
+        Executors.newSingleThreadExecutor(),
+        new Semaphore(8));
   }
 
   private static EngineProperties props() {

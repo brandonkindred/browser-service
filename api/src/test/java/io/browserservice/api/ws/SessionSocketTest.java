@@ -116,7 +116,55 @@ class SessionSocketTest {
     assertThat(listener.closeStatus.get()).isEqualTo(SessionSocket.CALLER_UNIDENTIFIED);
   }
 
+  @Test
+  void commandResponseRoundTripFromExecutorThread() throws Exception {
+    // Proves WebSocketConnection.sendTextAndAwait works off the @OnTextMessage callback
+    // thread: dispatch runs on the per-connection executor, then writeFrame calls
+    // sendTextAndAwait from that worker thread. The unknown-op path is the cheapest
+    // way to drive the full receive-dispatch-respond loop without touching Selenium.
+    HttpClient client = HttpClient.newHttpClient();
+    TextCollectingListener listener = new TextCollectingListener();
+    WebSocket socket =
+        client
+            .newWebSocketBuilder()
+            .header("X-Caller-Id", "alice")
+            .connectTimeout(Duration.ofSeconds(5))
+            .buildAsync(wsUri(), listener)
+            .get(5, TimeUnit.SECONDS);
+
+    try {
+      socket
+          .sendText("{\"type\":\"command\",\"id\":\"c-1\",\"op\":\"does.not.exist\"}", true)
+          .get(2, TimeUnit.SECONDS);
+
+      String frame = listener.frames.poll(5, TimeUnit.SECONDS);
+      if (frame == null) {
+        throw new TimeoutException("expected a response frame within 5s");
+      }
+      assertThat(frame).contains("\"id\":\"c-1\"").contains("\"ok\":false").contains("unknown_op");
+    } finally {
+      socket.sendClose(WebSocket.NORMAL_CLOSURE, "test_done").get(2, TimeUnit.SECONDS);
+    }
+  }
+
   static class SilentListener implements WebSocket.Listener {}
+
+  static class TextCollectingListener implements WebSocket.Listener {
+    final java.util.concurrent.LinkedBlockingDeque<String> frames =
+        new java.util.concurrent.LinkedBlockingDeque<>();
+    private final StringBuilder current = new StringBuilder();
+
+    @Override
+    public CompletableFuture<?> onText(WebSocket webSocket, CharSequence data, boolean last) {
+      current.append(data);
+      if (last) {
+        frames.add(current.toString());
+        current.setLength(0);
+      }
+      webSocket.request(1);
+      return null;
+    }
+  }
 
   static class CountingListener implements WebSocket.Listener {
     final AtomicReference<Boolean> openSeen = new AtomicReference<>(false);

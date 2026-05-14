@@ -19,6 +19,7 @@ import io.quarkus.websockets.next.OnClose;
 import io.quarkus.websockets.next.OnError;
 import io.quarkus.websockets.next.OnOpen;
 import io.quarkus.websockets.next.OnTextMessage;
+import io.quarkus.websockets.next.OpenConnections;
 import io.quarkus.websockets.next.WebSocket;
 import io.quarkus.websockets.next.WebSocketConnection;
 import io.smallrye.common.annotation.Blocking;
@@ -65,6 +66,7 @@ public class SessionSocket {
   private final WatcherCoordinator watchers;
   private final EngineProperties.WebSocketProps props;
   private final WebSocketConnection connection;
+  private final OpenConnections openConnections;
 
   private WsConnectionState state;
   private ScheduledFuture<?> watchdog;
@@ -76,13 +78,15 @@ public class SessionSocket {
       @Named("webSocketScheduler") ScheduledExecutorService webSocketScheduler,
       WatcherCoordinator watchers,
       EngineProperties props,
-      WebSocketConnection connection) {
+      WebSocketConnection connection,
+      OpenConnections openConnections) {
     this.dispatcher = dispatcher;
     this.mapper = mapper;
     this.scheduler = webSocketScheduler;
     this.watchers = watchers;
     this.props = props.webSocket();
     this.connection = connection;
+    this.openConnections = openConnections;
   }
 
   @OnOpen
@@ -103,7 +107,7 @@ public class SessionSocket {
         new WsConnectionState(
             caller,
             connectionId,
-            connection,
+            connection.id(),
             Executors.newSingleThreadExecutor(tf),
             new Semaphore(props.commandQueueDepth()));
 
@@ -112,9 +116,13 @@ public class SessionSocket {
     this.watchdog =
         scheduler.scheduleAtFixedRate(
             () -> {
-              if (!connection.isOpen()) return;
+              WebSocketConnection live =
+                  openConnections.findByConnectionId(localState.wsConnectionId()).orElse(null);
+              if (live == null) {
+                return;
+              }
               if (System.nanoTime() - localState.lastActivityNanos() > idleNanos) {
-                safeClose(new CloseReason(IDLE_TIMEOUT_CODE, "idle_timeout"));
+                live.closeAndAwait(new CloseReason(IDLE_TIMEOUT_CODE, "idle_timeout"));
               }
             },
             1,
@@ -187,7 +195,7 @@ public class SessionSocket {
     } catch (SessionForbiddenException forbidden) {
       log.info(
           "ws ownership mismatch caller={} sessionId={}", conn.caller(), forbidden.sessionId());
-      safeClose(new CloseReason(SESSION_FORBIDDEN_CODE, "session_forbidden"));
+      safeCloseLive(conn, new CloseReason(SESSION_FORBIDDEN_CODE, "session_forbidden"));
     } catch (Throwable t) {
       ErrorMapper.Mapped m = ErrorMapper.map(t, requestId);
       String cmdId = frame == null ? null : frame.id();
@@ -229,10 +237,15 @@ public class SessionSocket {
   }
 
   private void writeFrame(WsConnectionState conn, ResponseFrame frame) {
+    WebSocketConnection live =
+        openConnections.findByConnectionId(conn.wsConnectionId()).orElse(null);
+    if (live == null) {
+      return;
+    }
     try {
       String json = mapper.writeValueAsString(frame);
       synchronized (conn.writeLock()) {
-        conn.out().sendTextAndAwait(json);
+        live.sendTextAndAwait(json);
       }
     } catch (Exception e) {
       log.warn("ws write failed connectionId={}: {}", conn.connectionId(), e.toString());
@@ -261,12 +274,17 @@ public class SessionSocket {
           e.toString());
       return;
     }
+    WebSocketConnection live =
+        openConnections.findByConnectionId(conn.wsConnectionId()).orElse(null);
+    if (live == null) {
+      return;
+    }
     // Atomic pair: header text frame + binary frame must arrive adjacent on the wire,
     // never interleaved with watcher events or another command response.
     synchronized (conn.writeLock()) {
       try {
-        conn.out().sendTextAndAwait(headerJson);
-        conn.out().sendBinaryAndAwait(Buffer.buffer(bytes));
+        live.sendTextAndAwait(headerJson);
+        live.sendBinaryAndAwait(Buffer.buffer(bytes));
       } catch (Exception e) {
         log.warn("ws binary write failed connectionId={}: {}", conn.connectionId(), e.toString());
       }
@@ -292,6 +310,20 @@ public class SessionSocket {
       if (connection.isOpen()) {
         connection.closeAndAwait(reason);
       }
+    } catch (Exception e) {
+      log.debug("ws close failed: {}", e.toString());
+    }
+  }
+
+  /** Close path that runs off the @OnOpen/@OnTextMessage callback thread. */
+  private void safeCloseLive(WsConnectionState conn, CloseReason reason) {
+    WebSocketConnection live =
+        openConnections.findByConnectionId(conn.wsConnectionId()).orElse(null);
+    if (live == null) {
+      return;
+    }
+    try {
+      live.closeAndAwait(reason);
     } catch (Exception e) {
       log.debug("ws close failed: {}", e.toString());
     }

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.browserservice.api.ws.WsConnectionState;
 import io.browserservice.api.ws.WsSessionConnections;
 import io.browserservice.api.ws.dto.EventFrame;
+import io.quarkus.websockets.next.OpenConnections;
+import io.quarkus.websockets.next.WebSocketConnection;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,10 +23,13 @@ public class EventBroadcaster {
   private static final Logger log = LoggerFactory.getLogger(EventBroadcaster.class);
 
   private final WsSessionConnections connections;
+  private final OpenConnections openConnections;
   private final ObjectMapper mapper;
 
-  public EventBroadcaster(WsSessionConnections connections, ObjectMapper mapper) {
+  public EventBroadcaster(
+      WsSessionConnections connections, OpenConnections openConnections, ObjectMapper mapper) {
     this.connections = connections;
+    this.openConnections = openConnections;
     this.mapper = mapper;
   }
 
@@ -37,11 +42,18 @@ public class EventBroadcaster {
       return;
     }
     for (WsConnectionState conn : connections.snapshot(sessionId)) {
+      // Look up the live connection by its Quarkus id — the @SessionScoped proxy
+      // isn't usable from the scheduler thread that drives watcher ticks.
+      WebSocketConnection live =
+          openConnections.findByConnectionId(conn.wsConnectionId()).orElse(null);
+      if (live == null) {
+        continue;
+      }
       try {
         // Same writeLock the binary-pair emitter takes — guarantees this event frame
         // never lands between a (binary-header, binary-frame) pair on the wire.
         synchronized (conn.writeLock()) {
-          conn.out().sendTextAndAwait(json);
+          live.sendTextAndAwait(json);
         }
       } catch (Exception e) {
         log.debug("ws event push failed connectionId={}: {}", conn.connectionId(), e.toString());

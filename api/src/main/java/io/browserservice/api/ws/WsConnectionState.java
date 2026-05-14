@@ -1,7 +1,6 @@
 package io.browserservice.api.ws;
 
 import io.browserservice.api.session.CallerId;
-import io.quarkus.websockets.next.WebSocketConnection;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
@@ -11,20 +10,27 @@ import java.util.concurrent.atomic.AtomicLong;
  * Per-WebSocket-connection state held by the {@link SessionSocket} bean for the lifetime of one
  * Quarkus {@code @SessionScoped} WS connection. Mutations to {@link #boundSessionId} happen on the
  * per-connection command executor.
+ *
+ * <p>Holds the Quarkus connection id ({@link #wsConnectionId}) rather than a reference to the
+ * injected {@code WebSocketConnection} proxy: that proxy resolves through the
+ * {@code @SessionScoped} CDI context, which is only active during endpoint callback methods.
+ * Background threads (the per-connection command executor, the idle watchdog, the watcher
+ * scheduler) look the live connection up via {@code OpenConnections.findByConnectionId(...)}
+ * instead.
  */
 public final class WsConnectionState {
 
   private final CallerId caller;
   private final String connectionId;
-  private final WebSocketConnection out;
+  private final String wsConnectionId;
   private final ExecutorService commands;
   private final Semaphore queue;
   private final AtomicLong lastActivityNanos;
 
   /**
    * Guards the (binary-header, binary-frame) pair emitted for screenshot ops so it cannot be
-   * interleaved on the wire with watcher events or with another connection-side write. All writes
-   * to {@link #out} must be serialized through this lock.
+   * interleaved on the wire with watcher events or with another connection-side write. All outbound
+   * sends must be serialized through this lock.
    */
   private final Object writeLock = new Object();
 
@@ -33,12 +39,12 @@ public final class WsConnectionState {
   public WsConnectionState(
       CallerId caller,
       String connectionId,
-      WebSocketConnection out,
+      String wsConnectionId,
       ExecutorService commands,
       Semaphore queue) {
     this.caller = caller;
     this.connectionId = connectionId;
-    this.out = out;
+    this.wsConnectionId = wsConnectionId;
     this.commands = commands;
     this.queue = queue;
     this.lastActivityNanos = new AtomicLong(System.nanoTime());
@@ -52,8 +58,9 @@ public final class WsConnectionState {
     return connectionId;
   }
 
-  public WebSocketConnection out() {
-    return out;
+  /** Quarkus' WS connection id, used to look the live connection back up off the callback. */
+  public String wsConnectionId() {
+    return wsConnectionId;
   }
 
   public ExecutorService commands() {
