@@ -116,13 +116,16 @@ public class SessionSocket {
     this.watchdog =
         scheduler.scheduleAtFixedRate(
             () -> {
-              WebSocketConnection live =
-                  openConnections.findByConnectionId(localState.wsConnectionId()).orElse(null);
-              if (live == null) {
-                return;
-              }
-              if (System.nanoTime() - localState.lastActivityNanos() > idleNanos) {
-                live.closeAndAwait(new CloseReason(IDLE_TIMEOUT_CODE, "idle_timeout"));
+              // Any uncaught throw cancels future ticks (scheduleAtFixedRate contract), so
+              // swallow transient failures here — safeCloseLive already try/catches close
+              // failures, but defend against an unexpected NPE/RuntimeException on the
+              // lookup path so idle enforcement keeps retrying on the next tick.
+              try {
+                if (System.nanoTime() - localState.lastActivityNanos() > idleNanos) {
+                  safeCloseLive(localState, new CloseReason(IDLE_TIMEOUT_CODE, "idle_timeout"));
+                }
+              } catch (Throwable t) {
+                log.debug("idle watchdog tick threw: {}", t.toString());
               }
             },
             1,
