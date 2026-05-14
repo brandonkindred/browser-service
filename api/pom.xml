@@ -63,12 +63,12 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-hibernate-validator</artifactId>
     </dependency>
-    <!-- Legacy JSR-356 extension matches the current SessionWebSocketHandler
-         (@ServerEndpoint, jakarta.websocket.*). Swapped to
-         quarkus-websockets-next in #20 alongside the @WebSocket rewrite. -->
+    <!-- WS layer uses quarkus-websockets-next (modern reactive API): @WebSocket
+         endpoint with @SessionScoped per-connection beans, HttpUpgradeCheck for
+         handshake authentication, WebSocketConnection for sends. -->
     <dependency>
       <groupId>io.quarkus</groupId>
-      <artifactId>quarkus-websockets</artifactId>
+      <artifactId>quarkus-websockets-next</artifactId>
     </dependency>
     <dependency>
       <groupId>io.quarkus</groupId>
@@ -198,8 +198,6 @@
                  jboss-logmanager so logback isn't the SLF4J binding at runtime. -->
             <testExclude>io/browserservice/api/session/SessionReaperTest.java</testExclude>
             <testExclude>io/browserservice/api/web/CallerIdArgumentResolverTest.java</testExclude>
-            <testExclude>io/browserservice/api/ws/SessionWebSocketHandlerTest.java</testExclude>
-            <testExclude>io/browserservice/api/ws/push/WatcherCoordinatorTest.java</testExclude>
           </testExcludes>
         </configuration>
       </plugin>

@@ -75,7 +75,7 @@ public class CommandDispatcher {
     this.handlers = buildHandlers();
   }
 
-  public DispatchResult dispatch(Connection conn, String op, JsonNode params) {
+  public DispatchResult dispatch(WsConnectionState conn, String op, JsonNode params) {
     CommandHandler handler = handlers.get(op);
     if (handler == null) {
       throw new UnknownOpException(op);
@@ -301,7 +301,7 @@ public class CommandDispatcher {
     }
   }
 
-  private static UUID requireBound(Connection conn) {
+  private static UUID requireBound(WsConnectionState conn) {
     UUID id = conn.boundSessionId();
     if (id == null) {
       throw new SessionNotBoundException();
@@ -309,7 +309,7 @@ public class CommandDispatcher {
     return id;
   }
 
-  private static void requireUnbound(Connection conn) {
+  private static void requireUnbound(WsConnectionState conn) {
     UUID id = conn.boundSessionId();
     if (id != null) {
       throw new AlreadyBoundException(id.toString());
@@ -318,7 +318,7 @@ public class CommandDispatcher {
 
   @FunctionalInterface
   interface CommandHandler {
-    Object handle(Connection conn, JsonNode params);
+    Object handle(WsConnectionState conn, JsonNode params);
   }
 
   /** Inline helper to keep the dispatcher self-contained. */

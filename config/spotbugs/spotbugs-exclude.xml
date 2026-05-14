@@ -252,11 +252,11 @@
   </Match>
 
   <Match>
-    <Class name="io.browserservice.api.ws.Connection"/>
+    <Class name="io.browserservice.api.ws.WsConnectionState"/>
     <Bug pattern="EI_EXPOSE_REP"/>
   </Match>
   <Match>
-    <Class name="io.browserservice.api.ws.Connection"/>
+    <Class name="io.browserservice.api.ws.WsConnectionState"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
 
@@ -270,7 +270,7 @@
   </Match>
 
   <Match>
-    <Class name="io.browserservice.api.ws.SessionWebSocketHandler"/>
+    <Class name="io.browserservice.api.ws.SessionSocket"/>
     <Bug pattern="EI_EXPOSE_REP2"/>
   </Match>
 

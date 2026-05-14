@@ -34,6 +34,10 @@ quarkus:
       prometheus:
         path: "/metrics"
         enabled: true
+  websockets-next:
+    server:
+      max-message-size: 16777216
+      activate-session-context: "always"
   log:
     category:
       io.smallrye.openapi.runtime.scanner.spi:
