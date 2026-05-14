@@ -17,18 +17,18 @@ import org.springframework.stereotype.Component;
 @Component
 public class WsSessionConnections {
 
-  private final ConcurrentHashMap<UUID, Set<Connection>> bound = new ConcurrentHashMap<>();
+  private final ConcurrentHashMap<UUID, Set<WsConnectionState>> bound = new ConcurrentHashMap<>();
 
   /**
    * @return true iff this is the first connection bound to {@code sessionId}.
    */
-  public boolean attach(UUID sessionId, Connection conn) {
+  public boolean attach(UUID sessionId, WsConnectionState conn) {
     boolean[] firstHolder = {false};
     bound.compute(
         sessionId,
         (id, existing) -> {
           if (existing == null) {
-            Set<Connection> set = Collections.newSetFromMap(new ConcurrentHashMap<>());
+            Set<WsConnectionState> set = Collections.newSetFromMap(new ConcurrentHashMap<>());
             set.add(conn);
             firstHolder[0] = true;
             return set;
@@ -42,7 +42,7 @@ public class WsSessionConnections {
   /**
    * @return true iff this was the last connection bound to {@code sessionId}.
    */
-  public boolean detach(UUID sessionId, Connection conn) {
+  public boolean detach(UUID sessionId, WsConnectionState conn) {
     boolean[] lastHolder = {false};
     bound.compute(
         sessionId,
@@ -61,8 +61,8 @@ public class WsSessionConnections {
   }
 
   /** Snapshot of the connections currently bound to {@code sessionId}. */
-  public Collection<Connection> snapshot(UUID sessionId) {
-    Set<Connection> set = bound.get(sessionId);
+  public Collection<WsConnectionState> snapshot(UUID sessionId) {
+    Set<WsConnectionState> set = bound.get(sessionId);
     return set == null ? List.of() : List.copyOf(set);
   }
 

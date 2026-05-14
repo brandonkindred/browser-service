@@ -178,13 +178,11 @@
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]session[/\\]SessionRegistry\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]session[/\\]SessionRegistry\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]web[/\\]CallerIdArgumentResolver\.java$" checks="MissingJavadocType"/>
-  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]CallerIdHandshakeInterceptor\.java$" checks="MissingJavadocType"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]CommandDispatcher\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]CommandDispatcher\.java$" checks="NeedBraces"/>
-  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]Connection\.java$" checks="MissingJavadocMethod"/>
-  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]SessionWebSocketHandler\.java$" checks="MissingJavadocMethod"/>
-  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]SessionWebSocketHandler\.java$" checks="MissingJavadocType"/>
-  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]SessionWebSocketHandler\.java$" checks="NeedBraces"/>
+  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]WsConnectionState\.java$" checks="MissingJavadocMethod"/>
+  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]SessionSocket\.java$" checks="MissingJavadocMethod"/>
+  <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]SessionSocket\.java$" checks="NeedBraces"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]WsSessionConnections\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]WsSessionConnections\.java$" checks="SummaryJavadoc"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]WsSessionOwnership\.java$" checks="MissingJavadocMethod"/>

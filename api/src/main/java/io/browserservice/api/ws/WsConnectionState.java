@@ -1,41 +1,39 @@
 package io.browserservice.api.ws;
 
 import io.browserservice.api.session.CallerId;
-import jakarta.websocket.Session;
+import io.quarkus.websockets.next.WebSocketConnection;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Per-WebSocket-connection state held in the WebSocketSession user-properties map. Mutations to
- * {@link #boundSessionId} happen on the per-connection command executor.
+ * Per-WebSocket-connection state held by the {@link SessionSocket} bean for the lifetime of one
+ * Quarkus {@code @SessionScoped} WS connection. Mutations to {@link #boundSessionId} happen on the
+ * per-connection command executor.
  */
-public final class Connection {
-
-  public static final String ATTRIBUTE = "ws.connection";
+public final class WsConnectionState {
 
   private final CallerId caller;
   private final String connectionId;
-  private final Session out;
+  private final WebSocketConnection out;
   private final ExecutorService commands;
   private final Semaphore queue;
   private final AtomicLong lastActivityNanos;
 
   /**
    * Guards the (binary-header, binary-frame) pair emitted for screenshot ops so it cannot be
-   * interleaved on the wire with watcher events from WS-B or with another connection-side write.
-   * JSR-356 {@code Session.getBasicRemote()} is not thread-safe, so all writes must be serialized
-   * through this lock.
+   * interleaved on the wire with watcher events or with another connection-side write. All writes
+   * to {@link #out} must be serialized through this lock.
    */
   private final Object writeLock = new Object();
 
   private volatile UUID boundSessionId;
 
-  public Connection(
+  public WsConnectionState(
       CallerId caller,
       String connectionId,
-      Session out,
+      WebSocketConnection out,
       ExecutorService commands,
       Semaphore queue) {
     this.caller = caller;
@@ -54,7 +52,7 @@ public final class Connection {
     return connectionId;
   }
 
-  public Session out() {
+  public WebSocketConnection out() {
     return out;
   }
 

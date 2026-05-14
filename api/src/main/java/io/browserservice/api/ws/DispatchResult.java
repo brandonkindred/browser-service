@@ -1,10 +1,9 @@
 package io.browserservice.api.ws;
 
 /**
- * Outcome of a single WS command. The handler in {@code SessionWebSocketHandler} switches on the
- * variant: {@link Json} writes one {@code response} frame, {@link Binary} writes a {@code
- * binary-header} JSON frame followed by a single WS binary frame containing exactly {@code
- * bytes.length} bytes.
+ * Outcome of a single WS command. The handler in {@code SessionSocket} switches on the variant:
+ * {@link Json} writes one {@code response} frame, {@link Binary} writes a {@code binary-header}
+ * JSON frame followed by a single WS binary frame containing exactly {@code bytes.length} bytes.
  */
 public sealed interface DispatchResult {
 

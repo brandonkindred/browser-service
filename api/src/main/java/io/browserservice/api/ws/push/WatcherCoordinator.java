@@ -4,7 +4,7 @@ import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
 import io.browserservice.api.session.SessionRegistry;
-import io.browserservice.api.ws.Connection;
+import io.browserservice.api.ws.WsConnectionState;
 import io.browserservice.api.ws.WsSessionConnections;
 import jakarta.inject.Named;
 import java.util.ArrayList;
@@ -68,7 +68,7 @@ public class WatcherCoordinator {
     this.props = props.webSocket();
   }
 
-  public void onSessionAttached(UUID sessionId, Connection conn) {
+  public void onSessionAttached(UUID sessionId, WsConnectionState conn) {
     ReentrantLock guard = sessionLocks.computeIfAbsent(sessionId, id -> new ReentrantLock());
     guard.lock();
     try {
@@ -101,7 +101,7 @@ public class WatcherCoordinator {
     }
   }
 
-  public void onSessionDetached(UUID sessionId, Connection conn) {
+  public void onSessionDetached(UUID sessionId, WsConnectionState conn) {
     ReentrantLock guard = sessionLocks.computeIfAbsent(sessionId, id -> new ReentrantLock());
     guard.lock();
     try {

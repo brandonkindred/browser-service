@@ -12,8 +12,9 @@ import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
 import io.browserservice.api.session.SessionRegistry;
-import io.browserservice.api.ws.Connection;
+import io.browserservice.api.ws.WsConnectionState;
 import io.browserservice.api.ws.WsSessionConnections;
+import io.quarkus.websockets.next.WebSocketConnection;
 import java.time.Duration;
 import java.util.UUID;
 import java.util.concurrent.Executors;
@@ -24,8 +25,6 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.openqa.selenium.NoAlertPresentException;
 import org.openqa.selenium.WebDriver;
-import org.springframework.web.socket.WebSocketSession;
-import org.springframework.web.socket.handler.ConcurrentWebSocketSessionDecorator;
 
 class WatcherCoordinatorTest {
 
@@ -81,8 +80,8 @@ class WatcherCoordinatorTest {
 
   @Test
   void firstAttachStartsWatchersAndLastDetachStopsThem() {
-    Connection a = newConnection("alice-1");
-    Connection b = newConnection("alice-2");
+    WsConnectionState a = newConnection("alice-1");
+    WsConnectionState b = newConnection("alice-2");
 
     coordinator.onSessionAttached(sessionId, a);
     assertThat(coordinator.isWatching(sessionId)).isTrue();
@@ -100,18 +99,16 @@ class WatcherCoordinatorTest {
 
   @Test
   void detachWithoutPriorAttachIsHarmless() {
-    Connection a = newConnection("alice-1");
+    WsConnectionState a = newConnection("alice-1");
     coordinator.onSessionDetached(sessionId, a);
     assertThat(coordinator.isWatching(sessionId)).isFalse();
   }
 
   @Test
   void rapidAttachDetachInterleavingsConvergeCleanly() throws Exception {
-    // Hammer the coordinator with concurrent attach/detach pairs and assert the final
-    // state reconciles: empty connection set => no watchers, non-empty => watchers.
     int rounds = 200;
-    Connection a = newConnection("alice-1");
-    Connection b = newConnection("alice-2");
+    WsConnectionState a = newConnection("alice-1");
+    WsConnectionState b = newConnection("alice-2");
 
     java.util.concurrent.ExecutorService pool =
         java.util.concurrent.Executors.newFixedThreadPool(2);
@@ -142,14 +139,13 @@ class WatcherCoordinatorTest {
     pool.shutdown();
     assertThat(pool.awaitTermination(10, java.util.concurrent.TimeUnit.SECONDS)).isTrue();
 
-    // Final state: no connections, no watchers.
     assertThat(connections.isTracked(sessionId)).isFalse();
     assertThat(coordinator.isWatching(sessionId)).isFalse();
   }
 
   @Test
   void attachToVanishedSessionIsCleanedUp() {
-    Connection a = newConnection("alice-1");
+    WsConnectionState a = newConnection("alice-1");
     registry.remove(sessionId);
 
     coordinator.onSessionAttached(sessionId, a);
@@ -158,12 +154,10 @@ class WatcherCoordinatorTest {
     assertThat(connections.isTracked(sessionId)).isFalse();
   }
 
-  private Connection newConnection(String id) {
-    WebSocketSession ws = mock(WebSocketSession.class);
-    when(ws.isOpen()).thenReturn(true);
-    ConcurrentWebSocketSessionDecorator out =
-        new ConcurrentWebSocketSessionDecorator(ws, 1000, 64 * 1024);
-    return new Connection(
+  private static WsConnectionState newConnection(String id) {
+    WebSocketConnection out = mock(WebSocketConnection.class);
+    when(out.isOpen()).thenReturn(true);
+    return new WsConnectionState(
         CallerId.parse("alice"), id, out, Executors.newSingleThreadExecutor(), new Semaphore(8));
   }
 
