@@ -12,6 +12,7 @@ import io.browserservice.api.dto.PngEncoding;
 import io.browserservice.api.dto.Rect;
 import io.browserservice.api.dto.ScreenshotStrategy;
 import io.browserservice.api.error.UpstreamUnavailableException;
+import io.browserservice.api.security.UrlSafetyValidator;
 import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.CaptureScreenshotCache;
 import io.browserservice.api.session.DriverFactory;
@@ -40,6 +41,7 @@ public class CaptureService {
   private final SessionLocks locks;
   private final DriverFactory drivers;
   private final CaptureScreenshotCache cache;
+  private final UrlSafetyValidator urlValidator;
   private final Duration idleTtl;
   private final Duration absoluteTtl;
 
@@ -48,16 +50,19 @@ public class CaptureService {
       SessionLocks locks,
       DriverFactory drivers,
       CaptureScreenshotCache cache,
+      UrlSafetyValidator urlValidator,
       EngineProperties props) {
     this.registry = registry;
     this.locks = locks;
     this.drivers = drivers;
     this.cache = cache;
+    this.urlValidator = urlValidator;
     this.idleTtl = Duration.ofSeconds(props.session().idleTtlSeconds());
     this.absoluteTtl = Duration.ofSeconds(props.session().absoluteTtlSeconds());
   }
 
   public CaptureResponse capture(CaptureRequest req, CallerId caller) {
+    urlValidator.validate(req.url());
     BrowserEnvironment env =
         req.environment() == null ? BrowserEnvironment.TEST : req.environment();
     ScreenshotStrategy strategy =

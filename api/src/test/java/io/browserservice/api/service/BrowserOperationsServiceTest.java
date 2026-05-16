@@ -32,12 +32,17 @@ import io.browserservice.api.error.ElementHandleNotFoundException;
 import io.browserservice.api.error.SessionForbiddenException;
 import io.browserservice.api.error.ValidationFailedException;
 import io.browserservice.api.persistence.BrowserSessionTracker;
+import io.browserservice.api.security.DnsResolver;
+import io.browserservice.api.security.SsrfBlockedException;
+import io.browserservice.api.security.UrlSafetyValidator;
 import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.DriverFactory;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
 import io.browserservice.api.session.SessionRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.awt.image.BufferedImage;
+import java.net.InetAddress;
 import java.time.Duration;
 import java.util.List;
 import java.util.UUID;
@@ -58,6 +63,7 @@ class BrowserOperationsServiceTest {
   private SessionRegistry registry;
   private SessionLocks locks;
   private BrowserOperationsService service;
+  private UrlSafetyValidator urlValidator;
 
   @BeforeEach
   void setUp() {
@@ -71,7 +77,18 @@ class BrowserOperationsServiceTest {
             org.mockito.Mockito.mock(DriverFactory.class),
             org.mockito.Mockito.mock(BrowserSessionTracker.class),
             props);
-    service = new BrowserOperationsService(sessionService, locks);
+    urlValidator = permissiveValidator(props);
+    service = new BrowserOperationsService(sessionService, locks, urlValidator);
+  }
+
+  private static UrlSafetyValidator permissiveValidator(EngineProperties props) {
+    DnsResolver stub = host -> new InetAddress[] {InetAddress.getByName("8.8.8.8")};
+    return new UrlSafetyValidator(props, new SimpleMeterRegistry(), stub);
+  }
+
+  private static UrlSafetyValidator blockingValidator(EngineProperties props) {
+    DnsResolver stub = host -> new InetAddress[] {InetAddress.getByName("127.0.0.1")};
+    return new UrlSafetyValidator(props, new SimpleMeterRegistry(), stub);
   }
 
   @Test
@@ -124,11 +141,29 @@ class BrowserOperationsServiceTest {
     WebDriver driver = mock(WebDriver.class);
     when(browser.getDriver()).thenReturn(driver);
     when(driver.getCurrentUrl()).thenReturn(null);
-    org.mockito.Mockito.doThrow(new RuntimeException("broken")).when(browser).navigateTo("x");
+    org.mockito.Mockito.doThrow(new RuntimeException("broken"))
+        .when(browser)
+        .navigateTo("https://example.com");
     UUID id = register(browser);
 
-    NavigateResponse resp = service.navigate(id, ALICE, new NavigateRequest("x", null));
+    NavigateResponse resp =
+        service.navigate(id, ALICE, new NavigateRequest("https://example.com", null));
     assertThat(resp.status()).isEqualTo(NavigateStatus.ERROR);
+  }
+
+  @Test
+  void navigateRejectedBySsrfGuardSkipsSession() {
+    EngineProperties props = props();
+    SessionService sessionService = org.mockito.Mockito.mock(SessionService.class);
+    BrowserOperationsService guarded =
+        new BrowserOperationsService(sessionService, locks, blockingValidator(props));
+
+    assertThatThrownBy(
+            () ->
+                guarded.navigate(
+                    UUID.randomUUID(), ALICE, new NavigateRequest("http://internal.example", null)))
+        .isInstanceOf(SsrfBlockedException.class);
+    org.mockito.Mockito.verifyNoInteractions(sessionService);
   }
 
   @Test
@@ -730,6 +765,7 @@ class BrowserOperationsServiceTest {
         new EngineProperties.BrowserStackProps(
             false, "", "", "", "", "", "", "", "", "", "", "", false, false, false),
         new EngineProperties.WebSocketProps(
-            32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50, 16777216));
+            32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50, 16777216),
+        new EngineProperties.SecurityProps(java.util.List.of()));
   }
 }

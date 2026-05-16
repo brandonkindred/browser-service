@@ -90,6 +90,7 @@ class ReadinessServiceTest {
         new EngineProperties.BrowserStackProps(
             false, "", "", "", "", "", "", "", "", "", "", "", false, false, false),
         new EngineProperties.WebSocketProps(
-            32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50, 16777216));
+            32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50, 16777216),
+        new EngineProperties.SecurityProps(java.util.List.of()));
   }
 }

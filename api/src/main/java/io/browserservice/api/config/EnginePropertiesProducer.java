@@ -74,7 +74,21 @@ public class EnginePropertiesProducer {
         new EngineProperties.AppiumProps(
             appiumUrls, appiumPlatform, appiumDeviceName, appiumConnectTimeoutMs, appiumMaxRetries),
         browserstackProps(config),
-        webSocketProps(config));
+        webSocketProps(config),
+        securityProps(config));
+  }
+
+  private static EngineProperties.SecurityProps securityProps(Config config) {
+    String raw = str(config, "browserservice.security.ssrf-denylist-cidrs", "");
+    if (raw.isBlank()) {
+      return new EngineProperties.SecurityProps(java.util.List.of());
+    }
+    java.util.List<String> cidrs =
+        java.util.Arrays.stream(raw.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isBlank())
+            .toList();
+    return new EngineProperties.SecurityProps(cidrs);
   }
 
   private static EngineProperties.BrowserStackProps browserstackProps(Config config) {
