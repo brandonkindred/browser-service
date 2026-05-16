@@ -336,6 +336,60 @@ class UrlSafetyValidatorTest {
     v.validate("http://nat64-public.example/");
   }
 
+  @Test
+  void rejectsIpv4CompatibleEncodedGcpMetadata() {
+    // ::169.254.169.254 is the IPv4-compatible v6 form. JDK does NOT auto-unwrap it (only
+    // ::ffff:/96 is unwrapped), so the standard predicates would otherwise miss it.
+    SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    UrlSafetyValidator v = make(meters, resolveTo("::169.254.169.254"));
+
+    assertThatThrownBy(() -> v.validate("http://v4compat-metadata.example/"))
+        .isInstanceOf(SsrfBlockedException.class);
+    assertReasonCount(meters, SsrfBlockReason.METADATA, 1);
+  }
+
+  @Test
+  void rejectsIpv4CompatibleEncodedRfc1918() {
+    SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    UrlSafetyValidator v = make(meters, resolveTo("::10.0.0.1"));
+
+    assertThatThrownBy(() -> v.validate("http://v4compat-private.example/"))
+        .isInstanceOf(SsrfBlockedException.class);
+    assertReasonCount(meters, SsrfBlockReason.SITE_LOCAL, 1);
+  }
+
+  @Test
+  void rejectsIpv4CompatibleEncodedLoopback() {
+    SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    UrlSafetyValidator v = make(meters, resolveTo("::127.0.0.1"));
+
+    assertThatThrownBy(() -> v.validate("http://v4compat-loopback.example/"))
+        .isInstanceOf(SsrfBlockedException.class);
+    assertReasonCount(meters, SsrfBlockReason.LOOPBACK, 1);
+  }
+
+  @Test
+  void allowsIpv4CompatibleEncodedPublicIpv4() {
+    // ::8.8.8.8 — public v4 embedded in IPv4-compatible v6 form. Inspector re-runs the v4 checks
+    // and returns null.
+    SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    UrlSafetyValidator v = make(meters, resolveTo("::8.8.8.8"));
+
+    v.validate("http://v4compat-public.example/");
+  }
+
+  @Test
+  void bareIpv6AnyLocalStillClassifiedAsAnyLocal() {
+    // "::" is all-zero and would match the IPv4-compatible prefix check if not for the
+    // non-zero-tail clause. Verify the standard ANY_LOCAL classification still wins.
+    SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    UrlSafetyValidator v = make(meters, resolveTo("::"));
+
+    assertThatThrownBy(() -> v.validate("http://anylocal.example/"))
+        .isInstanceOf(SsrfBlockedException.class);
+    assertReasonCount(meters, SsrfBlockReason.ANY_LOCAL, 1);
+  }
+
   private static void assertReasonCount(
       SimpleMeterRegistry meters, SsrfBlockReason reason, int expected) {
     double count =

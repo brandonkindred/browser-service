@@ -132,6 +132,16 @@ public class UrlSafetyValidator {
         return embeddedReason;
       }
     }
+    // IPv4-compatible IPv6 (::a.b.c.d) is deprecated by RFC 4291 but Java still resolves it and
+    // does NOT auto-unwrap to Inet4Address (unlike ::ffff:/96 which it does). The JDK predicates
+    // don't look inside the all-zero high 96 bits, so ::169.254.169.254 / ::10.0.0.1 / ::127.0.0.1
+    // would otherwise bypass the metadata, RFC1918, and loopback checks respectively.
+    if (bytes.length == 16 && hasIpv4CompatiblePrefix(bytes)) {
+      SsrfBlockReason embeddedReason = inspectEmbeddedV4(bytes);
+      if (embeddedReason != null) {
+        return embeddedReason;
+      }
+    }
     if (addr.isAnyLocalAddress()) {
       return SsrfBlockReason.ANY_LOCAL;
     }
@@ -234,6 +244,25 @@ public class UrlSafetyValidator {
       }
     }
     return true;
+  }
+
+  /**
+   * Returns {@code true} when {@code bytes} is in {@code ::/96} with a non-zero embedded IPv4 — the
+   * IPv4-compatible IPv6 form. Excludes {@code ::} itself (anyLocal), which the standard checks
+   * below already catch.
+   */
+  private static boolean hasIpv4CompatiblePrefix(byte[] bytes) {
+    for (int i = 0; i < 12; i++) {
+      if (bytes[i] != 0) {
+        return false;
+      }
+    }
+    for (int i = 12; i < 16; i++) {
+      if (bytes[i] != 0) {
+        return true;
+      }
+    }
+    return false;
   }
 
   private SsrfBlockReason inspectEmbeddedV4(byte[] v6Bytes) {
