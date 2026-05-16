@@ -20,6 +20,7 @@ public record EngineProperties(
       int idleTtlSeconds, int absoluteTtlSeconds, int maxConcurrent, long lockAcquireTimeoutMs) {}
 
   public record SecurityProps(java.util.List<String> ssrfDenylistCidrs) {
+    /** Defensive copy of the denylist; {@code null} is treated as an empty list. */
     public SecurityProps {
       ssrfDenylistCidrs =
           ssrfDenylistCidrs == null

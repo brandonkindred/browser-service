@@ -41,11 +41,13 @@ public class UrlSafetyValidator {
   private final List<CidrBlock> denylist;
   private final Map<SsrfBlockReason, Counter> counters;
 
+  /** Production constructor wired to the system DNS resolver. */
   @Inject
   public UrlSafetyValidator(EngineProperties props, MeterRegistry meters) {
     this(props, meters, DnsResolver.system());
   }
 
+  /** Constructor for tests that need to inject a stub {@link DnsResolver}. */
   public UrlSafetyValidator(EngineProperties props, MeterRegistry meters, DnsResolver resolver) {
     this.resolver = resolver;
     this.denylist = parseDenylist(props.security().ssrfDenylistCidrs());
@@ -60,12 +62,20 @@ public class UrlSafetyValidator {
     }
   }
 
+  /**
+   * Validates {@code rawUrl} and returns the parsed {@link URI}. Throws {@link
+   * SsrfBlockedException} (and ticks the matching counter) if the scheme is not http(s), the host
+   * is unresolvable, or any resolved address targets internal infrastructure.
+   */
   public URI validate(String rawUrl) {
+    if (rawUrl == null) {
+      throw block(SsrfBlockReason.MALFORMED_URL, null);
+    }
     URI uri;
     try {
       uri = URI.create(rawUrl);
-    } catch (IllegalArgumentException | NullPointerException e) {
-      throw block(SsrfBlockReason.MALFORMED_URL);
+    } catch (IllegalArgumentException e) {
+      throw block(SsrfBlockReason.MALFORMED_URL, e);
     }
     String scheme = uri.getScheme();
     if (scheme == null) {
@@ -86,7 +96,7 @@ public class UrlSafetyValidator {
     try {
       addresses = resolver.resolve(host);
     } catch (UnknownHostException e) {
-      throw block(SsrfBlockReason.DNS_FAILURE);
+      throw block(SsrfBlockReason.DNS_FAILURE, e);
     }
     if (addresses == null || addresses.length == 0) {
       throw block(SsrfBlockReason.DNS_FAILURE);
@@ -133,8 +143,12 @@ public class UrlSafetyValidator {
   }
 
   private SsrfBlockedException block(SsrfBlockReason reason) {
+    return block(reason, null);
+  }
+
+  private SsrfBlockedException block(SsrfBlockReason reason, Throwable cause) {
     counters.get(reason).increment();
-    return new SsrfBlockedException(reason);
+    return new SsrfBlockedException(reason, cause);
   }
 
   private static List<CidrBlock> parseDenylist(List<String> specs) {

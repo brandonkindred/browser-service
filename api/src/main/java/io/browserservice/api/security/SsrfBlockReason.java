@@ -18,13 +18,14 @@ public enum SsrfBlockReason {
   IPV6_ULA("ipv6_ula"),
   DENYLIST_CIDR("denylist_cidr");
 
-  private final String wireValue;
+  private final String tag;
 
-  SsrfBlockReason(String wireValue) {
-    this.wireValue = wireValue;
+  SsrfBlockReason(String tag) {
+    this.tag = tag;
   }
 
+  /** Snake-case tag value surfaced in the response and on the metric. */
   public String wireValue() {
-    return wireValue;
+    return tag;
   }
 }

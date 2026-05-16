@@ -50,8 +50,10 @@ public class BrowserOperationsService {
   }
 
   public NavigateResponse navigate(UUID sessionId, CallerId caller, NavigateRequest req) {
-    urlValidator.validate(req.url());
+    // Authorize first so an unauthenticated caller can't use differential 400 vs 403 responses
+    // to probe whether arbitrary hostnames resolve to internal IPs.
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
+    urlValidator.validate(req.url());
     return locks.doWithLock(
         handle,
         h -> {

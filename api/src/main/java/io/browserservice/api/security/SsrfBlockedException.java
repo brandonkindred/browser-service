@@ -11,11 +11,20 @@ import org.springframework.http.HttpStatus;
  */
 public class SsrfBlockedException extends ApiException {
 
+  private static final long serialVersionUID = 1L;
+
+  /** Builds the 400-mapped exception with {@code reason} surfaced in {@code details}. */
   public SsrfBlockedException(SsrfBlockReason reason) {
+    this(reason, null);
+  }
+
+  /** Same as above, but preserves a parsing/DNS failure as {@code cause} for forensics. */
+  public SsrfBlockedException(SsrfBlockReason reason, Throwable cause) {
     super(
         "ssrf_blocked",
         HttpStatus.BAD_REQUEST,
         "URL blocked by SSRF guard",
-        Map.of("reason", reason.wireValue()));
+        Map.of("reason", reason.wireValue()),
+        cause);
   }
 }

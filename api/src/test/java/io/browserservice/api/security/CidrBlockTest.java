@@ -60,6 +60,18 @@ class CidrBlockTest {
   }
 
   @Test
+  void emptyAddressThrows() {
+    // InetAddress.getByName("") silently returns the loopback address; reject explicitly so a
+    // misconfigured "/24" entry cannot quietly produce a 127.0.0.0/24 denylist rule.
+    assertThatThrownBy(() -> CidrBlock.parse("/24")).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
+  void nullSpecThrows() {
+    assertThatThrownBy(() -> CidrBlock.parse(null)).isInstanceOf(IllegalArgumentException.class);
+  }
+
+  @Test
   void nonNumericPrefixThrows() {
     assertThatThrownBy(() -> CidrBlock.parse("10.0.0.0/abc"))
         .isInstanceOf(IllegalArgumentException.class);

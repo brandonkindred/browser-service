@@ -196,13 +196,15 @@ class UrlSafetyValidatorTest {
   }
 
   @Test
-  void rejectsWhenAnyResolvedAddressIsUnsafe() {
-    // Simulate DNS rebinding: a single resolve() returns one public and one private address.
-    // The validator must inspect both and reject on the offender.
+  void rejectsWhenAnyAddressInMultipleAddressResponseIsUnsafe() {
+    // Multi-A response: one resolve() returns both a public and a private address.
+    // The validator must inspect every entry and reject on the offender. (Note: this is not
+    // DNS rebinding proper — that is a TOCTOU between two separate resolutions, accepted as a
+    // documented residual risk closed at the egress proxy.)
     SimpleMeterRegistry meters = new SimpleMeterRegistry();
     UrlSafetyValidator v = make(meters, resolveTo("8.8.8.8", "10.1.2.3"));
 
-    assertThatThrownBy(() -> v.validate("http://rebind.example/"))
+    assertThatThrownBy(() -> v.validate("http://multi-a.example/"))
         .isInstanceOf(SsrfBlockedException.class);
     assertReasonCount(meters, SsrfBlockReason.SITE_LOCAL, 1);
   }

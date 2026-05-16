@@ -152,18 +152,37 @@ class BrowserOperationsServiceTest {
   }
 
   @Test
-  void navigateRejectedBySsrfGuardSkipsSession() {
+  void navigateRejectedBySsrfGuardSkipsBrowserCall() {
+    Browser browser = mock(Browser.class);
+    UUID id = register(browser);
+
     EngineProperties props = props();
-    SessionService sessionService = org.mockito.Mockito.mock(SessionService.class);
+    SessionService sessionService =
+        new SessionService(
+            registry,
+            locks,
+            org.mockito.Mockito.mock(DriverFactory.class),
+            org.mockito.Mockito.mock(BrowserSessionTracker.class),
+            props);
     BrowserOperationsService guarded =
         new BrowserOperationsService(sessionService, locks, blockingValidator(props));
 
     assertThatThrownBy(
-            () ->
-                guarded.navigate(
-                    UUID.randomUUID(), ALICE, new NavigateRequest("http://internal.example", null)))
+            () -> guarded.navigate(id, ALICE, new NavigateRequest("http://internal.example", null)))
         .isInstanceOf(SsrfBlockedException.class);
-    org.mockito.Mockito.verifyNoInteractions(sessionService);
+    org.mockito.Mockito.verifyNoInteractions(browser);
+  }
+
+  @Test
+  void navigateRejectsWrongOwnerBeforeValidatingUrl() {
+    // Authorize first: a bob caller probing alice's session must get session_forbidden,
+    // not ssrf_blocked — otherwise the differential response leaks DNS info.
+    Browser browser = mock(Browser.class);
+    UUID id = register(browser);
+
+    assertThatThrownBy(
+            () -> service.navigate(id, BOB, new NavigateRequest("http://internal.example", null)))
+        .isInstanceOf(SessionForbiddenException.class);
   }
 
   @Test

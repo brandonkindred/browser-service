@@ -11,11 +11,19 @@ import java.net.UnknownHostException;
 record CidrBlock(byte[] network, int prefixLen, boolean isV6) {
 
   static CidrBlock parse(String spec) {
+    if (spec == null) {
+      throw new IllegalArgumentException("null CIDR");
+    }
     int slash = spec.indexOf('/');
     if (slash < 0) {
       throw new IllegalArgumentException("missing '/' in CIDR: " + spec);
     }
     String addr = spec.substring(0, slash).trim();
+    if (addr.isEmpty()) {
+      // Reject explicitly — InetAddress.getByName("") silently returns the loopback address,
+      // which would otherwise produce a 127.0.0.0/n block the operator never asked for.
+      throw new IllegalArgumentException("missing address in CIDR: " + spec);
+    }
     int prefix;
     try {
       prefix = Integer.parseInt(spec.substring(slash + 1).trim());
