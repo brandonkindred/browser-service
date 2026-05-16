@@ -10,6 +10,8 @@ import jakarta.ws.rs.NotSupportedException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.eclipse.microprofile.faulttolerance.exceptions.BulkheadException;
+import org.eclipse.microprofile.faulttolerance.exceptions.CircuitBreakerOpenException;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.StaleElementReferenceException;
 import org.openqa.selenium.TimeoutException;
@@ -23,6 +25,13 @@ import org.springframework.http.HttpStatus;
 public final class ErrorMapper {
 
   private static final Logger log = LoggerFactory.getLogger(ErrorMapper.class);
+
+  // Match the @CircuitBreaker delay on SeleniumGuard (30s). GlobalExceptionHandler reads
+  // this off ErrorDetail.details and emits a Retry-After header.
+  public static final String RETRY_AFTER_KEY = "retry_after_seconds";
+
+  private static final int CIRCUIT_OPEN_RETRY_AFTER_SECONDS = 30;
+  private static final int BULKHEAD_RETRY_AFTER_SECONDS = 1;
 
   private ErrorMapper() {}
 
@@ -86,6 +95,25 @@ public final class ErrorMapper {
     }
     if (t instanceof StaleElementReferenceException) {
       return build(HttpStatus.CONFLICT, "stale_element", safeMessage(t), null, requestId);
+    }
+    if (t instanceof CircuitBreakerOpenException) {
+      return build(
+          HttpStatus.SERVICE_UNAVAILABLE,
+          "selenium_circuit_open",
+          "upstream selenium is degraded; circuit breaker is open",
+          Map.of(RETRY_AFTER_KEY, CIRCUIT_OPEN_RETRY_AFTER_SECONDS),
+          requestId);
+    }
+    if (t instanceof BulkheadException) {
+      return build(
+          HttpStatus.SERVICE_UNAVAILABLE,
+          "concurrency_exceeded",
+          "too many concurrent webdriver operations on this replica",
+          Map.of(RETRY_AFTER_KEY, BULKHEAD_RETRY_AFTER_SECONDS),
+          requestId);
+    }
+    if (t instanceof org.eclipse.microprofile.faulttolerance.exceptions.TimeoutException) {
+      return build(HttpStatus.GATEWAY_TIMEOUT, "upstream_timeout", safeMessage(t), null, requestId);
     }
     if (t instanceof UnreachableBrowserException) {
       return build(HttpStatus.BAD_GATEWAY, "upstream_unavailable", safeMessage(t), null, requestId);

@@ -5,6 +5,7 @@ import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import jakarta.ws.rs.ext.ExceptionMapper;
 import jakarta.ws.rs.ext.Provider;
+import java.util.Map;
 
 @Provider
 public class GlobalExceptionHandler implements ExceptionMapper<Throwable> {
@@ -19,6 +20,13 @@ public class GlobalExceptionHandler implements ExceptionMapper<Throwable> {
             .type(MediaType.APPLICATION_JSON);
     if (rid != null) {
       builder.header(RequestIdFilter.HEADER, rid);
+    }
+    Map<String, Object> details = mapped.body().details();
+    if (details != null) {
+      Object retryAfter = details.get(ErrorMapper.RETRY_AFTER_KEY);
+      if (retryAfter instanceof Number n) {
+        builder.header("Retry-After", String.valueOf(n.intValue()));
+      }
     }
     return builder.build();
   }

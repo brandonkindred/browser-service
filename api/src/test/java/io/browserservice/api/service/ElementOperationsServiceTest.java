@@ -57,7 +57,7 @@ class ElementOperationsServiceTest {
             org.mockito.Mockito.mock(DriverFactory.class),
             org.mockito.Mockito.mock(BrowserSessionTracker.class),
             props);
-    service = new ElementOperationsService(sessionService, locks);
+    service = new ElementOperationsService(sessionService, locks, new SeleniumGuard());
   }
 
   @Test

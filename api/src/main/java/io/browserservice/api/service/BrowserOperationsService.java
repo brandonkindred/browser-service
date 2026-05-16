@@ -18,6 +18,7 @@ import io.browserservice.api.dto.ScrollOffset;
 import io.browserservice.api.dto.ScrollRequest;
 import io.browserservice.api.dto.Viewport;
 import io.browserservice.api.dto.ViewportStateResponse;
+import io.browserservice.api.error.ApiException;
 import io.browserservice.api.error.DesktopSessionRequiredException;
 import io.browserservice.api.error.ValidationFailedException;
 import io.browserservice.api.security.UrlSafetyValidator;
@@ -26,12 +27,15 @@ import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
+import java.time.temporal.ChronoUnit;
 import java.util.UUID;
+import org.eclipse.microprofile.faulttolerance.Retry;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
 import org.springframework.stereotype.Service;
 
@@ -41,12 +45,17 @@ public class BrowserOperationsService {
   private final SessionService sessionService;
   private final SessionLocks locks;
   private final UrlSafetyValidator urlValidator;
+  private final SeleniumGuard guard;
 
   public BrowserOperationsService(
-      SessionService sessionService, SessionLocks locks, UrlSafetyValidator urlValidator) {
+      SessionService sessionService,
+      SessionLocks locks,
+      UrlSafetyValidator urlValidator,
+      SeleniumGuard guard) {
     this.sessionService = sessionService;
     this.locks = locks;
     this.urlValidator = urlValidator;
+    this.guard = guard;
   }
 
   public NavigateResponse navigate(UUID sessionId, CallerId caller, NavigateRequest req) {
@@ -54,96 +63,142 @@ public class BrowserOperationsService {
     // to probe whether arbitrary hostnames resolve to internal IPs.
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     urlValidator.validate(req.url());
-    return locks.doWithLock(
-        handle,
-        h -> {
-          try {
-            if (h.isMobile()) {
-              h.asMobileDevice().navigateTo(req.url());
-              h.asMobileDevice().waitForPageToLoad();
-            } else {
-              h.asBrowser().navigateTo(req.url());
-              h.asBrowser().waitForPageToLoad();
-            }
-            return new NavigateResponse(h.driver().getCurrentUrl(), NavigateStatus.LOADED);
-          } catch (TimeoutException e) {
-            return new NavigateResponse(safeUrl(h.driver()), NavigateStatus.TIMEOUT);
-          } catch (RuntimeException e) {
-            return new NavigateResponse(safeUrl(h.driver()), NavigateStatus.ERROR);
-          }
-        });
+    return guard.execute(
+        () ->
+            locks.doWithLock(
+                handle,
+                h -> {
+                  try {
+                    if (h.isMobile()) {
+                      h.asMobileDevice().navigateTo(req.url());
+                      h.asMobileDevice().waitForPageToLoad();
+                    } else {
+                      h.asBrowser().navigateTo(req.url());
+                      h.asBrowser().waitForPageToLoad();
+                    }
+                    return new NavigateResponse(h.driver().getCurrentUrl(), NavigateStatus.LOADED);
+                  } catch (TimeoutException e) {
+                    return new NavigateResponse(safeUrl(h.driver()), NavigateStatus.TIMEOUT);
+                  } catch (RuntimeException e) {
+                    return new NavigateResponse(safeUrl(h.driver()), NavigateStatus.ERROR);
+                  }
+                }));
   }
 
+  @Retry(
+      maxRetries = 2,
+      delay = 250,
+      delayUnit = ChronoUnit.MILLIS,
+      jitter = 100,
+      jitterDelayUnit = ChronoUnit.MILLIS,
+      retryOn = WebDriverException.class,
+      abortOn = ApiException.class)
   public PageSourceResponse getSource(UUID sessionId, CallerId caller) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
-    return locks.doWithLock(
-        handle,
-        h -> {
-          String src = h.isMobile() ? h.asMobileDevice().getSource() : h.asBrowser().getSource();
-          return new PageSourceResponse(safeUrl(h.driver()), src);
-        });
+    return guard.execute(
+        () ->
+            locks.doWithLock(
+                handle,
+                h -> {
+                  String src =
+                      h.isMobile() ? h.asMobileDevice().getSource() : h.asBrowser().getSource();
+                  return new PageSourceResponse(safeUrl(h.driver()), src);
+                }));
   }
 
+  @Retry(
+      maxRetries = 2,
+      delay = 250,
+      delayUnit = ChronoUnit.MILLIS,
+      jitter = 100,
+      jitterDelayUnit = ChronoUnit.MILLIS,
+      retryOn = WebDriverException.class,
+      abortOn = ApiException.class)
   public PageStatusResponse getStatus(UUID sessionId, CallerId caller) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
-    return locks.doWithLock(
-        handle,
-        h -> {
-          boolean is503;
-          try {
-            String html = h.isMobile() ? h.asMobileDevice().getSource() : h.asBrowser().getSource();
-            is503 = HtmlUtils.is503Error(html);
-          } catch (Exception e) {
-            is503 = false;
-          }
-          return new PageStatusResponse(safeUrl(h.driver()), is503);
-        });
+    return guard.execute(
+        () ->
+            locks.doWithLock(
+                handle,
+                h -> {
+                  boolean is503;
+                  try {
+                    String html =
+                        h.isMobile() ? h.asMobileDevice().getSource() : h.asBrowser().getSource();
+                    is503 = HtmlUtils.is503Error(html);
+                  } catch (Exception e) {
+                    is503 = false;
+                  }
+                  return new PageStatusResponse(safeUrl(h.driver()), is503);
+                }));
   }
 
+  @Retry(
+      maxRetries = 2,
+      delay = 250,
+      delayUnit = ChronoUnit.MILLIS,
+      jitter = 100,
+      jitterDelayUnit = ChronoUnit.MILLIS,
+      retryOn = WebDriverException.class,
+      abortOn = ApiException.class)
   public ViewportStateResponse getViewport(UUID sessionId, CallerId caller) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
-    return locks.doWithLock(
-        handle,
-        h -> {
-          Dimension size = h.driver().manage().window().getSize();
-          Point scroll =
-              h.isMobile()
-                  ? h.asMobileDevice().getViewportScrollOffset()
-                  : h.asBrowser().getViewportScrollOffset();
-          return new ViewportStateResponse(
-              new Viewport(size.getWidth(), size.getHeight()),
-              new ScrollOffset(scroll.getX(), scroll.getY()));
-        });
+    return guard.execute(
+        () ->
+            locks.doWithLock(
+                handle,
+                h -> {
+                  Dimension size = h.driver().manage().window().getSize();
+                  Point scroll =
+                      h.isMobile()
+                          ? h.asMobileDevice().getViewportScrollOffset()
+                          : h.asBrowser().getViewportScrollOffset();
+                  return new ViewportStateResponse(
+                      new Viewport(size.getWidth(), size.getHeight()),
+                      new ScrollOffset(scroll.getX(), scroll.getY()));
+                }));
   }
 
   public ScrollOffset scroll(UUID sessionId, CallerId caller, ScrollRequest req) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
-    return locks.doWithLock(
-        handle,
-        h -> {
-          performScroll(h, req);
-          Point scroll =
-              h.isMobile()
-                  ? h.asMobileDevice().getViewportScrollOffset()
-                  : h.asBrowser().getViewportScrollOffset();
-          return new ScrollOffset(scroll.getX(), scroll.getY());
-        });
+    return guard.execute(
+        () ->
+            locks.doWithLock(
+                handle,
+                h -> {
+                  performScroll(h, req);
+                  Point scroll =
+                      h.isMobile()
+                          ? h.asMobileDevice().getViewportScrollOffset()
+                          : h.asBrowser().getViewportScrollOffset();
+                  return new ScrollOffset(scroll.getX(), scroll.getY());
+                }));
   }
 
+  @Retry(
+      maxRetries = 2,
+      delay = 250,
+      delayUnit = ChronoUnit.MILLIS,
+      jitter = 100,
+      jitterDelayUnit = ChronoUnit.MILLIS,
+      retryOn = WebDriverException.class,
+      abortOn = ApiException.class)
   public byte[] pageScreenshot(
       UUID sessionId, CallerId caller, io.browserservice.api.dto.ScreenshotStrategy strategy) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
-    return locks.doWithLock(
-        handle,
-        h -> {
-          try {
-            BufferedImage image = renderPageScreenshot(h, strategy);
-            return ScreenshotCodec.toPng(image);
-          } catch (IOException e) {
-            throw new io.browserservice.api.error.UpstreamUnavailableException(
-                "failed to capture screenshot: " + e.getMessage(), e);
-          }
-        });
+    return guard.execute(
+        () ->
+            locks.doWithLock(
+                handle,
+                h -> {
+                  try {
+                    BufferedImage image = renderPageScreenshot(h, strategy);
+                    return ScreenshotCodec.toPng(image);
+                  } catch (IOException e) {
+                    throw new io.browserservice.api.error.UpstreamUnavailableException(
+                        "failed to capture screenshot: " + e.getMessage(), e);
+                  }
+                }));
   }
 
   public void removeDom(UUID sessionId, CallerId caller, DomRemoveRequest req) {
@@ -155,16 +210,20 @@ public class BrowserOperationsService {
         && (req.value() == null || req.value().isBlank())) {
       throw new ValidationFailedException("value is required when preset == BY_CLASS");
     }
-    locks.doWithLockVoid(
-        handle,
-        h -> {
-          Browser browser = h.asBrowser();
-          switch (req.preset()) {
-            case DRIFT_CHAT -> browser.removeDriftChat();
-            case GDPR_MODAL -> browser.removeGDPRmodals();
-            case GDPR -> browser.removeGDPR();
-            case BY_CLASS -> browser.removeElement(req.value());
-          }
+    guard.execute(
+        () -> {
+          locks.doWithLockVoid(
+              handle,
+              h -> {
+                Browser browser = h.asBrowser();
+                switch (req.preset()) {
+                  case DRIFT_CHAT -> browser.removeDriftChat();
+                  case GDPR_MODAL -> browser.removeGDPRmodals();
+                  case GDPR -> browser.removeGDPR();
+                  case BY_CLASS -> browser.removeElement(req.value());
+                }
+              });
+          return null;
         });
   }
 
@@ -173,32 +232,39 @@ public class BrowserOperationsService {
     if (handle.isMobile()) {
       throw new DesktopSessionRequiredException();
     }
-    locks.doWithLockVoid(
-        handle,
-        h -> {
-          Browser browser = h.asBrowser();
-          switch (req.mode()) {
-            case OUT_OF_FRAME -> browser.moveMouseOutOfFrame();
-            case TO_NON_INTERACTIVE -> {
-              if (req.x() == null || req.y() == null) {
-                throw new ValidationFailedException("x and y are required for TO_NON_INTERACTIVE");
-              }
-              browser.moveMouseToNonInteractive(new Point(req.x(), req.y()));
-            }
-          }
+    guard.execute(
+        () -> {
+          locks.doWithLockVoid(
+              handle,
+              h -> {
+                Browser browser = h.asBrowser();
+                switch (req.mode()) {
+                  case OUT_OF_FRAME -> browser.moveMouseOutOfFrame();
+                  case TO_NON_INTERACTIVE -> {
+                    if (req.x() == null || req.y() == null) {
+                      throw new ValidationFailedException(
+                          "x and y are required for TO_NON_INTERACTIVE");
+                    }
+                    browser.moveMouseToNonInteractive(new Point(req.x(), req.y()));
+                  }
+                }
+              });
+          return null;
         });
   }
 
   public ExecuteResponse executeScript(UUID sessionId, CallerId caller, ExecuteRequest req) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
-    return locks.doWithLock(
-        handle,
-        h -> {
-          JavascriptExecutor js = (JavascriptExecutor) h.driver();
-          Object[] args = req.args() == null ? new Object[0] : req.args().toArray();
-          Object result = js.executeScript(req.script(), args);
-          return new ExecuteResponse(result);
-        });
+    return guard.execute(
+        () ->
+            locks.doWithLock(
+                handle,
+                h -> {
+                  JavascriptExecutor js = (JavascriptExecutor) h.driver();
+                  Object[] args = req.args() == null ? new Object[0] : req.args().toArray();
+                  Object result = js.executeScript(req.script(), args);
+                  return new ExecuteResponse(result);
+                }));
   }
 
   private void performScroll(SessionHandle h, ScrollRequest req) {

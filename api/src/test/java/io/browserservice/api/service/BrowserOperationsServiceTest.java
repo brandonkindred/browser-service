@@ -78,7 +78,8 @@ class BrowserOperationsServiceTest {
             org.mockito.Mockito.mock(BrowserSessionTracker.class),
             props);
     urlValidator = permissiveValidator(props);
-    service = new BrowserOperationsService(sessionService, locks, urlValidator);
+    service =
+        new BrowserOperationsService(sessionService, locks, urlValidator, new SeleniumGuard());
   }
 
   private static UrlSafetyValidator permissiveValidator(EngineProperties props) {
@@ -165,7 +166,8 @@ class BrowserOperationsServiceTest {
             org.mockito.Mockito.mock(BrowserSessionTracker.class),
             props);
     BrowserOperationsService guarded =
-        new BrowserOperationsService(sessionService, locks, blockingValidator(props));
+        new BrowserOperationsService(
+            sessionService, locks, blockingValidator(props), new SeleniumGuard());
 
     assertThatThrownBy(
             () -> guarded.navigate(id, ALICE, new NavigateRequest("http://internal.example", null)))
