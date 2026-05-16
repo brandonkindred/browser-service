@@ -47,8 +47,20 @@ class UrlSafetyValidatorTest {
     SimpleMeterRegistry meters = new SimpleMeterRegistry();
     UrlSafetyValidator v = make(meters, resolveTo("8.8.8.8"));
 
-    assertThat(v.validate("https://example.com/path").toString())
-        .isEqualTo("https://example.com/path");
+    v.validate("https://example.com/path");
+  }
+
+  @Test
+  void allowsDomainWithLeadingZeroLabel() {
+    // A leading-zero label like "09" only triggers the ambiguity check when the WHOLE host is
+    // numeric (would be parsed as IPv4 by browsers). Domains with a non-numeric label such as
+    // ".com" remain unambiguous and must be allowed.
+    SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    UrlSafetyValidator v = make(meters, resolveTo("203.0.113.5"));
+
+    v.validate("http://09.com/");
+    v.validate("http://007.example.com/");
+    assertReasonCount(meters, SsrfBlockReason.AMBIGUOUS_HOST_LITERAL, 0);
   }
 
   @Test
@@ -276,18 +288,52 @@ class UrlSafetyValidatorTest {
   }
 
   @Test
-  void invalidDenylistEntryIsIgnoredAtConstruction() {
+  void invalidDenylistEntryFailsFastAtConstruction() {
+    // A typo in a security-critical denylist is louder failing at startup than quietly producing
+    // a narrower deny list at runtime, so construction must throw.
     SimpleMeterRegistry meters = new SimpleMeterRegistry();
-    // Garbage CIDR should not crash construction; valid CIDRs in the same list still apply.
-    UrlSafetyValidator v =
-        new UrlSafetyValidator(
-            propsWithDenylist(List.of("not-a-cidr", "100.64.0.0/10")),
-            meters,
-            resolveTo("100.64.0.5"));
+    assertThatThrownBy(
+            () ->
+                new UrlSafetyValidator(
+                    propsWithDenylist(List.of("not-a-cidr", "100.64.0.0/10")),
+                    meters,
+                    resolveTo("100.64.0.5")))
+        .isInstanceOf(IllegalArgumentException.class);
+  }
 
-    assertThatThrownBy(() -> v.validate("http://cgnat.example/"))
+  @Test
+  void rejectsNat64EncodedGcpMetadata() {
+    // 64:ff9b::a9fe:a9fe encodes 169.254.169.254 inside the NAT64 well-known prefix. On any
+    // network running a NAT64 gateway, this routes back to GCP metadata even though no Java
+    // predicate flags the v6 form.
+    SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    UrlSafetyValidator v = make(meters, resolveTo("64:ff9b::a9fe:a9fe"));
+
+    assertThatThrownBy(() -> v.validate("http://nat64-metadata.example/"))
         .isInstanceOf(SsrfBlockedException.class);
-    assertReasonCount(meters, SsrfBlockReason.DENYLIST_CIDR, 1);
+    assertReasonCount(meters, SsrfBlockReason.METADATA, 1);
+  }
+
+  @Test
+  void rejectsNat64EncodedRfc1918() {
+    // 64:ff9b::a00:1 encodes 10.0.0.1 inside the NAT64 well-known prefix. Must be classified as
+    // SITE_LOCAL, the same reason as the bare v4 form.
+    SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    UrlSafetyValidator v = make(meters, resolveTo("64:ff9b::a00:1"));
+
+    assertThatThrownBy(() -> v.validate("http://nat64-private.example/"))
+        .isInstanceOf(SsrfBlockedException.class);
+    assertReasonCount(meters, SsrfBlockReason.SITE_LOCAL, 1);
+  }
+
+  @Test
+  void allowsNat64EncodedPublicIpv4() {
+    // 64:ff9b::808:808 encodes 8.8.8.8. The NAT64 path delegates back into the v4 inspector and
+    // returns null for public addresses, so this must be allowed.
+    SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    UrlSafetyValidator v = make(meters, resolveTo("64:ff9b::808:808"));
+
+    v.validate("http://nat64-public.example/");
   }
 
   private static void assertReasonCount(
