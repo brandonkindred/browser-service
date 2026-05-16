@@ -16,12 +16,17 @@ import io.browserservice.api.dto.CaptureResponse;
 import io.browserservice.api.dto.PngEncoding;
 import io.browserservice.api.dto.ScreenshotStrategy;
 import io.browserservice.api.error.UpstreamUnavailableException;
+import io.browserservice.api.security.DnsResolver;
+import io.browserservice.api.security.SsrfBlockedException;
+import io.browserservice.api.security.UrlSafetyValidator;
 import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.CaptureScreenshotCache;
 import io.browserservice.api.session.DriverFactory;
 import io.browserservice.api.session.SessionLocks;
 import io.browserservice.api.session.SessionRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.awt.image.BufferedImage;
+import java.net.InetAddress;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -47,7 +52,18 @@ class CaptureServiceTest {
     locks = new SessionLocks(props);
     drivers = mock(DriverFactory.class);
     cache = new CaptureScreenshotCache(props);
-    service = new CaptureService(registry, locks, drivers, cache, props);
+    service =
+        new CaptureService(registry, locks, drivers, cache, permissiveValidator(props), props);
+  }
+
+  private static UrlSafetyValidator permissiveValidator(EngineProperties props) {
+    DnsResolver stub = host -> new InetAddress[] {InetAddress.getByName("8.8.8.8")};
+    return new UrlSafetyValidator(props, new SimpleMeterRegistry(), stub);
+  }
+
+  private static UrlSafetyValidator blockingValidator(EngineProperties props) {
+    DnsResolver stub = host -> new InetAddress[] {InetAddress.getByName("127.0.0.1")};
+    return new UrlSafetyValidator(props, new SimpleMeterRegistry(), stub);
   }
 
   @Test
@@ -83,14 +99,16 @@ class CaptureServiceTest {
     Browser browser = mock(Browser.class);
     WebDriver driver = mock(WebDriver.class);
     when(browser.getDriver()).thenReturn(driver);
-    when(driver.getCurrentUrl()).thenReturn("u");
+    when(driver.getCurrentUrl()).thenReturn("https://example.com");
     when(browser.getViewportScreenshot())
         .thenReturn(new BufferedImage(4, 2, BufferedImage.TYPE_INT_RGB));
     when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
     CaptureResponse resp =
         service.capture(
-            new CaptureRequest("u", BrowserType.CHROME, null, null, null, null, null), ALICE);
+            new CaptureRequest(
+                "https://example.com", BrowserType.CHROME, null, null, null, null, null),
+            ALICE);
 
     assertThat(resp.screenshot().href()).startsWith("/v1/capture/");
     assertThat(resp.screenshot().imageBase64()).isNull();
@@ -101,7 +119,7 @@ class CaptureServiceTest {
     Browser browser = mock(Browser.class);
     WebDriver driver = mock(WebDriver.class);
     when(browser.getDriver()).thenReturn(driver);
-    when(driver.getCurrentUrl()).thenReturn("u");
+    when(driver.getCurrentUrl()).thenReturn("https://example.com");
     when(browser.getViewportScreenshot())
         .thenReturn(new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB));
     when(browser.getSource()).thenReturn("<html>hi</html>");
@@ -109,7 +127,14 @@ class CaptureServiceTest {
 
     CaptureResponse resp =
         service.capture(
-            new CaptureRequest("u", BrowserType.CHROME, null, null, PngEncoding.BASE64, null, true),
+            new CaptureRequest(
+                "https://example.com",
+                BrowserType.CHROME,
+                null,
+                null,
+                PngEncoding.BASE64,
+                null,
+                true),
             ALICE);
 
     assertThat(resp.source()).isEqualTo("<html>hi</html>");
@@ -120,7 +145,7 @@ class CaptureServiceTest {
     Browser browser = mock(Browser.class);
     WebDriver driver = mock(WebDriver.class);
     when(browser.getDriver()).thenReturn(driver);
-    when(driver.getCurrentUrl()).thenReturn("u");
+    when(driver.getCurrentUrl()).thenReturn("https://example.com");
     when(browser.getViewportScreenshot())
         .thenReturn(new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB));
     WebElement element = mock(WebElement.class);
@@ -133,7 +158,13 @@ class CaptureServiceTest {
     CaptureResponse resp =
         service.capture(
             new CaptureRequest(
-                "u", BrowserType.CHROME, null, null, PngEncoding.BASE64, "//h1", null),
+                "https://example.com",
+                BrowserType.CHROME,
+                null,
+                null,
+                PngEncoding.BASE64,
+                "//h1",
+                null),
             ALICE);
 
     assertThat(resp.element()).isNotNull();
@@ -146,7 +177,7 @@ class CaptureServiceTest {
     Browser browser = mock(Browser.class);
     WebDriver driver = mock(WebDriver.class);
     when(browser.getDriver()).thenReturn(driver);
-    when(driver.getCurrentUrl()).thenReturn("u");
+    when(driver.getCurrentUrl()).thenReturn("https://example.com");
     when(browser.getViewportScreenshot())
         .thenReturn(new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB));
     when(browser.findElement("//missing")).thenThrow(new NoSuchElementException("nope"));
@@ -155,7 +186,13 @@ class CaptureServiceTest {
     CaptureResponse resp =
         service.capture(
             new CaptureRequest(
-                "u", BrowserType.CHROME, null, null, PngEncoding.BASE64, "//missing", null),
+                "https://example.com",
+                BrowserType.CHROME,
+                null,
+                null,
+                PngEncoding.BASE64,
+                "//missing",
+                null),
             ALICE);
 
     assertThat(resp.element().found()).isFalse();
@@ -166,7 +203,7 @@ class CaptureServiceTest {
     MobileDevice device = mock(MobileDevice.class);
     WebDriver driver = mock(WebDriver.class);
     when(device.getDriver()).thenReturn(driver);
-    when(driver.getCurrentUrl()).thenReturn("u");
+    when(driver.getCurrentUrl()).thenReturn("https://example.com");
     when(device.getViewportScreenshot())
         .thenReturn(new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB));
     when(drivers.createMobile(BrowserType.ANDROID, BrowserEnvironment.TEST)).thenReturn(device);
@@ -174,10 +211,39 @@ class CaptureServiceTest {
     CaptureResponse resp =
         service.capture(
             new CaptureRequest(
-                "u", BrowserType.ANDROID, null, null, PngEncoding.BASE64, null, null),
+                "https://example.com",
+                BrowserType.ANDROID,
+                null,
+                null,
+                PngEncoding.BASE64,
+                null,
+                null),
             ALICE);
     assertThat(resp).isNotNull();
-    verify(device).navigateTo("u");
+    verify(device).navigateTo("https://example.com");
+  }
+
+  @Test
+  void captureRejectedBySsrfGuardSkipsPermitAndDriver() {
+    EngineProperties props = props();
+    CaptureService guarded =
+        new CaptureService(registry, locks, drivers, cache, blockingValidator(props), props);
+
+    assertThatThrownBy(
+            () ->
+                guarded.capture(
+                    new CaptureRequest(
+                        "http://internal.example",
+                        BrowserType.CHROME,
+                        null,
+                        null,
+                        null,
+                        null,
+                        null),
+                    ALICE))
+        .isInstanceOf(SsrfBlockedException.class);
+    assertThat(registry.availablePermits()).isEqualTo(5);
+    org.mockito.Mockito.verifyNoInteractions(drivers);
   }
 
   @Test
@@ -188,7 +254,8 @@ class CaptureServiceTest {
     assertThatThrownBy(
             () ->
                 service.capture(
-                    new CaptureRequest("u", BrowserType.CHROME, null, null, null, null, null),
+                    new CaptureRequest(
+                        "https://example.com", BrowserType.CHROME, null, null, null, null, null),
                     ALICE))
         .isInstanceOf(UpstreamUnavailableException.class);
     assertThat(registry.availablePermits()).isEqualTo(5);
@@ -199,14 +266,16 @@ class CaptureServiceTest {
     Browser browser = mock(Browser.class);
     WebDriver driver = mock(WebDriver.class);
     when(browser.getDriver()).thenReturn(driver);
-    when(driver.getCurrentUrl()).thenReturn("u");
+    when(driver.getCurrentUrl()).thenReturn("https://example.com");
     when(browser.getViewportScreenshot())
         .thenReturn(new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB));
     when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
 
     CaptureResponse resp =
         service.capture(
-            new CaptureRequest("u", BrowserType.CHROME, null, null, null, null, null), ALICE);
+            new CaptureRequest(
+                "https://example.com", BrowserType.CHROME, null, null, null, null, null),
+            ALICE);
     java.util.UUID id =
         java.util.UUID.fromString(
             resp.screenshot()
@@ -227,6 +296,7 @@ class CaptureServiceTest {
         new EngineProperties.BrowserStackProps(
             false, "", "", "", "", "", "", "", "", "", "", "", false, false, false),
         new EngineProperties.WebSocketProps(
-            32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50, 16777216));
+            32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50, 16777216),
+        new EngineProperties.SecurityProps(java.util.List.of()));
   }
 }

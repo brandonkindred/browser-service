@@ -20,6 +20,7 @@ import io.browserservice.api.dto.Viewport;
 import io.browserservice.api.dto.ViewportStateResponse;
 import io.browserservice.api.error.DesktopSessionRequiredException;
 import io.browserservice.api.error.ValidationFailedException;
+import io.browserservice.api.security.UrlSafetyValidator;
 import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.SessionHandle;
 import io.browserservice.api.session.SessionLocks;
@@ -39,14 +40,20 @@ public class BrowserOperationsService {
 
   private final SessionService sessionService;
   private final SessionLocks locks;
+  private final UrlSafetyValidator urlValidator;
 
-  public BrowserOperationsService(SessionService sessionService, SessionLocks locks) {
+  public BrowserOperationsService(
+      SessionService sessionService, SessionLocks locks, UrlSafetyValidator urlValidator) {
     this.sessionService = sessionService;
     this.locks = locks;
+    this.urlValidator = urlValidator;
   }
 
   public NavigateResponse navigate(UUID sessionId, CallerId caller, NavigateRequest req) {
+    // Authorize first so an unauthenticated caller can't use differential 400 vs 403 responses
+    // to probe whether arbitrary hostnames resolve to internal IPs.
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
+    urlValidator.validate(req.url());
     return locks.doWithLock(
         handle,
         h -> {

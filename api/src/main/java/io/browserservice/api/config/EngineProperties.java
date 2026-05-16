@@ -13,10 +13,21 @@ public record EngineProperties(
     SeleniumProps selenium,
     AppiumProps appium,
     BrowserStackProps browserstack,
-    WebSocketProps webSocket) {
+    WebSocketProps webSocket,
+    SecurityProps security) {
 
   public record SessionProps(
       int idleTtlSeconds, int absoluteTtlSeconds, int maxConcurrent, long lockAcquireTimeoutMs) {}
+
+  public record SecurityProps(java.util.List<String> ssrfDenylistCidrs) {
+    /** Defensive copy of the denylist; {@code null} is treated as an empty list. */
+    public SecurityProps {
+      ssrfDenylistCidrs =
+          ssrfDenylistCidrs == null
+              ? java.util.List.of()
+              : java.util.List.copyOf(ssrfDenylistCidrs);
+    }
+  }
 
   public record WebSocketProps(
       int commandQueueDepth,
