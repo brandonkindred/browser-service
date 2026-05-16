@@ -210,6 +210,60 @@ class UrlSafetyValidatorTest {
   }
 
   @Test
+  void rejectsOctalIpv4LiteralAsAmbiguous() {
+    // Java's InetAddress reads "0177.0.0.1" as decimal 177.0.0.1 (public), but Chromium / WHATWG
+    // URL parsing reads the same string as octal 127.0.0.1 (loopback). Rejecting both leading-zero
+    // labels and hex prefixes closes that bypass class without resolving the host.
+    SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    UrlSafetyValidator v =
+        make(
+            meters,
+            host -> {
+              throw new AssertionError("must short-circuit before DNS");
+            });
+
+    assertThatThrownBy(() -> v.validate("http://0177.0.0.1/"))
+        .isInstanceOf(SsrfBlockedException.class);
+    assertThatThrownBy(() -> v.validate("http://012.0.0.1/"))
+        .isInstanceOf(SsrfBlockedException.class);
+    assertThatThrownBy(() -> v.validate("http://127.0.0.01/"))
+        .isInstanceOf(SsrfBlockedException.class);
+    assertReasonCount(meters, SsrfBlockReason.AMBIGUOUS_HOST_LITERAL, 3);
+  }
+
+  @Test
+  void rejectsHexIpv4Literal() {
+    // Chromium reads "0x7f.0.0.1" as 127.0.0.1, but Java's URI parser rejects the hex prefix
+    // outright (getHost() returns null), so we reach the malformed-URL branch before the
+    // ambiguous-host-literal check. Either reason is acceptable; the important property is that
+    // the URL is rejected before DNS.
+    SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    UrlSafetyValidator v =
+        make(
+            meters,
+            host -> {
+              throw new AssertionError("must short-circuit before DNS");
+            });
+
+    assertThatThrownBy(() -> v.validate("http://0x7f.0.0.1/"))
+        .isInstanceOf(SsrfBlockedException.class);
+    assertReasonCount(meters, SsrfBlockReason.MALFORMED_URL, 1);
+  }
+
+  @Test
+  void canonicalIpv4WithSingleZeroLabelsIsAllowed() {
+    // "0.0.0.0" is any-local, not ambiguous; the single-digit "0" label must not trigger the
+    // leading-zero rejection.
+    SimpleMeterRegistry meters = new SimpleMeterRegistry();
+    UrlSafetyValidator v = make(meters, resolveTo("0.0.0.0"));
+
+    assertThatThrownBy(() -> v.validate("http://0.0.0.0/"))
+        .isInstanceOf(SsrfBlockedException.class);
+    assertReasonCount(meters, SsrfBlockReason.ANY_LOCAL, 1);
+    assertReasonCount(meters, SsrfBlockReason.AMBIGUOUS_HOST_LITERAL, 0);
+  }
+
+  @Test
   void rejectsConfiguredDenylistCidr() {
     SimpleMeterRegistry meters = new SimpleMeterRegistry();
     UrlSafetyValidator v =

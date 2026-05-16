@@ -11,6 +11,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -36,6 +37,16 @@ public class UrlSafetyValidator {
   static final String REASON_TAG = "reason";
   private static final byte[] GCP_METADATA_V4 = {(byte) 169, (byte) 254, (byte) 169, (byte) 254};
   private static final String GCP_METADATA_HOST = "metadata.google.internal";
+
+  /**
+   * Matches any IPv4-looking host label that Java parses as decimal but the WHATWG URL parser
+   * (Chromium, Firefox) parses as octal or hex — e.g. {@code 0177.0.0.1} reads as decimal 177 in
+   * Java but as octal 127 (loopback) in the browser, which would bypass the resolved-address checks
+   * below. Anything matching is rejected outright as {@link
+   * SsrfBlockReason#AMBIGUOUS_HOST_LITERAL}.
+   */
+  private static final Pattern AMBIGUOUS_NUMERIC_LABEL =
+      Pattern.compile("(?:^|\\.)(0[0-9]+|0[xX][0-9a-fA-F]+)(?=\\.|$)");
 
   private final DnsResolver resolver;
   private final List<CidrBlock> denylist;
@@ -91,6 +102,9 @@ public class UrlSafetyValidator {
     }
     if (GCP_METADATA_HOST.equalsIgnoreCase(host)) {
       throw block(SsrfBlockReason.METADATA);
+    }
+    if (AMBIGUOUS_NUMERIC_LABEL.matcher(host).find()) {
+      throw block(SsrfBlockReason.AMBIGUOUS_HOST_LITERAL);
     }
     InetAddress[] addresses;
     try {

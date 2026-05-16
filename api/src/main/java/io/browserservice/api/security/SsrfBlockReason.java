@@ -8,6 +8,7 @@ package io.browserservice.api.security;
 public enum SsrfBlockReason {
   MALFORMED_URL("malformed_url"),
   SCHEME_DISALLOWED("scheme_disallowed"),
+  AMBIGUOUS_HOST_LITERAL("ambiguous_host_literal"),
   DNS_FAILURE("dns_failure"),
   LOOPBACK("loopback"),
   LINK_LOCAL("link_local"),
