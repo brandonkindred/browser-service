@@ -91,6 +91,9 @@ public class BrowserOperationsService {
                 }));
   }
 
+  // Best-effort total-time budget across retries. MP-FT stops SCHEDULING new retries after this,
+  // but an in-flight attempt is allowed to run to completion — so the actual wall-clock can drift
+  // past 16s if the final attempt is slow (bounded ultimately by Selenium's HTTP read-timeout).
   @Retry(
       maxRetries = 2,
       delay = 250,

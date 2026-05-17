@@ -42,4 +42,17 @@ class ErrorMapperFaultToleranceTest {
     assertThat(mapped.body().code()).isEqualTo("selenium_call_timeout");
     assertThat(mapped.body().details()).isNull();
   }
+
+  @Test
+  void screenshotEncodingFailedMapsTo500WithLocalErrorCode() {
+    // Local PNG encoding failure must not be labeled as upstream_unavailable / 502 — the failure
+    // is in our own pipeline, not Selenium's.
+    ErrorMapper.Mapped mapped =
+        ErrorMapper.map(
+            new ScreenshotEncodingFailedException("encode failed", new java.io.IOException("disk")),
+            "req-4");
+
+    assertThat(mapped.status()).isEqualTo(HttpStatus.INTERNAL_SERVER_ERROR);
+    assertThat(mapped.body().code()).isEqualTo("screenshot_encoding_failed");
+  }
 }
