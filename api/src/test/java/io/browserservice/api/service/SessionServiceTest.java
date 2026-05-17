@@ -34,8 +34,8 @@ import org.openqa.selenium.WebDriver;
 
 class SessionServiceTest {
 
-  private static final CallerId ALICE = CallerId.parse("alice");
-  private static final CallerId BOB = CallerId.parse("bob");
+  private static final CallerId ALICE = CallerId.of("test-tenant", "alice");
+  private static final CallerId BOB = CallerId.of("test-tenant", "bob");
 
   private SessionRegistry registry;
   private SessionLocks locks;
@@ -65,7 +65,7 @@ class SessionServiceTest {
     assertThat(response.browserType()).isEqualTo(BrowserType.CHROME);
     assertThat(response.environment()).isEqualTo(BrowserEnvironment.TEST);
     assertThat(response.sessionId()).isNotNull();
-    assertThat(response.ownerId()).isEqualTo("alice");
+    assertThat(response.ownerId()).isEqualTo("test-tenant:alice");
     assertThat(registry.size()).isEqualTo(1);
   }
 
@@ -174,12 +174,12 @@ class SessionServiceTest {
     assertThat(service.list(ALICE).sessions())
         .singleElement()
         .extracting(SessionResponse::ownerId)
-        .isEqualTo("alice");
+        .isEqualTo("test-tenant:alice");
     assertThat(service.list(BOB).sessions())
         .singleElement()
         .extracting(SessionResponse::ownerId)
-        .isEqualTo("bob");
-    assertThat(service.list(CallerId.parse("eve")).sessions()).isEmpty();
+        .isEqualTo("test-tenant:bob");
+    assertThat(service.list(CallerId.of("test-tenant", "eve")).sessions()).isEmpty();
   }
 
   @Test
@@ -194,7 +194,7 @@ class SessionServiceTest {
     SessionStateResponse state = service.describe(created.sessionId(), ALICE);
 
     assertThat(state.sessionId()).isEqualTo(created.sessionId());
-    assertThat(state.ownerId()).isEqualTo("alice");
+    assertThat(state.ownerId()).isEqualTo("test-tenant:alice");
     assertThat(state.viewport()).isNotNull();
     assertThat(state.scrollOffset().x()).isEqualTo(10);
     assertThat(state.scrollOffset().y()).isEqualTo(20);

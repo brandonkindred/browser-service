@@ -4,8 +4,7 @@ import io.browserservice.api.dto.AlertRespondRequest;
 import io.browserservice.api.dto.AlertStateResponse;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.service.AlertService;
-import io.browserservice.api.session.CallerId;
-import io.browserservice.api.web.CallerIdParamConverterProvider;
+import io.browserservice.api.web.CallerContext;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -19,7 +18,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,9 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AlertsController {
 
   private final AlertService service;
+  private final CallerContext callers;
 
-  public AlertsController(AlertService service) {
+  public AlertsController(AlertService service, CallerContext callers) {
     this.service = service;
+    this.callers = callers;
   }
 
   @GetMapping("/alert")
@@ -46,10 +46,8 @@ public class AlertsController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public AlertStateResponse getAlert(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
-    return service.getAlert(id, caller);
+  public AlertStateResponse getAlert(@PathVariable UUID id) {
+    return service.getAlert(id, callers.id());
   }
 
   @PostMapping("/alert/respond")
@@ -62,10 +60,7 @@ public class AlertsController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public void respond(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
-      @Valid @RequestBody AlertRespondRequest req) {
-    service.respond(id, caller, req);
+  public void respond(@PathVariable UUID id, @Valid @RequestBody AlertRespondRequest req) {
+    service.respond(id, callers.id(), req);
   }
 }

@@ -62,7 +62,7 @@ class WatcherCoordinatorTest {
     handle =
         SessionHandle.desktop(
             browser,
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -155,7 +155,7 @@ class WatcherCoordinatorTest {
 
   private static WsConnectionState newConnection(String id) {
     return new WsConnectionState(
-        CallerId.parse("alice"),
+        CallerId.of("test-tenant", "alice"),
         id,
         "ws-" + id,
         Executors.newSingleThreadExecutor(),

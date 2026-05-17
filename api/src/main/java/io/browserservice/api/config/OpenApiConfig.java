@@ -1,7 +1,10 @@
 package io.browserservice.api.config;
 
-import io.browserservice.api.session.CallerId;
 import io.quarkus.smallrye.openapi.OpenApiFilter;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import org.eclipse.microprofile.openapi.OASFactory;
 import org.eclipse.microprofile.openapi.OASFilter;
 import org.eclipse.microprofile.openapi.annotations.OpenAPIDefinition;
@@ -9,11 +12,12 @@ import org.eclipse.microprofile.openapi.annotations.info.Info;
 import org.eclipse.microprofile.openapi.annotations.info.License;
 import org.eclipse.microprofile.openapi.annotations.servers.Server;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
+import org.eclipse.microprofile.openapi.models.Components;
 import org.eclipse.microprofile.openapi.models.OpenAPI;
 import org.eclipse.microprofile.openapi.models.Operation;
 import org.eclipse.microprofile.openapi.models.PathItem;
-import org.eclipse.microprofile.openapi.models.media.Schema;
-import org.eclipse.microprofile.openapi.models.parameters.Parameter;
+import org.eclipse.microprofile.openapi.models.security.SecurityRequirement;
+import org.eclipse.microprofile.openapi.models.security.SecurityScheme;
 
 @OpenAPIDefinition(
     info =
@@ -45,18 +49,29 @@ import org.eclipse.microprofile.openapi.models.parameters.Parameter;
 @OpenApiFilter
 public class OpenApiConfig implements OASFilter {
 
-  public static final String CALLER_HEADER = "X-Caller-Id";
+  /** Name of the {@code components.securitySchemes} entry referenced by /v1 operations. */
+  public static final String BEARER_AUTH_SCHEME = "bearerAuth";
 
   /**
-   * Documents {@code X-Caller-Id} as a required header on every operation under {@code /v1/}.
-   * Endpoints outside that prefix (e.g. {@code /healthz}, {@code /readyz}) are unaffected.
-   *
-   * <p>Smallrye auto-discovers the header from the Spring {@code @RequestHeader} binding but does
-   * not infer {@code required=true} or attach a description, so we enrich the existing parameter in
-   * place when present and add a fresh one otherwise.
+   * Declares a single {@code bearerAuth} OIDC JWT security scheme and requires it on every
+   * operation under {@code /v1/}. Endpoints outside that prefix (e.g. {@code /healthz}, {@code
+   * /readyz}, {@code /metrics}) remain unauthenticated and therefore carry no security requirement.
    */
   @Override
   public void filterOpenAPI(OpenAPI openApi) {
+    Components components = openApi.getComponents();
+    if (components == null) {
+      components = OASFactory.createComponents();
+      openApi.setComponents(components);
+    }
+    // SmallRye returns Collections.unmodifiableMap() from getSecuritySchemes() when the model
+    // already has any entries — copy into a fresh map before mutating to avoid UOE at startup.
+    Map<String, SecurityScheme> existing = components.getSecuritySchemes();
+    Map<String, SecurityScheme> schemes =
+        existing == null ? new HashMap<>() : new HashMap<>(existing);
+    schemes.put(BEARER_AUTH_SCHEME, bearerJwtScheme());
+    components.setSecuritySchemes(schemes);
+
     if (openApi.getPaths() == null || openApi.getPaths().getPathItems() == null) {
       return;
     }
@@ -72,14 +87,28 @@ public class OpenApiConfig implements OASFilter {
                 if (op == null) {
                   continue;
                 }
-                Parameter existing = findCallerIdHeader(op);
-                if (existing == null) {
-                  op.addParameter(callerIdHeaderParameter());
-                } else {
-                  enrichCallerIdHeader(existing);
-                }
+                requireBearerAuth(op);
               }
             });
+  }
+
+  private static SecurityScheme bearerJwtScheme() {
+    return OASFactory.createSecurityScheme()
+        .type(SecurityScheme.Type.HTTP)
+        .scheme("bearer")
+        .bearerFormat("JWT")
+        .description("OIDC-signed JWT bearer token. Required on every /v1/ request.");
+  }
+
+  private static void requireBearerAuth(Operation op) {
+    List<SecurityRequirement> existing = op.getSecurity();
+    List<SecurityRequirement> security = existing == null ? new ArrayList<>() : existing;
+    boolean alreadyRequired =
+        security.stream().anyMatch(req -> req.getScheme(BEARER_AUTH_SCHEME) != null);
+    if (!alreadyRequired) {
+      security.add(OASFactory.createSecurityRequirement().addScheme(BEARER_AUTH_SCHEME));
+    }
+    op.setSecurity(security);
   }
 
   private static Operation[] operationsOf(PathItem item) {
@@ -94,40 +123,4 @@ public class OpenApiConfig implements OASFilter {
       item.getTRACE()
     };
   }
-
-  private static Parameter findCallerIdHeader(Operation op) {
-    if (op.getParameters() == null) {
-      return null;
-    }
-    for (Parameter p : op.getParameters()) {
-      if (p.getIn() == Parameter.In.HEADER && CALLER_HEADER.equals(p.getName())) {
-        return p;
-      }
-    }
-    return null;
-  }
-
-  private static void enrichCallerIdHeader(Parameter param) {
-    param.setRequired(true);
-    if (param.getDescription() == null || param.getDescription().isBlank()) {
-      param.setDescription(CALLER_DESCRIPTION);
-    }
-    param.setSchema(callerIdSchema());
-  }
-
-  private static Parameter callerIdHeaderParameter() {
-    return OASFactory.createParameter()
-        .name(CALLER_HEADER)
-        .in(Parameter.In.HEADER)
-        .required(true)
-        .description(CALLER_DESCRIPTION)
-        .schema(callerIdSchema());
-  }
-
-  private static Schema callerIdSchema() {
-    return OASFactory.createSchema().type(Schema.SchemaType.STRING).maxLength(CallerId.MAX_LENGTH);
-  }
-
-  private static final String CALLER_DESCRIPTION =
-      "Identifies the calling client. Bound to created sessions for ownership.";
 }

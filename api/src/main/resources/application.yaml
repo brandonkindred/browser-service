@@ -8,6 +8,37 @@ quarkus:
       proxy-address-forwarding: true
     access-log:
       enabled: true
+    auth:
+      permission:
+        public-ops:
+          paths:
+          - "/healthz"
+          - "/readyz"
+          - "/metrics"
+          - "/q/*"
+          - "/v3/api-docs"
+          - "/v3/api-docs/*"
+          - "/swagger-ui.html"
+          - "/swagger-ui/*"
+          policy: "permit"
+        public-ws:
+          paths:
+          - "/v1/ws/sessions"
+          policy: "permit"
+        authenticated-v1:
+          paths:
+          - "/v1/*"
+          policy: "authenticated"
+  oidc:
+    application-type: "service"
+    auth-server-url: "${OIDC_ISSUER_URI:https://securetoken.google.com/replace-me}"
+    token:
+      issuer: "${OIDC_ISSUER_URI:https://securetoken.google.com/replace-me}"
+      audience: "${OIDC_AUDIENCE:browser-service}"
+      principal-claim: "sub"
+      refresh-expired: false
+    tls:
+      verification: "required"
   datasource:
     db-kind: "postgresql"
     username: "${DATABASE_USERNAME:browser_service}"
@@ -43,6 +74,13 @@ quarkus:
       io.smallrye.openapi.runtime.scanner.spi:
         level: "ERROR"
         min-level: "ERROR"
+mp:
+  jwt:
+    verify:
+      issuer: "${OIDC_ISSUER_URI:https://securetoken.google.com/replace-me}"
+      audiences: "${OIDC_AUDIENCE:browser-service}"
+      publickey:
+        location: "${OIDC_JWKS_URI:${OIDC_ISSUER_URI:https://securetoken.google.com/replace-me}/.well-known/jwks.json}"
 '%dev':
   quarkus:
     datasource:
@@ -58,6 +96,24 @@ quarkus:
     hibernate-orm:
       database:
         generation: "drop-and-create"
+'%test':
+  quarkus:
+    keycloak:
+      devservices:
+        enabled: false
+    oidc:
+      client-id: "browser-service"
+      auth-server-url: "${keycloak.url}/realms/quarkus"
+      token:
+        issuer: "https://server.example.com"
+        audience: "https://server.example.com"
+  mp:
+    jwt:
+      verify:
+        publickey:
+          location: "${keycloak.url}/realms/quarkus/protocol/openid-connect/certs"
+        issuer: "https://server.example.com"
+        audiences: "https://server.example.com"
 browserservice:
   session:
     idle-ttl-seconds: 300

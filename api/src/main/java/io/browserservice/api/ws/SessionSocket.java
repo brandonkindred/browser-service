@@ -23,6 +23,8 @@ import io.quarkus.websockets.next.OpenConnections;
 import io.quarkus.websockets.next.WebSocket;
 import io.quarkus.websockets.next.WebSocketConnection;
 import io.smallrye.common.annotation.Blocking;
+import io.smallrye.jwt.auth.principal.JWTParser;
+import io.smallrye.jwt.auth.principal.ParseException;
 import io.vertx.core.buffer.Buffer;
 import jakarta.enterprise.context.SessionScoped;
 import jakarta.inject.Inject;
@@ -37,6 +39,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.eclipse.microprofile.jwt.JsonWebToken;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -46,9 +49,10 @@ import org.slf4j.MDC;
  * connection ({@link SessionScoped}); state for the connection lives on this bean and inside the
  * {@link WsConnectionState} POJO held by it.
  *
- * <p>Handshake authentication runs in {@link CallerIdUpgradeCheck} (HTTP 401 on missing header). A
- * malformed-but-present {@code X-Caller-Id} value is rejected here in {@link #onOpen} with WS close
- * code 4401.
+ * <p>Handshake authentication runs in {@link CallerIdUpgradeCheck} (HTTP 401 on missing or invalid
+ * JWT in the {@code Sec-WebSocket-Protocol} subprotocol). A token that parses but lacks the
+ * required {@code sub} / {@code tenant_id} claims is rejected here in {@link #onOpen} with WS close
+ * code 4401 — should be unreachable in practice since the upgrade check enforces both.
  */
 @WebSocket(path = "/v1/ws/sessions")
 @SessionScoped
@@ -67,6 +71,7 @@ public class SessionSocket {
   private final EngineProperties.WebSocketProps props;
   private final WebSocketConnection connection;
   private final OpenConnections openConnections;
+  private final JWTParser jwtParser;
 
   private WsConnectionState state;
   private ScheduledFuture<?> watchdog;
@@ -79,7 +84,8 @@ public class SessionSocket {
       WatcherCoordinator watchers,
       EngineProperties props,
       WebSocketConnection connection,
-      OpenConnections openConnections) {
+      OpenConnections openConnections,
+      JWTParser jwtParser) {
     this.dispatcher = dispatcher;
     this.mapper = mapper;
     this.scheduler = webSocketScheduler;
@@ -87,16 +93,27 @@ public class SessionSocket {
     this.props = props.webSocket();
     this.connection = connection;
     this.openConnections = openConnections;
+    this.jwtParser = jwtParser;
   }
 
   @OnOpen
   public void onOpen() {
-    String rawCaller = connection.handshakeRequest().header(CallerIdUpgradeCheck.CALLER_HEADER);
+    String rawSubprotocols =
+        connection.handshakeRequest().header(CallerIdUpgradeCheck.SUBPROTOCOL_HEADER);
+    String token = CallerIdUpgradeCheck.extractBearerToken(rawSubprotocols);
     CallerId caller;
     try {
-      caller = CallerId.parse(rawCaller);
-    } catch (IllegalArgumentException e) {
-      log.debug("rejecting WS handshake: {}", e.getMessage());
+      JsonWebToken jwt = jwtParser.parse(token);
+      Object tenantClaim = jwt.getClaim("tenant_id");
+      if (!(tenantClaim instanceof String tenant)) {
+        throw new IllegalArgumentException("tenant_id claim is not a string");
+      }
+      caller = CallerId.of(tenant, jwt.getSubject());
+    } catch (ParseException | IllegalArgumentException e) {
+      // Should be unreachable: CallerIdUpgradeCheck rejected the upgrade if
+      // either the JWT was invalid or the required claims were missing. Treat
+      // a reachable failure here as defence-in-depth and close with 4401.
+      log.debug("rejecting WS handshake post-upgrade: {}", e.toString());
       safeClose(new CloseReason(CALLER_UNIDENTIFIED, "caller_unidentified"));
       return;
     }

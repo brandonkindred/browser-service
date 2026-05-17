@@ -5,8 +5,7 @@ import io.browserservice.api.dto.PngEncoding;
 import io.browserservice.api.dto.ScreenshotBase64Response;
 import io.browserservice.api.dto.ScreenshotRequest;
 import io.browserservice.api.service.BrowserOperationsService;
-import io.browserservice.api.session.CallerId;
-import io.browserservice.api.web.CallerIdParamConverterProvider;
+import io.browserservice.api.web.CallerContext;
 import jakarta.validation.Valid;
 import java.util.Base64;
 import java.util.UUID;
@@ -22,7 +21,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -35,9 +33,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ScreenshotsController {
 
   private final BrowserOperationsService browserOps;
+  private final CallerContext callers;
 
-  public ScreenshotsController(BrowserOperationsService browserOps) {
+  public ScreenshotsController(BrowserOperationsService browserOps, CallerContext callers) {
     this.browserOps = browserOps;
+    this.callers = callers;
   }
 
   static {
@@ -61,10 +61,8 @@ public class ScreenshotsController {
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   public ResponseEntity<?> capture(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
-      @Valid @RequestBody ScreenshotRequest req) {
-    byte[] pngBytes = browserOps.pageScreenshot(id, caller, req.strategy());
+      @PathVariable UUID id, @Valid @RequestBody ScreenshotRequest req) {
+    byte[] pngBytes = browserOps.pageScreenshot(id, callers.id(), req.strategy());
     return respond(pngBytes, req.encoding());
   }
 

@@ -2,10 +2,13 @@ package io.browserservice.api.ws;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.browserservice.api.testsupport.TestTokens;
+import io.quarkus.test.common.QuarkusTestResource;
 import io.quarkus.test.common.http.TestHTTPResource;
 import io.quarkus.test.junit.QuarkusTest;
 import io.quarkus.test.junit.QuarkusTestProfile;
 import io.quarkus.test.junit.TestProfile;
+import io.quarkus.test.oidc.server.OidcWiremockTestResource;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
@@ -21,14 +24,12 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 
 /**
- * Integration tests for {@link SessionSocket} and {@link CallerIdUpgradeCheck}, validating the
- * handshake authentication contract that issue #20 calls out as acceptance criteria.
- *
- * <p>Uses the built-in Java {@link HttpClient} WebSocket client so no extra test dependency is
- * needed. Command-frame dispatch behaviour is covered indirectly by {@code CommandDispatcher}'s
- * unit-level tests (tracked under #24) and by manual probes against the running dev server.
+ * Integration tests for {@link SessionSocket} and {@link CallerIdUpgradeCheck}. The handshake auth
+ * contract is the same as for REST (#89 acceptance criteria) except the token travels in the {@code
+ * Sec-WebSocket-Protocol} subprotocol — browsers cannot set arbitrary headers on a WS upgrade.
  */
 @QuarkusTest
+@QuarkusTestResource(OidcWiremockTestResource.class)
 @TestProfile(SessionSocketTest.WiringProfile.class)
 class SessionSocketTest {
 
@@ -36,7 +37,6 @@ class SessionSocketTest {
   URI httpUri;
 
   private URI wsUri() {
-    // @TestHTTPResource always returns http:// — convert to the ws:// scheme HttpClient requires.
     String s = httpUri.toString();
     if (s.startsWith("http://")) {
       return URI.create("ws://" + s.substring("http://".length()));
@@ -48,20 +48,36 @@ class SessionSocketTest {
   }
 
   @Test
-  void handshakeRejectedWith401WhenCallerIdHeaderMissing() throws Exception {
+  void handshakeRejectedWith401WhenSubprotocolMissing() throws Exception {
     assertThat(handshakeStatusCode(null)).isEqualTo(401);
   }
 
   @Test
-  void handshakeRejectedWith401WhenCallerIdHeaderBlank() throws Exception {
-    assertThat(handshakeStatusCode("   ")).isEqualTo(401);
+  void handshakeRejectedWith401WhenTokenIsTampered() throws Exception {
+    String tampered = TestTokens.tampered("alice");
+    assertThat(handshakeStatusCode("bearer, " + tampered)).isEqualTo(401);
   }
 
-  private int handshakeStatusCode(String callerIdHeader) throws Exception {
+  @Test
+  void handshakeRejectedWith401WhenTokenIsExpired() throws Exception {
+    String expired = TestTokens.expired("alice");
+    assertThat(handshakeStatusCode("bearer, " + expired)).isEqualTo(401);
+  }
+
+  @Test
+  void handshakeRejectedWith401WhenTenantClaimMissing() throws Exception {
+    String token = TestTokens.missingTenant("alice");
+    assertThat(handshakeStatusCode("bearer, " + token)).isEqualTo(401);
+  }
+
+  private int handshakeStatusCode(String subprotocolHeader) throws Exception {
     HttpClient client = HttpClient.newHttpClient();
     WebSocket.Builder builder = client.newWebSocketBuilder().connectTimeout(Duration.ofSeconds(5));
-    if (callerIdHeader != null) {
-      builder = builder.header("X-Caller-Id", callerIdHeader);
+    if (subprotocolHeader != null) {
+      // HttpClient sends the listed subprotocols via Sec-WebSocket-Protocol — we pre-split so
+      // the literal "bearer" sentinel comes first, JWT second.
+      String[] parts = subprotocolHeader.split(",", 2);
+      builder = builder.subprotocols(parts[0].trim(), parts[1].trim());
     }
     CompletableFuture<WebSocket> fut = builder.buildAsync(wsUri(), new SilentListener());
     try {
@@ -77,13 +93,14 @@ class SessionSocketTest {
   }
 
   @Test
-  void connectionAcceptedWithValidCallerId() throws Exception {
+  void connectionAcceptedWithValidToken() throws Exception {
+    String token = TestTokens.mint("alice");
     HttpClient client = HttpClient.newHttpClient();
     CountingListener listener = new CountingListener();
     WebSocket socket =
         client
             .newWebSocketBuilder()
-            .header("X-Caller-Id", "alice")
+            .subprotocols("bearer", token)
             .connectTimeout(Duration.ofSeconds(5))
             .buildAsync(wsUri(), listener)
             .get(5, TimeUnit.SECONDS);
@@ -97,37 +114,17 @@ class SessionSocketTest {
   }
 
   @Test
-  void malformedCallerIdClosesWithCode4401() throws Exception {
-    // CallerId.parse rejects whitespace inside the value; the handshake check only verifies
-    // the header is non-blank, so this opens the connection and then closes 4401 in @OnOpen.
-    HttpClient client = HttpClient.newHttpClient();
-    CountingListener listener = new CountingListener();
-    client
-        .newWebSocketBuilder()
-        .header("X-Caller-Id", "bad id with spaces")
-        .connectTimeout(Duration.ofSeconds(5))
-        .buildAsync(wsUri(), listener)
-        .get(5, TimeUnit.SECONDS);
-
-    boolean closed = listener.closeLatch.await(5, TimeUnit.SECONDS);
-    if (!closed) {
-      throw new TimeoutException("expected onClose within 5s");
-    }
-    assertThat(listener.closeStatus.get()).isEqualTo(SessionSocket.CALLER_UNIDENTIFIED);
-  }
-
-  @Test
   void commandResponseRoundTripFromExecutorThread() throws Exception {
     // Proves WebSocketConnection.sendTextAndAwait works off the @OnTextMessage callback
-    // thread: dispatch runs on the per-connection executor, then writeFrame calls
-    // sendTextAndAwait from that worker thread. The unknown-op path is the cheapest
-    // way to drive the full receive-dispatch-respond loop without touching Selenium.
+    // thread. The unknown-op path is the cheapest way to drive the full receive-dispatch-
+    // respond loop without touching Selenium.
+    String token = TestTokens.mint("alice");
     HttpClient client = HttpClient.newHttpClient();
     TextCollectingListener listener = new TextCollectingListener();
     WebSocket socket =
         client
             .newWebSocketBuilder()
-            .header("X-Caller-Id", "alice")
+            .subprotocols("bearer", token)
             .connectTimeout(Duration.ofSeconds(5))
             .buildAsync(wsUri(), listener)
             .get(5, TimeUnit.SECONDS);
@@ -199,7 +196,8 @@ class SessionSocketTest {
           Map.entry("quarkus.datasource.password", ""),
           Map.entry("quarkus.flyway.migrate-at-start", "false"),
           Map.entry("quarkus.hibernate-orm.database.generation", "drop-and-create"),
-          Map.entry("browserservice.selenium.urls", "http://localhost:4444/wd/hub"));
+          Map.entry("browserservice.selenium.urls", "http://localhost:4444/wd/hub"),
+          Map.entry("smallrye.jwt.sign.key.location", "/privateKey.jwk"));
     }
   }
 }

@@ -26,7 +26,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             browser,
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -56,7 +56,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.mobile(
             device,
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.ANDROID,
             BrowserEnvironment.DISCOVERY,
             Duration.ofSeconds(15),
@@ -65,7 +65,7 @@ class SessionHandleTest {
     assertThat(handle.isMobile()).isTrue();
     assertThat(handle.asMobileDevice()).isSameAs(device);
     assertThat(handle.driver()).isSameAs(driver);
-    assertThat(handle.owner().value()).isEqualTo("alice");
+    assertThat(handle.owner().value()).isEqualTo("test-tenant:alice");
     assertThatThrownBy(handle::asBrowser).isInstanceOf(IllegalStateException.class);
   }
 
@@ -75,7 +75,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             browser,
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -88,7 +88,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -104,7 +104,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -130,7 +130,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(10),
@@ -146,7 +146,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofMillis(1),
@@ -159,7 +159,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(10),
@@ -173,7 +173,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(60),
@@ -188,7 +188,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(60),
@@ -204,7 +204,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(10),
@@ -218,7 +218,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -239,7 +239,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             browser,
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -259,7 +259,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.desktop(
             browser,
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -274,7 +274,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.mobile(
             device,
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.ANDROID,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
@@ -290,7 +290,7 @@ class SessionHandleTest {
     SessionHandle handle =
         SessionHandle.mobile(
             device,
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.IOS,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),

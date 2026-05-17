@@ -60,7 +60,7 @@ class BrowserLogDrainTest {
     handle =
         SessionHandle.desktop(
             browser,
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(30),

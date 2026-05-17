@@ -2,6 +2,9 @@ package io.browserservice.api.error;
 
 import com.fasterxml.jackson.core.JacksonException;
 import io.browserservice.api.dto.ErrorDetail;
+import io.quarkus.security.AuthenticationFailedException;
+import io.quarkus.security.ForbiddenException;
+import io.quarkus.security.UnauthorizedException;
 import jakarta.validation.ConstraintViolationException;
 import jakarta.ws.rs.NotAcceptableException;
 import jakarta.ws.rs.NotAllowedException;
@@ -39,6 +42,21 @@ public final class ErrorMapper {
   public static Mapped map(Throwable t, String requestId) {
     if (t instanceof ApiException ex) {
       return build(ex.getHttpStatus(), ex.getCode(), ex.getMessage(), ex.getDetails(), requestId);
+    }
+    // quarkus-oidc raises AuthenticationFailedException on invalid tokens (bad
+    // signature, wrong issuer/audience, expired) and UnauthorizedException on
+    // missing credentials. Render both through the standard ErrorResponse shape
+    // so clients get a consistent JSON body, not the framework's bare 401.
+    if (t instanceof AuthenticationFailedException) {
+      return build(
+          HttpStatus.UNAUTHORIZED, "unauthenticated", "invalid bearer token", null, requestId);
+    }
+    if (t instanceof UnauthorizedException) {
+      return build(
+          HttpStatus.UNAUTHORIZED, "unauthenticated", "authentication required", null, requestId);
+    }
+    if (t instanceof ForbiddenException) {
+      return build(HttpStatus.FORBIDDEN, "forbidden", "access denied", null, requestId);
     }
     if (t instanceof ConstraintViolationException ex) {
       Map<String, Object> details = new HashMap<>();

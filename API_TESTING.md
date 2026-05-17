@@ -108,13 +108,19 @@ local-Maven setup on `:8080`, so substitute `:9999` if you go this route. The
 API service is wired with `SELENIUM_GRID_URLS=http://selenium:4444/wd/hub` so
 it talks to the Selenium container over the compose network.
 
-### Pick a caller ID
+### Mint a bearer token
 
-Every `/v1/...` request must carry an `X-Caller-Id` header. Pick anything
-printable; `me` is fine for local work.
+Every `/v1/...` request must carry an `Authorization: Bearer <jwt>` header.
+The token must be signed by the configured OIDC issuer, with `sub` and
+`tenant_id` claims set.
+
+For local work, run `./mvnw -pl api quarkus:dev` with
+`quarkus.oidc.devservices.enabled=true` (the dev-services Keycloak prints a
+ready-to-paste token at startup), or use the `TestTokens` helper from the
+test suite:
 
 ```bash
-export CALLER=me
+export TOKEN=<paste-jwt-here>
 ```
 
 ## 4. Smoke test
@@ -140,7 +146,7 @@ Caller-ID guard:
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/v1/sessions
-# -> 400  (caller_unidentified)
+# -> 401  (unauthenticated)
 ```
 
 ## 5. Walkthrough: a full session over HTTP
@@ -175,7 +181,7 @@ sequenceDiagram
 
 ```bash
 SESSION=$(curl -s -X POST http://localhost:8080/v1/sessions \
-  -H "X-Caller-Id: $CALLER" \
+  -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"browser_type":"CHROME","environment":"TEST"}' \
   | jq -r .session_id)
@@ -192,7 +198,7 @@ If you opened the noVNC window in step 2, you should now see a fresh Chrome.
 
 ```bash
 curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/navigate" \
-  -H "X-Caller-Id: $CALLER" \
+  -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://example.com"}' | jq
 ```
@@ -201,7 +207,7 @@ curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/navigate" \
 
 ```bash
 HANDLE=$(curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/element/find" \
-  -H "X-Caller-Id: $CALLER" \
+  -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"xpath":"//a"}' \
   | jq -r .element_handle)
@@ -220,7 +226,7 @@ the optional `input` field.
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" \
   -X POST "http://localhost:8080/v1/sessions/$SESSION/element/action" \
-  -H "X-Caller-Id: $CALLER" \
+  -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d "{\"element_handle\":\"$HANDLE\",\"action\":\"CLICK\"}"
 # -> 204
@@ -232,7 +238,7 @@ Binary (default):
 
 ```bash
 curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/screenshot" \
-  -H "X-Caller-Id: $CALLER" \
+  -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"strategy":"VIEWPORT"}' \
   --output /tmp/page.png
@@ -246,7 +252,7 @@ Base64 (for MCP / non-binary callers):
 
 ```bash
 curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/screenshot" \
-  -H "X-Caller-Id: $CALLER" \
+  -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{"strategy":"VIEWPORT","encoding":"BASE64"}' | jq -r .png_base64 | head -c 80
 ```
@@ -255,22 +261,22 @@ curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/screenshot" \
 
 ```bash
 # Page status (URL + 503 detection)
-curl -s "http://localhost:8080/v1/sessions/$SESSION/status" -H "X-Caller-Id: $CALLER" | jq
+curl -s "http://localhost:8080/v1/sessions/$SESSION/status" -H "Authorization: Bearer $TOKEN" | jq
 
 # Viewport size + scroll offset
-curl -s "http://localhost:8080/v1/sessions/$SESSION/viewport" -H "X-Caller-Id: $CALLER" | jq
+curl -s "http://localhost:8080/v1/sessions/$SESSION/viewport" -H "Authorization: Bearer $TOKEN" | jq
 
 # Full HTML source
-curl -s "http://localhost:8080/v1/sessions/$SESSION/source" -H "X-Caller-Id: $CALLER" | jq -r .html | head -20
+curl -s "http://localhost:8080/v1/sessions/$SESSION/source" -H "Authorization: Bearer $TOKEN" | jq -r .html | head -20
 
 # Scroll
 curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/scroll" \
-  -H "X-Caller-Id: $CALLER" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"mode":"BOTTOM"}'
 
 # Execute arbitrary JS (escape hatch, no engine method behind it)
 curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/execute" \
-  -H "X-Caller-Id: $CALLER" -H 'Content-Type: application/json' \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"script":"return document.title;"}' | jq
 ```
 
@@ -280,13 +286,13 @@ Full path-to-engine map lives in [`README.md` § Engine → endpoint map](./READ
 
 ```bash
 curl -s http://localhost:8080/v1/sessions \
-  -H "X-Caller-Id: $CALLER" | jq
+  -H "Authorization: Bearer $TOKEN" | jq
 
 curl -s "http://localhost:8080/v1/sessions/$SESSION" \
-  -H "X-Caller-Id: $CALLER" | jq
+  -H "Authorization: Bearer $TOKEN" | jq
 ```
 
-Sessions are scoped per caller — two different `X-Caller-Id` values cannot
+Sessions are scoped per caller — two different `tenant_id:sub` identities cannot
 see each other's sessions.
 
 ### 5.8 Close
@@ -294,7 +300,7 @@ see each other's sessions.
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" \
   -X DELETE "http://localhost:8080/v1/sessions/$SESSION" \
-  -H "X-Caller-Id: $CALLER"
+  -H "Authorization: Bearer $TOKEN"
 # -> 204
 ```
 
@@ -307,7 +313,7 @@ For "open → navigate → screenshot → close" in a single request:
 
 ```bash
 curl -s -X POST http://localhost:8080/v1/capture \
-  -H "X-Caller-Id: $CALLER" \
+  -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
   -d '{
     "url":"https://example.com",
@@ -323,7 +329,7 @@ download the PNG bytes:
 
 ```bash
 curl -s "http://localhost:8080/v1/capture/<capture_id>/screenshot" \
-  -H "X-Caller-Id: $CALLER" --output /tmp/capture.png
+  -H "Authorization: Bearer $TOKEN" --output /tmp/capture.png
 ```
 
 With `encoding: "BASE64"` the bytes are inlined in the JSON.
@@ -331,8 +337,10 @@ With `encoding: "BASE64"` the bytes are inlined in the JSON.
 ## 7. WebSocket walkthrough
 
 The WebSocket is the primary interaction channel for stateful, multi-step
-flows. URL: `ws://localhost:8080/v1/ws/sessions`. The handshake requires the
-same `X-Caller-Id` header.
+flows. URL: `ws://localhost:8080/v1/ws/sessions`. Browsers cannot set the
+`Authorization` header on a WS upgrade, so the JWT travels in the
+`Sec-WebSocket-Protocol` subprotocol negotiation as two values: the literal
+`bearer` sentinel followed by the JWT itself.
 
 Frames are JSON of shape:
 
@@ -354,7 +362,7 @@ Available ops (mirrors the REST surface): `session.create`, `session.attach`,
 ### Quick smoke test with `websocat`
 
 ```bash
-websocat -H 'X-Caller-Id: me' ws://localhost:8080/v1/ws/sessions
+websocat --protocol "bearer,$TOKEN" ws://localhost:8080/v1/ws/sessions
 ```
 
 Then paste:
@@ -409,15 +417,16 @@ open api/target/site/jacoco/index.html
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `400 caller_unidentified` | Missing or blank `X-Caller-Id` | Add the header. |
-| `403 session_forbidden` | Different caller is hitting another caller's session | Use the same `X-Caller-Id` that created the session. |
+| `401 unauthenticated` | Missing, malformed, expired, wrong-issuer, or wrong-audience JWT | Mint a fresh token via dev-services Keycloak and re-export `$TOKEN`. |
+| `401 missing_tenant_claim` | Token validates but lacks the `tenant_id` claim | Ensure the token issuer adds the claim. |
+| `403 forbidden` | Different caller is hitting another caller's session | Use a token for the `tenant_id:sub` that created the session. |
 | `404 session_not_found` | Session was closed or never existed | Open a new one. |
 | `410 session_expired` | Idle (5 min) or absolute (30 min) TTL fired | Open a new one. |
 | `429 session_cap_exceeded` | More than 20 concurrent sessions for this caller (see `application.yaml`) | Close some. |
 | `502 upstream_unavailable` on `POST /v1/sessions` | Selenium hub not reachable | `curl http://localhost:4444/status`; check the `selenium` compose service. |
 | `readyz` returns 503 | Postgres or Selenium probe failed | Inspect the JSON body — it names the failing dependency. |
 | App fails to boot with `password authentication failed` / `Connection refused` on `:5432` | Postgres is on host `:5433` from compose, but the app's default is `:5432` | Pass `--spring.datasource.url=jdbc:postgresql://localhost:5433/browser_service` (see § 3.A). |
-| WebSocket handshake closed immediately | Missing `X-Caller-Id` header on the upgrade | Pass it via `-H` to `websocat`. |
+| WebSocket handshake closed immediately | Missing JWT subprotocol on the upgrade | Pass `--protocol "bearer,$TOKEN"` to `websocat`. |
 
 To watch what the browser is actually doing, leave the noVNC tab from § 2
 open at `http://localhost:7900` while you run the requests.

@@ -29,7 +29,7 @@ import org.openqa.selenium.WebDriver;
 
 class CaptureServiceMoreTest {
 
-  private static final CallerId ALICE = CallerId.parse("alice");
+  private static final CallerId ALICE = CallerId.of("test-tenant", "alice");
 
   private SessionRegistry registry;
   private SessionLocks locks;

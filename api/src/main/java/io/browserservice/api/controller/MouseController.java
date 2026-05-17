@@ -3,8 +3,7 @@ package io.browserservice.api.controller;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.MouseMoveRequest;
 import io.browserservice.api.service.BrowserOperationsService;
-import io.browserservice.api.session.CallerId;
-import io.browserservice.api.web.CallerIdParamConverterProvider;
+import io.browserservice.api.web.CallerContext;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -17,7 +16,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class MouseController {
 
   private final BrowserOperationsService service;
+  private final CallerContext callers;
 
-  public MouseController(BrowserOperationsService service) {
+  public MouseController(BrowserOperationsService service, CallerContext callers) {
     this.service = service;
+    this.callers = callers;
   }
 
   @PostMapping("/mouse/move")
@@ -51,10 +51,7 @@ public class MouseController {
         description = "Mobile session (desktop required)",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public void move(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
-      @Valid @RequestBody MouseMoveRequest req) {
-    service.moveMouse(id, caller, req);
+  public void move(@PathVariable UUID id, @Valid @RequestBody MouseMoveRequest req) {
+    service.moveMouse(id, callers.id(), req);
   }
 }

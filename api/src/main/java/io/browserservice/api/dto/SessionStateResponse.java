@@ -9,7 +9,10 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 @Schema(description = "Session state snapshot including current URL, viewport, and scroll offset.")
 public record SessionStateResponse(
     @Schema(description = "Session identifier") UUID sessionId,
-    @Schema(description = "Caller that owns the session (`X-Caller-Id` of the creator)")
+    @Schema(
+            description =
+                "Caller that owns the session — canonical `tenant_id:sub` derived from the"
+                    + " creator's OIDC bearer token")
         String ownerId,
     @Schema(description = "Browser type") BrowserType browserType,
     @Schema(description = "Session environment") BrowserEnvironment environment,
