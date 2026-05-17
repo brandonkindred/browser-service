@@ -14,6 +14,16 @@ import org.eclipse.microprofile.faulttolerance.CircuitBreaker;
  * they're per-operation policies: idempotency varies, and a one-size-fits-all timeout would kill
  * legitimate slow operations (navigation, full-page screenshots, user JS). Callers add
  * {@code @Retry} and {@code @Timeout} on the public service method when appropriate.
+ *
+ * <p><strong>Known limitation:</strong> SmallRye {@code @Timeout} uses {@code Thread.interrupt()}
+ * on the worker thread. Selenium's HTTP client doesn't respond to interrupts, so when a caller's
+ * {@code @Timeout} fires, the underlying Selenium call keeps running until its own HTTP read
+ * timeout (60s by default; see {@code browserservice.selenium.read-timeout-ms}). During that gap
+ * the bulkhead permit and per-session lock are still held by the zombie thread. Subsequent requests
+ * to the same session can see {@code SessionBusyException}, and four concurrent zombies fully
+ * saturate the bulkhead. Mitigations would require moving the guard to {@code @Asynchronous} (with
+ * the cost of ThreadLocal/context-propagation work) or lowering the Selenium HTTP read timeout
+ * (with the cost of killing legitimate slow operations).
  */
 @ApplicationScoped
 public class SeleniumGuard {

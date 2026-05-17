@@ -97,6 +97,8 @@ public class BrowserOperationsService {
       delayUnit = ChronoUnit.MILLIS,
       jitter = 100,
       jitterDelayUnit = ChronoUnit.MILLIS,
+      maxDuration = 16,
+      durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
   @Timeout(value = 5, unit = ChronoUnit.SECONDS)
@@ -119,6 +121,8 @@ public class BrowserOperationsService {
       delayUnit = ChronoUnit.MILLIS,
       jitter = 100,
       jitterDelayUnit = ChronoUnit.MILLIS,
+      maxDuration = 16,
+      durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
   @Timeout(value = 5, unit = ChronoUnit.SECONDS)
@@ -138,7 +142,9 @@ public class BrowserOperationsService {
                     // Driver-level failure must reach the guard so the breaker can trip and
                     // @Retry can re-attempt. Swallowing it here defeats both.
                     throw e;
-                  } catch (Exception e) {
+                  } catch (RuntimeException e) {
+                    // Page-source parse / HtmlUtils errors fall back to is503=false. Narrower
+                    // than Exception so Errors (OOM, etc.) keep propagating.
                     is503 = false;
                   }
                   return new PageStatusResponse(safeUrl(h.driver()), is503);
@@ -151,6 +157,8 @@ public class BrowserOperationsService {
       delayUnit = ChronoUnit.MILLIS,
       jitter = 100,
       jitterDelayUnit = ChronoUnit.MILLIS,
+      maxDuration = 16,
+      durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
   @Timeout(value = 5, unit = ChronoUnit.SECONDS)
@@ -194,6 +202,8 @@ public class BrowserOperationsService {
       delayUnit = ChronoUnit.MILLIS,
       jitter = 100,
       jitterDelayUnit = ChronoUnit.MILLIS,
+      maxDuration = 16,
+      durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
   public byte[] pageScreenshot(

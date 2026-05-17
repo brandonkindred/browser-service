@@ -46,6 +46,8 @@ public class ElementOperationsService {
       delayUnit = ChronoUnit.MILLIS,
       jitter = 100,
       jitterDelayUnit = ChronoUnit.MILLIS,
+      maxDuration = 16,
+      durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
   @Timeout(value = 5, unit = ChronoUnit.SECONDS)
@@ -121,6 +123,8 @@ public class ElementOperationsService {
       delayUnit = ChronoUnit.MILLIS,
       jitter = 100,
       jitterDelayUnit = ChronoUnit.MILLIS,
+      maxDuration = 16,
+      durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
   public byte[] elementScreenshot(UUID sessionId, CallerId caller, ElementScreenshotRequest req) {

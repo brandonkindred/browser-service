@@ -153,7 +153,7 @@ class BrowserOperationsServiceTest {
   }
 
   @Test
-  void navigateReDriverFailurePropagatesSoBreakerCanSeeIt() {
+  void navigateRealDriverFailurePropagatesSoBreakerCanSeeIt() {
     // Without re-raising WebDriverException, a dead Selenium replica would still return
     // NavigateStatus.ERROR and the circuit breaker would never see the failure.
     Browser browser = mock(Browser.class);
