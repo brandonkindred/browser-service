@@ -78,7 +78,8 @@ class BrowserOperationsServiceTest {
             org.mockito.Mockito.mock(BrowserSessionTracker.class),
             props);
     urlValidator = permissiveValidator(props);
-    service = new BrowserOperationsService(sessionService, locks, urlValidator);
+    service =
+        new BrowserOperationsService(sessionService, locks, urlValidator, new SeleniumGuard());
   }
 
   private static UrlSafetyValidator permissiveValidator(EngineProperties props) {
@@ -152,6 +153,38 @@ class BrowserOperationsServiceTest {
   }
 
   @Test
+  void navigateRealDriverFailurePropagatesSoBreakerCanSeeIt() {
+    // Without re-raising WebDriverException, a dead Selenium replica would still return
+    // NavigateStatus.ERROR and the circuit breaker would never see the failure.
+    Browser browser = mock(Browser.class);
+    WebDriver driver = mock(WebDriver.class);
+    when(browser.getDriver()).thenReturn(driver);
+    org.mockito.Mockito.doThrow(new org.openqa.selenium.remote.UnreachableBrowserException("down"))
+        .when(browser)
+        .navigateTo("https://example.com");
+    UUID id = register(browser);
+
+    assertThatThrownBy(
+            () -> service.navigate(id, ALICE, new NavigateRequest("https://example.com", null)))
+        .isInstanceOf(org.openqa.selenium.remote.UnreachableBrowserException.class);
+  }
+
+  @Test
+  void getStatusDriverFailurePropagatesSoBreakerCanSeeIt() {
+    // Same bug as navigate(): inner try/catch was swallowing WebDriverException, so the
+    // @Retry annotation and the shared circuit breaker never saw the failure.
+    Browser browser = mock(Browser.class);
+    WebDriver driver = mock(WebDriver.class);
+    when(browser.getDriver()).thenReturn(driver);
+    when(browser.getSource())
+        .thenThrow(new org.openqa.selenium.remote.UnreachableBrowserException("down"));
+    UUID id = register(browser);
+
+    assertThatThrownBy(() -> service.getStatus(id, ALICE))
+        .isInstanceOf(org.openqa.selenium.remote.UnreachableBrowserException.class);
+  }
+
+  @Test
   void navigateRejectedBySsrfGuardSkipsBrowserCall() {
     Browser browser = mock(Browser.class);
     UUID id = register(browser);
@@ -165,7 +198,8 @@ class BrowserOperationsServiceTest {
             org.mockito.Mockito.mock(BrowserSessionTracker.class),
             props);
     BrowserOperationsService guarded =
-        new BrowserOperationsService(sessionService, locks, blockingValidator(props));
+        new BrowserOperationsService(
+            sessionService, locks, blockingValidator(props), new SeleniumGuard());
 
     assertThatThrownBy(
             () -> guarded.navigate(id, ALICE, new NavigateRequest("http://internal.example", null)))

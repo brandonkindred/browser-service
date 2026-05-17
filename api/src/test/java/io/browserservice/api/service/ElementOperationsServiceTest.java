@@ -57,7 +57,26 @@ class ElementOperationsServiceTest {
             org.mockito.Mockito.mock(DriverFactory.class),
             org.mockito.Mockito.mock(BrowserSessionTracker.class),
             props);
-    service = new ElementOperationsService(sessionService, locks);
+    service = new ElementOperationsService(sessionService, locks, new SeleniumGuard());
+  }
+
+  @Test
+  void findDoesNotRegisterHandleWhenAttributeReadFails() {
+    // If extractAttributes throws WebDriverException, the @Retry on find() will fire. Putting
+    // the handle in the registry BEFORE the read would leak an orphaned entry on every retry.
+    Browser browser = mock(Browser.class);
+    WebDriver driver = mock(WebDriver.class);
+    when(browser.getDriver()).thenReturn(driver);
+    WebElement element = mock(WebElement.class);
+    when(browser.findElement("//h1")).thenReturn(element);
+    when(element.isDisplayed()).thenReturn(true);
+    when(browser.extractAttributes(element))
+        .thenThrow(new org.openqa.selenium.remote.UnreachableBrowserException("down"));
+    SessionHandle handle = registerDesktop(browser);
+
+    assertThatThrownBy(() -> service.find(handle.id(), ALICE, new FindElementRequest("//h1")))
+        .isInstanceOf(org.openqa.selenium.remote.UnreachableBrowserException.class);
+    assertThat(handle.elements().size()).isZero();
   }
 
   @Test
