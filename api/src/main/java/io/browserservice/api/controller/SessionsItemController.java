@@ -3,8 +3,7 @@ package io.browserservice.api.controller;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.SessionStateResponse;
 import io.browserservice.api.service.SessionService;
-import io.browserservice.api.session.CallerId;
-import io.browserservice.api.web.CallerIdParamConverterProvider;
+import io.browserservice.api.web.CallerContext;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
@@ -16,7 +15,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -31,10 +29,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class SessionsItemController {
 
   private final SessionService sessionService;
+  private final CallerContext callers;
 
   /** Constructs the controller with its session service collaborator. */
-  public SessionsItemController(SessionService sessionService) {
+  public SessionsItemController(SessionService sessionService, CallerContext callers) {
     this.sessionService = sessionService;
+    this.callers = callers;
   }
 
   /** Returns the current state of the session owned by the caller. */
@@ -50,10 +50,8 @@ public class SessionsItemController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public SessionStateResponse get(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
-    return sessionService.describe(id, caller);
+  public SessionStateResponse get(@PathVariable UUID id) {
+    return sessionService.describe(id, callers.id());
   }
 
   /** Closes the session owned by the caller. */
@@ -67,9 +65,7 @@ public class SessionsItemController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public void delete(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
-    sessionService.close(id, caller);
+  public void delete(@PathVariable UUID id) {
+    sessionService.close(id, callers.id());
   }
 }

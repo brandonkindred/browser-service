@@ -4,9 +4,8 @@ import io.browserservice.api.dto.CaptureRequest;
 import io.browserservice.api.dto.CaptureResponse;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.service.CaptureService;
-import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.CaptureScreenshotCache;
-import io.browserservice.api.web.CallerIdParamConverterProvider;
+import io.browserservice.api.web.CallerContext;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -21,7 +20,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -31,9 +29,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class CaptureController {
 
   private final CaptureService service;
+  private final CallerContext callers;
 
-  public CaptureController(CaptureService service) {
+  public CaptureController(CaptureService service, CallerContext callers) {
     this.service = service;
+    this.callers = callers;
   }
 
   @PostMapping
@@ -55,10 +55,8 @@ public class CaptureController {
         description = "Upstream unavailable",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public CaptureResponse capture(
-      @Valid @RequestBody CaptureRequest req,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
-    return service.capture(req, caller);
+  public CaptureResponse capture(@Valid @RequestBody CaptureRequest req) {
+    return service.capture(req, callers.id());
   }
 
   @GetMapping(value = "/{captureId}/screenshot", produces = MediaType.IMAGE_PNG_VALUE)
@@ -74,10 +72,8 @@ public class CaptureController {
         description = "Capture expired",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public ResponseEntity<byte[]> getScreenshot(
-      @PathVariable UUID captureId,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
-    CaptureScreenshotCache.CaptureEntry entry = service.fetchScreenshot(captureId, caller);
+  public ResponseEntity<byte[]> getScreenshot(@PathVariable UUID captureId) {
+    CaptureScreenshotCache.CaptureEntry entry = service.fetchScreenshot(captureId, callers.id());
     return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(entry.pngBytes());
   }
 }

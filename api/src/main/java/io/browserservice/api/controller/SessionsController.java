@@ -5,8 +5,7 @@ import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.SessionListResponse;
 import io.browserservice.api.dto.SessionResponse;
 import io.browserservice.api.service.SessionService;
-import io.browserservice.api.session.CallerId;
-import io.browserservice.api.web.CallerIdParamConverterProvider;
+import io.browserservice.api.web.CallerContext;
 import jakarta.validation.Valid;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.media.Content;
@@ -18,7 +17,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -33,9 +31,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class SessionsController {
 
   private final SessionService sessionService;
+  private final CallerContext callers;
 
-  public SessionsController(SessionService sessionService) {
+  public SessionsController(SessionService sessionService, CallerContext callers) {
     this.sessionService = sessionService;
+    this.callers = callers;
   }
 
   @PostMapping
@@ -59,10 +59,8 @@ public class SessionsController {
         description = "Upstream hub unavailable",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public SessionResponse create(
-      @Valid @RequestBody CreateSessionRequest req,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
-    return sessionService.create(req, caller);
+  public SessionResponse create(@Valid @RequestBody CreateSessionRequest req) {
+    return sessionService.create(req, callers.id());
   }
 
   @GetMapping
@@ -73,8 +71,7 @@ public class SessionsController {
         description = "Session list",
         content = @Content(schema = @Schema(implementation = SessionListResponse.class)))
   })
-  public SessionListResponse list(
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
-    return sessionService.list(caller);
+  public SessionListResponse list() {
+    return sessionService.list(callers.id());
   }
 }

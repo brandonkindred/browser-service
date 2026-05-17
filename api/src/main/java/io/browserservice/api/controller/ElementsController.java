@@ -5,8 +5,7 @@ import io.browserservice.api.dto.ElementStateResponse;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.FindElementRequest;
 import io.browserservice.api.service.ElementOperationsService;
-import io.browserservice.api.session.CallerId;
-import io.browserservice.api.web.CallerIdParamConverterProvider;
+import io.browserservice.api.web.CallerContext;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -19,7 +18,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,9 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ElementsController {
 
   private final ElementOperationsService service;
+  private final CallerContext callers;
 
-  public ElementsController(ElementOperationsService service) {
+  public ElementsController(ElementOperationsService service, CallerContext callers) {
     this.service = service;
+    this.callers = callers;
   }
 
   @PostMapping("/find")
@@ -47,10 +47,8 @@ public class ElementsController {
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   public ElementStateResponse find(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
-      @Valid @RequestBody FindElementRequest req) {
-    return service.find(id, caller, req);
+      @PathVariable UUID id, @Valid @RequestBody FindElementRequest req) {
+    return service.find(id, callers.id(), req);
   }
 
   @PostMapping("/action")
@@ -69,10 +67,7 @@ public class ElementsController {
         description = "Mobile session (desktop required)",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public void action(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
-      @Valid @RequestBody ElementActionRequest req) {
-    service.action(id, caller, req);
+  public void action(@PathVariable UUID id, @Valid @RequestBody ElementActionRequest req) {
+    service.action(id, callers.id(), req);
   }
 }

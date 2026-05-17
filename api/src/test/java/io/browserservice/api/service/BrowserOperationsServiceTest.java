@@ -57,8 +57,8 @@ import org.openqa.selenium.WebElement;
 
 class BrowserOperationsServiceTest {
 
-  private static final CallerId ALICE = CallerId.parse("alice");
-  private static final CallerId BOB = CallerId.parse("bob");
+  private static final CallerId ALICE = CallerId.of("test-tenant", "alice");
+  private static final CallerId BOB = CallerId.of("test-tenant", "bob");
 
   private SessionRegistry registry;
   private SessionLocks locks;

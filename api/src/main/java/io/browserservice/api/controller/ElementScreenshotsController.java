@@ -3,8 +3,7 @@ package io.browserservice.api.controller;
 import io.browserservice.api.dto.ElementScreenshotRequest;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.service.ElementOperationsService;
-import io.browserservice.api.session.CallerId;
-import io.browserservice.api.web.CallerIdParamConverterProvider;
+import io.browserservice.api.web.CallerContext;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -18,7 +17,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -33,10 +31,12 @@ import org.springframework.web.bind.annotation.RestController;
 public class ElementScreenshotsController {
 
   private final ElementOperationsService elementOps;
+  private final CallerContext callers;
 
   /** Constructs the controller with its element operations collaborator. */
-  public ElementScreenshotsController(ElementOperationsService elementOps) {
+  public ElementScreenshotsController(ElementOperationsService elementOps, CallerContext callers) {
     this.elementOps = elementOps;
+    this.callers = callers;
   }
 
   /** Captures a single-element screenshot using a handle returned by {@code /element/find}. */
@@ -52,10 +52,8 @@ public class ElementScreenshotsController {
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
   public ResponseEntity<?> captureElement(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
-      @Valid @RequestBody ElementScreenshotRequest req) {
-    byte[] pngBytes = elementOps.elementScreenshot(id, caller, req);
+      @PathVariable UUID id, @Valid @RequestBody ElementScreenshotRequest req) {
+    byte[] pngBytes = elementOps.elementScreenshot(id, callers.id(), req);
     return ScreenshotsController.respond(pngBytes, req.encoding());
   }
 }

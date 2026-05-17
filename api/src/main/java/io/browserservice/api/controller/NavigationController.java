@@ -6,8 +6,7 @@ import io.browserservice.api.dto.NavigateResponse;
 import io.browserservice.api.dto.PageSourceResponse;
 import io.browserservice.api.dto.PageStatusResponse;
 import io.browserservice.api.service.BrowserOperationsService;
-import io.browserservice.api.session.CallerId;
-import io.browserservice.api.web.CallerIdParamConverterProvider;
+import io.browserservice.api.web.CallerContext;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -20,7 +19,6 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,9 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class NavigationController {
 
   private final BrowserOperationsService service;
+  private final CallerContext callers;
 
-  public NavigationController(BrowserOperationsService service) {
+  public NavigationController(BrowserOperationsService service, CallerContext callers) {
     this.service = service;
+    this.callers = callers;
   }
 
   @PostMapping("/navigate")
@@ -51,11 +51,8 @@ public class NavigationController {
         description = "Upstream error",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public NavigateResponse navigate(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
-      @Valid @RequestBody NavigateRequest req) {
-    return service.navigate(id, caller, req);
+  public NavigateResponse navigate(@PathVariable UUID id, @Valid @RequestBody NavigateRequest req) {
+    return service.navigate(id, callers.id(), req);
   }
 
   @GetMapping("/source")
@@ -69,10 +66,8 @@ public class NavigationController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public PageSourceResponse source(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
-    return service.getSource(id, caller);
+  public PageSourceResponse source(@PathVariable UUID id) {
+    return service.getSource(id, callers.id());
   }
 
   @GetMapping("/status")
@@ -88,9 +83,7 @@ public class NavigationController {
         description = "Session not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public PageStatusResponse status(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller) {
-    return service.getStatus(id, caller);
+  public PageStatusResponse status(@PathVariable UUID id) {
+    return service.getStatus(id, callers.id());
   }
 }

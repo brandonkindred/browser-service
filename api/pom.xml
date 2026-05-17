@@ -86,6 +86,23 @@
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-config-yaml</artifactId>
     </dependency>
+    <!-- OIDC bearer-token auth on /v1/*. Replaces the pre-#89 X-Caller-Id trust
+         model: the caller identity is derived from the cryptographically
+         validated `sub` + `tenant_id` claims of an inbound JWT. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-oidc</artifactId>
+    </dependency>
+    <!-- smallrye-jwt's JWTParser is used by CallerIdUpgradeCheck to validate
+         JWTs presented in the WebSocket Sec-WebSocket-Protocol subprotocol,
+         since the standard quarkus-oidc auth pipeline only reads from the
+         Authorization header (which browsers cannot set on WS upgrades). The
+         mp.jwt.* config in application.yaml mirrors quarkus.oidc.* so both
+         pipelines validate against the same issuer/audience/JWKS. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-smallrye-jwt</artifactId>
+    </dependency>
 
     <dependency>
       <groupId>org.projectlombok</groupId>
@@ -97,6 +114,26 @@
     <dependency>
       <groupId>io.quarkus</groupId>
       <artifactId>quarkus-junit5</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- In-memory OIDC issuer for @QuarkusTest: signs real JWTs, publishes a
+         JWKS endpoint, and overrides quarkus.oidc.auth-server-url so the live
+         bearer-validation path is exercised end-to-end without a real IdP. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-test-oidc-server</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <!-- Lets unit-style @QuarkusTest classes stub the SecurityIdentity via
+         @TestSecurity + @OidcSecurity without booting the wiremock issuer. -->
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-test-security</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>io.quarkus</groupId>
+      <artifactId>quarkus-test-security-oidc</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>

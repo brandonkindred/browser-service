@@ -199,6 +199,7 @@
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]push[/\\]NavigationWatcher\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]main[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]ws[/\\]push[/\\]WatcherCoordinator\.java$" checks="MissingJavadocMethod"/>
   <suppress files="api[/\\]src[/\\]test[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]integration[/\\]SeleniumGridIT\.java$" checks="AbbreviationAsWordInName"/>
+  <suppress files="api[/\\]src[/\\]test[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]web[/\\]JwtAuthIT\.java$" checks="AbbreviationAsWordInName"/>
   <suppress files="api[/\\]src[/\\]test[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]openapi[/\\]SpecExportTest\.java$" checks="VariableDeclarationUsageDistance"/>
   <suppress files="api[/\\]src[/\\]test[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]persistence[/\\]BrowserSessionRepositoryIT\.java$" checks="AbbreviationAsWordInName"/>
   <suppress files="api[/\\]src[/\\]test[/\\]java[/\\]io[/\\]browserservice[/\\]api[/\\]persistence[/\\]BrowserSessionRepositoryIT\.java$" checks="VariableDeclarationUsageDistance"/>

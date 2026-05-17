@@ -4,8 +4,7 @@ import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.dto.ScrollOffset;
 import io.browserservice.api.dto.ScrollRequest;
 import io.browserservice.api.service.BrowserOperationsService;
-import io.browserservice.api.session.CallerId;
-import io.browserservice.api.web.CallerIdParamConverterProvider;
+import io.browserservice.api.web.CallerContext;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -17,7 +16,6 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -27,9 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ScrollController {
 
   private final BrowserOperationsService service;
+  private final CallerContext callers;
 
-  public ScrollController(BrowserOperationsService service) {
+  public ScrollController(BrowserOperationsService service, CallerContext callers) {
     this.service = service;
+    this.callers = callers;
   }
 
   @PostMapping("/scroll")
@@ -47,10 +47,7 @@ public class ScrollController {
         description = "Session or element handle not found",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public ScrollOffset scroll(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
-      @Valid @RequestBody ScrollRequest req) {
-    return service.scroll(id, caller, req);
+  public ScrollOffset scroll(@PathVariable UUID id, @Valid @RequestBody ScrollRequest req) {
+    return service.scroll(id, callers.id(), req);
   }
 }

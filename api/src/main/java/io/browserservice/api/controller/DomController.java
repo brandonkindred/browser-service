@@ -3,8 +3,7 @@ package io.browserservice.api.controller;
 import io.browserservice.api.dto.DomRemoveRequest;
 import io.browserservice.api.dto.ErrorResponse;
 import io.browserservice.api.service.BrowserOperationsService;
-import io.browserservice.api.session.CallerId;
-import io.browserservice.api.web.CallerIdParamConverterProvider;
+import io.browserservice.api.web.CallerContext;
 import jakarta.validation.Valid;
 import java.util.UUID;
 import org.eclipse.microprofile.openapi.annotations.Operation;
@@ -17,7 +16,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,9 +26,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class DomController {
 
   private final BrowserOperationsService service;
+  private final CallerContext callers;
 
-  public DomController(BrowserOperationsService service) {
+  public DomController(BrowserOperationsService service, CallerContext callers) {
     this.service = service;
+    this.callers = callers;
   }
 
   @PostMapping("/dom/remove")
@@ -53,10 +53,7 @@ public class DomController {
         description = "Mobile session (desktop required)",
         content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
   })
-  public void remove(
-      @PathVariable UUID id,
-      @RequestHeader(CallerIdParamConverterProvider.HEADER) CallerId caller,
-      @Valid @RequestBody DomRemoveRequest req) {
-    service.removeDom(id, caller, req);
+  public void remove(@PathVariable UUID id, @Valid @RequestBody DomRemoveRequest req) {
+    service.removeDom(id, callers.id(), req);
   }
 }

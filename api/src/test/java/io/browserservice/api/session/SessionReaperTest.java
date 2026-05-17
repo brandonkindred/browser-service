@@ -33,7 +33,7 @@ class SessionReaperTest {
     SessionHandle expired =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofMillis(1),
@@ -41,7 +41,7 @@ class SessionReaperTest {
     SessionHandle active =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(60),
@@ -74,7 +74,7 @@ class SessionReaperTest {
     SessionHandle absoluteExpired =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(60),
@@ -99,7 +99,7 @@ class SessionReaperTest {
     SessionHandle expired =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofMillis(1),
@@ -137,7 +137,7 @@ class SessionReaperTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(60),
@@ -166,7 +166,7 @@ class SessionReaperTest {
     SessionHandle handle =
         SessionHandle.desktop(
             mock(Browser.class),
-            CallerId.parse("alice"),
+            CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
             BrowserEnvironment.TEST,
             Duration.ofSeconds(60),

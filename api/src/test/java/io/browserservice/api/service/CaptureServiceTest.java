@@ -37,7 +37,7 @@ import org.openqa.selenium.WebElement;
 
 class CaptureServiceTest {
 
-  private static final CallerId ALICE = CallerId.parse("alice");
+  private static final CallerId ALICE = CallerId.of("test-tenant", "alice");
 
   private SessionRegistry registry;
   private SessionLocks locks;
