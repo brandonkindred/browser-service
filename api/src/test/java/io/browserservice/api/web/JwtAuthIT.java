@@ -89,6 +89,19 @@ class JwtAuthIT {
   }
 
   @Test
+  void nonStringTenantClaimIsRejectedAs401NotCastException() {
+    // Regression test for Codex review #148: getClaim() returns Object, so a numeric/array
+    // tenant_id used to throw ClassCastException → 500 instead of the documented 401.
+    given()
+        .header("Authorization", "Bearer " + TestTokens.numericTenant("alice"))
+        .when()
+        .get("/v1/sessions")
+        .then()
+        .statusCode(401)
+        .body("error.code", equalTo("missing_tenant_claim"));
+  }
+
+  @Test
   void validTokenReachesTheController() {
     // GET /v1/sessions returns 200 with an empty session list when no sessions exist for the
     // caller — the key thing this test proves is that the auth layer accepted the token and

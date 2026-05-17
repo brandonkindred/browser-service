@@ -39,13 +39,6 @@ quarkus:
       refresh-expired: false
     tls:
       verification: "required"
-mp:
-  jwt:
-    verify:
-      issuer: "${OIDC_ISSUER_URI:https://securetoken.google.com/replace-me}"
-      audiences: "${OIDC_AUDIENCE:browser-service}"
-      publickey:
-        location: "${OIDC_JWKS_URI:${OIDC_ISSUER_URI:https://securetoken.google.com/replace-me}/.well-known/jwks.json}"
   datasource:
     db-kind: "postgresql"
     username: "${DATABASE_USERNAME:browser_service}"
@@ -81,6 +74,13 @@ mp:
       io.smallrye.openapi.runtime.scanner.spi:
         level: "ERROR"
         min-level: "ERROR"
+mp:
+  jwt:
+    verify:
+      issuer: "${OIDC_ISSUER_URI:https://securetoken.google.com/replace-me}"
+      audiences: "${OIDC_AUDIENCE:browser-service}"
+      publickey:
+        location: "${OIDC_JWKS_URI:${OIDC_ISSUER_URI:https://securetoken.google.com/replace-me}/.well-known/jwks.json}"
 '%dev':
   quarkus:
     datasource:

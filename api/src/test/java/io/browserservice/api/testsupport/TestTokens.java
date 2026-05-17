@@ -72,6 +72,15 @@ public final class TestTokens {
         .sign(SIGN_KEY_LOCATION);
   }
 
+  /** Mints an otherwise-valid token whose {@code tenant_id} is a number instead of a string. */
+  public static String numericTenant(String subject) {
+    return Jwt.subject(subject)
+        .claim("tenant_id", 12345)
+        .issuer(DEFAULT_ISSUER)
+        .audience(DEFAULT_AUDIENCE)
+        .sign(SIGN_KEY_LOCATION);
+  }
+
   /** Replaces the signature segment of a valid token with garbage so verification fails. */
   public static String tampered(String subject) {
     String valid = mint(subject);

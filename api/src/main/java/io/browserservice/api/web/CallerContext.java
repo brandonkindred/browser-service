@@ -50,9 +50,13 @@ public class CallerContext {
     if (subject == null || subject.isBlank()) {
       throw new CallerUnidentifiedException("missing_subject_claim", "sub claim is missing");
     }
-    String tenantId = token.getClaim("tenant_id");
-    if (tenantId == null || tenantId.isBlank()) {
-      throw new CallerUnidentifiedException("missing_tenant_claim", "tenant_id claim is missing");
+    // JsonWebToken.getClaim returns Object — guard against an attacker (or a misconfigured IdP)
+    // shipping `tenant_id` as a number/array/object, which would otherwise throw
+    // ClassCastException at the implicit assignment and surface as a 500.
+    Object tenantClaim = token.getClaim("tenant_id");
+    if (!(tenantClaim instanceof String tenantId) || tenantId.isBlank()) {
+      throw new CallerUnidentifiedException(
+          "missing_tenant_claim", "tenant_id claim is missing or not a string");
     }
     try {
       return CallerId.of(tenantId, subject);

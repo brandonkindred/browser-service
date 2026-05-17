@@ -49,8 +49,13 @@ public class CallerIdUpgradeCheck implements HttpUpgradeCheck {
     }
     try {
       JsonWebToken parsed = jwtParser.parse(token);
-      String tenant = parsed.getClaim("tenant_id");
-      if (parsed.getSubject() == null || tenant == null || tenant.isBlank()) {
+      // tenant_id claim must be a non-blank string — defend against a number/array/object value
+      // that would otherwise throw ClassCastException at the implicit assignment and surface as a
+      // 500 from the upgrade pipeline.
+      Object tenantClaim = parsed.getClaim("tenant_id");
+      if (parsed.getSubject() == null
+          || !(tenantClaim instanceof String tenant)
+          || tenant.isBlank()) {
         return CheckResult.rejectUpgrade(401);
       }
     } catch (ParseException e) {

@@ -104,7 +104,10 @@ public class SessionSocket {
     CallerId caller;
     try {
       JsonWebToken jwt = jwtParser.parse(token);
-      String tenant = jwt.getClaim("tenant_id");
+      Object tenantClaim = jwt.getClaim("tenant_id");
+      if (!(tenantClaim instanceof String tenant)) {
+        throw new IllegalArgumentException("tenant_id claim is not a string");
+      }
       caller = CallerId.of(tenant, jwt.getSubject());
     } catch (ParseException | IllegalArgumentException e) {
       // Should be unreachable: CallerIdUpgradeCheck rejected the upgrade if
