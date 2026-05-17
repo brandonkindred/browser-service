@@ -22,7 +22,6 @@ import java.util.UUID;
 import org.eclipse.microprofile.faulttolerance.Retry;
 import org.eclipse.microprofile.faulttolerance.Timeout;
 import org.openqa.selenium.NoSuchElementException;
-import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.remote.UnreachableBrowserException;
 import org.springframework.stereotype.Service;
@@ -49,7 +48,7 @@ public class ElementOperationsService {
       jitterDelayUnit = ChronoUnit.MILLIS,
       maxDuration = 22,
       durationUnit = ChronoUnit.SECONDS,
-      retryOn = {UnreachableBrowserException.class, NoSuchSessionException.class},
+      retryOn = UnreachableBrowserException.class,
       abortOn = ApiException.class)
   @Timeout(value = 7, unit = ChronoUnit.SECONDS)
   public ElementStateResponse find(UUID sessionId, CallerId caller, FindElementRequest req) {
@@ -126,7 +125,7 @@ public class ElementOperationsService {
       jitterDelayUnit = ChronoUnit.MILLIS,
       maxDuration = 22,
       durationUnit = ChronoUnit.SECONDS,
-      retryOn = {UnreachableBrowserException.class, NoSuchSessionException.class},
+      retryOn = UnreachableBrowserException.class,
       abortOn = ApiException.class)
   public byte[] elementScreenshot(UUID sessionId, CallerId caller, ElementScreenshotRequest req) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);

@@ -33,7 +33,6 @@ import org.eclipse.microprofile.faulttolerance.Retry;
 import org.eclipse.microprofile.faulttolerance.Timeout;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.NoSuchSessionException;
 import org.openqa.selenium.Point;
 import org.openqa.selenium.TimeoutException;
 import org.openqa.selenium.WebDriver;
@@ -93,9 +92,11 @@ public class BrowserOperationsService {
                 }));
   }
 
-  // retryOn is narrowed to genuine transport failures (mirrors SeleniumGuard's breaker failOn).
-  // Retrying on page-state errors (UnhandledAlert, Stale, JavascriptException, …) would just
-  // burn ~20s on a deterministic failure that retries can't fix.
+  // retryOn is narrowed to the one genuinely transient failure: UnreachableBrowserException.
+  // The breaker counts a broader set (also NoSuchSessionException) because it cares about the
+  // "Selenium dropped many sessions" pattern, but at retry-time NSE isn't transient — re-running
+  // immediately won't bring the session back. Retrying on page-state WebDriverException subclasses
+  // (UnhandledAlert, Stale, JavascriptException, …) would just burn ~14s on deterministic failures.
   // maxDuration is a best-effort total-time budget: MP-FT stops SCHEDULING new retries past 22s
   // but an in-flight attempt runs to completion. 22s = 3 × 7s @Timeout + 2 × ≤350ms jitter, so
   // all three attempts can fire. @Timeout is 7s, not 5s, to clear the 5s session
@@ -109,7 +110,7 @@ public class BrowserOperationsService {
       jitterDelayUnit = ChronoUnit.MILLIS,
       maxDuration = 22,
       durationUnit = ChronoUnit.SECONDS,
-      retryOn = {UnreachableBrowserException.class, NoSuchSessionException.class},
+      retryOn = UnreachableBrowserException.class,
       abortOn = ApiException.class)
   @Timeout(value = 7, unit = ChronoUnit.SECONDS)
   public PageSourceResponse getSource(UUID sessionId, CallerId caller) {
@@ -133,7 +134,7 @@ public class BrowserOperationsService {
       jitterDelayUnit = ChronoUnit.MILLIS,
       maxDuration = 22,
       durationUnit = ChronoUnit.SECONDS,
-      retryOn = {UnreachableBrowserException.class, NoSuchSessionException.class},
+      retryOn = UnreachableBrowserException.class,
       abortOn = ApiException.class)
   @Timeout(value = 7, unit = ChronoUnit.SECONDS)
   public PageStatusResponse getStatus(UUID sessionId, CallerId caller) {
@@ -169,7 +170,7 @@ public class BrowserOperationsService {
       jitterDelayUnit = ChronoUnit.MILLIS,
       maxDuration = 22,
       durationUnit = ChronoUnit.SECONDS,
-      retryOn = {UnreachableBrowserException.class, NoSuchSessionException.class},
+      retryOn = UnreachableBrowserException.class,
       abortOn = ApiException.class)
   @Timeout(value = 7, unit = ChronoUnit.SECONDS)
   public ViewportStateResponse getViewport(UUID sessionId, CallerId caller) {
@@ -214,7 +215,7 @@ public class BrowserOperationsService {
       jitterDelayUnit = ChronoUnit.MILLIS,
       maxDuration = 22,
       durationUnit = ChronoUnit.SECONDS,
-      retryOn = {UnreachableBrowserException.class, NoSuchSessionException.class},
+      retryOn = UnreachableBrowserException.class,
       abortOn = ApiException.class)
   public byte[] pageScreenshot(
       UUID sessionId, CallerId caller, io.browserservice.api.dto.ScreenshotStrategy strategy) {
