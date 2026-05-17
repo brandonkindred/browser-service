@@ -8,6 +8,7 @@ import io.smallrye.mutiny.Uni;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import java.util.List;
+import java.util.Map;
 import org.eclipse.microprofile.jwt.JsonWebToken;
 
 /**
@@ -66,7 +67,10 @@ public class CallerIdUpgradeCheck implements HttpUpgradeCheck {
     } catch (ParseException | IllegalArgumentException e) {
       return CheckResult.rejectUpgrade(401);
     }
-    return CheckResult.permitUpgrade();
+    // Echo the negotiated subprotocol back to the client so the WebSocket handshake completes
+    // protocol negotiation correctly per RFC 6455 §11.3.4 — without this, some clients abort the
+    // upgrade because the server failed to acknowledge the requested subprotocol.
+    return CheckResult.permitUpgrade(Map.of(SUBPROTOCOL_HEADER, List.of(BEARER_SUBPROTOCOL)));
   }
 
   /**
