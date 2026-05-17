@@ -8,7 +8,6 @@ import java.util.function.Supplier;
 import org.eclipse.microprofile.faulttolerance.Bulkhead;
 import org.eclipse.microprofile.faulttolerance.CircuitBreaker;
 import org.openqa.selenium.NoSuchSessionException;
-import org.openqa.selenium.SessionNotCreatedException;
 import org.openqa.selenium.remote.UnreachableBrowserException;
 
 /**
@@ -53,10 +52,11 @@ public class SeleniumGuard {
       // Selenium failure modes that don't surface as one of the listed classes, in exchange for
       // not tripping on chatty buggy clients (false-positive trips were the bug that motivated
       // this narrowing — see the earlier review iterations on #110).
+      // (SessionNotCreatedException isn't here — session creation happens in SessionService,
+      // outside the guard, so it can't be observed from inside execute().)
       failOn = {
         UnreachableBrowserException.class,
         NoSuchSessionException.class,
-        SessionNotCreatedException.class,
         UpstreamUnavailableException.class
       })
   @CircuitBreakerName("selenium")
