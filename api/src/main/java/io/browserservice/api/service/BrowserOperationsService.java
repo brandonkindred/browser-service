@@ -91,9 +91,10 @@ public class BrowserOperationsService {
                 }));
   }
 
-  // Best-effort total-time budget across retries. MP-FT stops SCHEDULING new retries after this,
-  // but an in-flight attempt is allowed to run to completion — so the actual wall-clock can drift
-  // past 16s if the final attempt is slow (bounded ultimately by Selenium's HTTP read-timeout).
+  // @Retry.maxDuration is a best-effort total-time budget: MP-FT stops SCHEDULING new retries
+  // past 16s, but an in-flight attempt runs to completion (ultimately bounded by Selenium's HTTP
+  // read-timeout). @Timeout is 7s, not 5s, to clear the 5s session lock-acquire-timeout — a tied
+  // 5/5 race would mask SessionBusyException (409) as selenium_call_timeout (504).
   @Retry(
       maxRetries = 2,
       delay = 250,
@@ -104,7 +105,7 @@ public class BrowserOperationsService {
       durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
-  @Timeout(value = 5, unit = ChronoUnit.SECONDS)
+  @Timeout(value = 7, unit = ChronoUnit.SECONDS)
   public PageSourceResponse getSource(UUID sessionId, CallerId caller) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return guard.execute(
@@ -128,7 +129,7 @@ public class BrowserOperationsService {
       durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
-  @Timeout(value = 5, unit = ChronoUnit.SECONDS)
+  @Timeout(value = 7, unit = ChronoUnit.SECONDS)
   public PageStatusResponse getStatus(UUID sessionId, CallerId caller) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return guard.execute(
@@ -164,7 +165,7 @@ public class BrowserOperationsService {
       durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
-  @Timeout(value = 5, unit = ChronoUnit.SECONDS)
+  @Timeout(value = 7, unit = ChronoUnit.SECONDS)
   public ViewportStateResponse getViewport(UUID sessionId, CallerId caller) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return guard.execute(

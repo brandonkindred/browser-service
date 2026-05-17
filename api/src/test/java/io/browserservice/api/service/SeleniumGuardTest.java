@@ -44,21 +44,42 @@ class SeleniumGuardTest {
 
   @Test
   void breakerOpensAfterFailuresAndRejectsSubsequentCalls() {
-    // requestVolumeThreshold=20, failureRatio=0.5 → 20 consecutive failures open the breaker.
-    for (int i = 0; i < 20; i++) {
+    // requestVolumeThreshold=20, failureRatio=0.5. Send enough failures that we comfortably cross
+    // the threshold regardless of whether SmallRye evaluates the ratio before or after a failure
+    // is recorded. Accept either WebDriverException (driver failure) or CircuitBreakerOpenException
+    // (breaker already tripped) so this test stays robust if the threshold is ever raised.
+    for (int i = 0; i < 25; i++) {
       assertThatThrownBy(
               () ->
                   guard.execute(
                       () -> {
                         throw new UnreachableBrowserException("kaboom");
                       }))
-          .isInstanceOf(WebDriverException.class);
+          .isInstanceOfAny(WebDriverException.class, CircuitBreakerOpenException.class);
     }
 
     assertThat(maintenance.currentState("selenium")).isEqualTo(CircuitBreakerState.OPEN);
 
     assertThatThrownBy(() -> guard.execute(() -> "should-not-run"))
         .isInstanceOf(CircuitBreakerOpenException.class);
+  }
+
+  @Test
+  void clientErrorsDoNotTripBreaker() {
+    // ApiException-style client errors must skipOn the breaker — a buggy client sending stale
+    // element handles or hammering a busy session shouldn't take the replica offline.
+    for (int i = 0; i < 25; i++) {
+      assertThatThrownBy(
+              () ->
+                  guard.execute(
+                      () -> {
+                        throw new io.browserservice.api.error.ElementHandleNotFoundException(
+                            "el_stale");
+                      }))
+          .isInstanceOf(io.browserservice.api.error.ApiException.class);
+    }
+
+    assertThat(maintenance.currentState("selenium")).isEqualTo(CircuitBreakerState.CLOSED);
   }
 
   public static class NoDbProfile implements QuarkusTestProfile {

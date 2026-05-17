@@ -50,7 +50,7 @@ public class ElementOperationsService {
       durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
-  @Timeout(value = 5, unit = ChronoUnit.SECONDS)
+  @Timeout(value = 7, unit = ChronoUnit.SECONDS)
   public ElementStateResponse find(UUID sessionId, CallerId caller, FindElementRequest req) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return guard.execute(
