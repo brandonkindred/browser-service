@@ -168,7 +168,7 @@ Other behaviour:
 - The 10-concurrent-session cap is keyed off the composite identity, as is the `owner_id` field.
 - Public ops (`/healthz`, `/readyz`, `/metrics`) require no token.
 
-Configure the issuer and audience via env vars `OIDC_ISSUER_URI` (e.g. `https://securetoken.google.com/<project>`) and `OIDC_AUDIENCE`. For local development, run `./mvnw -pl api quarkus:dev` with `quarkus.oidc.devservices.enabled=true` to spin up a Keycloak dev-service that mints tokens you can paste into `$TOKEN`.
+Configure the issuer and audience via env vars `OIDC_ISSUER_URI` (e.g. `https://securetoken.google.com/<project>`) and `OIDC_AUDIENCE`. If your issuer does not publish JWKS at `${issuer}/.well-known/jwks.json` (Firebase, Keycloak, and others use different paths), set `OIDC_JWKS_URI` explicitly — REST auth auto-discovers via OIDC metadata, but the WebSocket pipeline needs the JWKS URI directly. For local development, run `./mvnw -pl api quarkus:dev` with `quarkus.oidc.devservices.enabled=true` to spin up a Keycloak dev-service that mints tokens you can paste into `$TOKEN`.
 
 ---
 
