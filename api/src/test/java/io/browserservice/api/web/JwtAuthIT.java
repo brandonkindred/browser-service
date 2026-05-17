@@ -102,6 +102,23 @@ class JwtAuthIT {
   }
 
   @Test
+  void missingClaimReturns401EvenForMalformedBody() {
+    // Regression: claim resolution must happen before Spring binds @RequestBody — otherwise a
+    // malformed body on a JWT missing tenant_id would surface as 400 validation_failed instead
+    // of the documented 401 missing_tenant_claim. CallerClaimsFilter at AUTHENTICATION priority
+    // enforces the ordering.
+    given()
+        .header("Authorization", "Bearer " + TestTokens.missingTenant("alice"))
+        .header("Content-Type", "application/json")
+        .body("{ this is not valid json")
+        .when()
+        .post("/v1/sessions")
+        .then()
+        .statusCode(401)
+        .body("error.code", equalTo("missing_tenant_claim"));
+  }
+
+  @Test
   void validTokenReachesTheController() {
     // GET /v1/sessions returns 200 with an empty session list when no sessions exist for the
     // caller — the key thing this test proves is that the auth layer accepted the token and

@@ -67,7 +67,7 @@ curl -X POST "$(terraform output -raw browser_service_url)/v1/sessions" \
 ```
 
 Notes on the smoke-test request:
-- A bearer token is required: every `/v1/*` request carries an OIDC-signed JWT in `Authorization: Bearer <jwt>`. The `OIDC_ISSUER_URI` and `OIDC_AUDIENCE` env vars must be set on the Cloud Run service so quarkus-oidc knows which issuer to validate against; the token's `sub` + `tenant_id` claims become the caller identity.
+- A bearer token is required: every `/v1/*` request carries an OIDC-signed JWT in `Authorization: Bearer <jwt>`. The `OIDC_ISSUER_URI` and `OIDC_AUDIENCE` env vars must be set on the Cloud Run service so quarkus-oidc knows which issuer to validate against; the token's `sub` + `tenant_id` claims become the caller identity. Issuers whose JWKS does **not** live at `${OIDC_ISSUER_URI}/.well-known/jwks.json` (Firebase / GCP Identity Platform publish keys under the `securetoken@system.gserviceaccount.com` JWKS endpoint; Keycloak uses `${issuer}/protocol/openid-connect/certs`) also need `OIDC_JWKS_URI` set explicitly — the WebSocket pipeline uses smallrye-jwt, which has no OIDC discovery and would otherwise reject WS upgrades for tokens that REST accepts.
 - Field names are snake-case on the wire (`browser_type`, not `browser`) because the API serializes with `SNAKE_CASE`.
 - Enum values are uppercase: `BrowserType` ∈ {`CHROME`, `FIREFOX`, `SAFARI`, `IE`, `ANDROID`, `IOS`}; `BrowserEnvironment` ∈ {`TEST`, `DISCOVERY`}.
 

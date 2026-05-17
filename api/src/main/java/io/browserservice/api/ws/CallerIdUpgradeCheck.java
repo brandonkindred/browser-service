@@ -1,5 +1,6 @@
 package io.browserservice.api.ws;
 
+import io.browserservice.api.session.CallerId;
 import io.quarkus.websockets.next.HttpUpgradeCheck;
 import io.smallrye.jwt.auth.principal.JWTParser;
 import io.smallrye.jwt.auth.principal.ParseException;
@@ -53,12 +54,16 @@ public class CallerIdUpgradeCheck implements HttpUpgradeCheck {
       // that would otherwise throw ClassCastException at the implicit assignment and surface as a
       // 500 from the upgrade pipeline.
       Object tenantClaim = parsed.getClaim("tenant_id");
-      if (parsed.getSubject() == null
-          || !(tenantClaim instanceof String tenant)
-          || tenant.isBlank()) {
+      if (!(tenantClaim instanceof String tenant)) {
         return CheckResult.rejectUpgrade(401);
       }
-    } catch (ParseException e) {
+      // Reuse CallerId.of so the upgrade check rejects with 401 the same tokens the REST path
+      // would reject. Without this, claims that pass the simple presence check but fail the
+      // length / ASCII / no-colon rules in CallerId.of would let the WS upgrade complete and
+      // then close 4401 in SessionSocket.onOpen — clients would see a successful handshake
+      // followed by an immediate close instead of the documented 401 upgrade rejection.
+      CallerId.of(tenant, parsed.getSubject());
+    } catch (ParseException | IllegalArgumentException e) {
       return CheckResult.rejectUpgrade(401);
     }
     return CheckResult.permitUpgrade();

@@ -96,8 +96,6 @@ mp:
     hibernate-orm:
       database:
         generation: "drop-and-create"
-    oidc:
-      tenant-enabled: false
 '%test':
   quarkus:
     keycloak:

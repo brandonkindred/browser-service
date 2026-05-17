@@ -15,8 +15,12 @@ import java.util.Objects;
  */
 public final class CallerId {
 
-  /** Maximum length of either half (tenantId or subject) in characters. */
-  public static final int MAX_HALF_LENGTH = 64;
+  /**
+   * Maximum length of either half (tenantId or subject) in characters. Matches the OIDC spec's cap
+   * on {@code sub} (255 ASCII chars) and the Firebase UID upper bound (128). Smaller caps would
+   * silently reject valid tokens from common providers.
+   */
+  public static final int MAX_HALF_LENGTH = 255;
 
   /** Maximum length of the canonical {@code value()} string. */
   public static final int MAX_LENGTH = MAX_HALF_LENGTH * 2 + 1;
