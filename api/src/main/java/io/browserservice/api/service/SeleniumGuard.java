@@ -7,6 +7,10 @@ import java.time.temporal.ChronoUnit;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.faulttolerance.Bulkhead;
 import org.eclipse.microprofile.faulttolerance.CircuitBreaker;
+import org.openqa.selenium.NoSuchElementException;
+import org.openqa.selenium.StaleElementReferenceException;
+import org.openqa.selenium.TimeoutException;
+import org.openqa.selenium.UnhandledAlertException;
 import org.openqa.selenium.WebDriverException;
 
 /**
@@ -43,13 +47,19 @@ public class SeleniumGuard {
       delay = 30,
       delayUnit = ChronoUnit.SECONDS,
       successThreshold = 2,
-      // Only genuine upstream Selenium failures count toward the breaker. Positive whitelist
-      // because a blanket skipOn=ApiException would also silence UpstreamUnavailableException
-      // (wrapped from upstream IOExceptions inside pageScreenshot/elementScreenshot). Client-side
-      // ApiExceptions (SessionBusy, ElementHandleNotFound, ValidationFailed, …) and
-      // BulkheadException
-      // simply don't appear here, so they pass through without affecting breaker state.
-      failOn = {WebDriverException.class, UpstreamUnavailableException.class})
+      // Only genuine upstream Selenium failures count toward the breaker. failOn is the positive
+      // whitelist; client-side ApiExceptions (SessionBusy, ElementHandleNotFound, Validation, …)
+      // and BulkheadException simply don't appear in it and pass through without affecting state.
+      // skipOn carves out WebDriverException subclasses that represent page-state / user errors
+      // (per ErrorMapper's 4xx taxonomy) — these inherit from WebDriverException but a chatty
+      // page with a stuck alert or stale elements should not take the replica offline.
+      failOn = {WebDriverException.class, UpstreamUnavailableException.class},
+      skipOn = {
+        NoSuchElementException.class,
+        TimeoutException.class,
+        UnhandledAlertException.class,
+        StaleElementReferenceException.class
+      })
   @CircuitBreakerName("selenium")
   @Bulkhead(4)
   public <T> T execute(Supplier<T> op) {

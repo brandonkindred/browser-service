@@ -83,6 +83,34 @@ class SeleniumGuardTest {
   }
 
   @Test
+  void pageStateWebDriverErrorsDoNotTripBreaker() {
+    // WebDriverException subclasses that represent page state / user errors (per ErrorMapper's
+    // 4xx taxonomy) must be carved out of the breaker — a page with a persistent alert or stale
+    // elements should not take the replica offline.
+    for (int i = 0; i < 25; i++) {
+      assertThatThrownBy(
+              () ->
+                  guard.execute(
+                      () -> {
+                        throw new org.openqa.selenium.UnhandledAlertException("alert open");
+                      }))
+          .isInstanceOf(org.openqa.selenium.UnhandledAlertException.class);
+    }
+    assertThat(maintenance.currentState("selenium")).isEqualTo(CircuitBreakerState.CLOSED);
+
+    for (int i = 0; i < 25; i++) {
+      assertThatThrownBy(
+              () ->
+                  guard.execute(
+                      () -> {
+                        throw new org.openqa.selenium.StaleElementReferenceException("stale");
+                      }))
+          .isInstanceOf(org.openqa.selenium.StaleElementReferenceException.class);
+    }
+    assertThat(maintenance.currentState("selenium")).isEqualTo(CircuitBreakerState.CLOSED);
+  }
+
+  @Test
   void upstreamUnavailableTripsBreaker() {
     // UpstreamUnavailableException IS a genuine upstream signal (wrapped from upstream IOExceptions
     // in the screenshot paths), so it must count toward the breaker even though it's an
