@@ -19,9 +19,10 @@ resource "google_cloud_run_service" "api" {
         # the VPC (otherwise the public *.run.app URL is reached over the
         # internet and rejected by ingress=internal).
         "run.googleapis.com/vpc-access-egress" = "all-traffic"
+        # Both pinned to 1 by root-level validations on browser_service_{min,max}_instances —
+        # SessionRegistry holds session state per-JVM, so neither horizontal scale (> 1) nor
+        # scale-to-zero (< 1) is safe. See issue #119 / docs/capacity.md.
         "autoscaling.knative.dev/minScale" = tostring(var.min_instances)
-        # Pinned to 1 by root-level validation on var.browser_service_max_instances —
-        # SessionRegistry holds session state per-JVM. See issue #119 / docs/capacity.md.
         "autoscaling.knative.dev/maxScale" = tostring(var.max_instances)
       }
     }

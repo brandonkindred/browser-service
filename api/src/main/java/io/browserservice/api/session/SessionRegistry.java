@@ -19,10 +19,13 @@ import org.springframework.stereotype.Component;
  * concurrent-session cap. None of this state is shared between pods.
  *
  * <p><b>Single-pod constraint.</b> Because session state is per-JVM, the service MUST run with
- * exactly one Cloud Run instance. If {@code max_instances > 1}, follow-up requests ({@code
- * /sessions/{id}/navigate}, screenshot, close, …) routed by the load balancer to a different pod
- * will fail with {@code SessionNotFoundException} and silently leak the underlying WebDriver on the
- * original pod. This is enforced at the infrastructure layer by a Terraform validation on {@code
+ * exactly one Cloud Run instance — neither horizontal scale-out ({@code max_instances > 1}) nor
+ * scale-to-zero ({@code min_instances = 0}) is safe. With {@code max_instances > 1}, follow-up
+ * requests ({@code /sessions/{id}/navigate}, screenshot, close, …) routed by the load balancer to a
+ * different pod fail with {@code SessionNotFoundException}. With {@code min_instances = 0}, the JVM
+ * (and this map) is discarded between requests, so a follow-up call cold-starts a fresh instance
+ * with an empty registry — same failure mode. Both bounds are pinned at the infrastructure layer by
+ * Terraform validations on {@code browser_service_min_instances} and {@code
  * browser_service_max_instances} ({@code terraform/variables.tf}).
  *
  * <p>Lifting this constraint is tracked by issue #119 (R10 Phase 1): externalize the registry to

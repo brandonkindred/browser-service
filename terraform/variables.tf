@@ -107,13 +107,18 @@ variable "browser_service_service_name" {
 }
 
 variable "browser_service_min_instances" {
-  description = "Minimum number of browser-service Cloud Run instances kept warm."
+  description = "Minimum number of browser-service Cloud Run instances kept warm. Pinned to 1 to prevent scale-to-zero: SessionRegistry holds session state on the JVM heap, so a cold-start between requests for the same session causes silent session loss. Lift only after R10 Phase 1 (issue #119) externalizes the registry."
   type        = number
   default     = 1
 
   validation {
     condition     = var.browser_service_min_instances >= 0 && floor(var.browser_service_min_instances) == var.browser_service_min_instances
     error_message = "browser_service_min_instances must be a non-negative integer."
+  }
+
+  validation {
+    condition     = var.browser_service_min_instances == 1
+    error_message = "browser_service_min_instances must be 1: SessionRegistry lives on the JVM heap, so scale-to-zero (or anything > 1) evicts session state between requests. Land R10 Phase 1 (Redis-backed registry, issue #119) before relaxing this."
   }
 }
 
