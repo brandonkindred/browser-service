@@ -79,6 +79,11 @@ public class BrowserOperationsService {
                     return new NavigateResponse(h.driver().getCurrentUrl(), NavigateStatus.LOADED);
                   } catch (TimeoutException e) {
                     return new NavigateResponse(safeUrl(h.driver()), NavigateStatus.TIMEOUT);
+                  } catch (WebDriverException e) {
+                    // Real driver failures (UnreachableBrowserException etc.) must reach the
+                    // guard so the circuit breaker can trip on a dead replica. Without this
+                    // re-throw, the RuntimeException catch below would mask them as ERROR.
+                    throw e;
                   } catch (RuntimeException e) {
                     return new NavigateResponse(safeUrl(h.driver()), NavigateStatus.ERROR);
                   }
@@ -126,6 +131,10 @@ public class BrowserOperationsService {
                     String html =
                         h.isMobile() ? h.asMobileDevice().getSource() : h.asBrowser().getSource();
                     is503 = HtmlUtils.is503Error(html);
+                  } catch (WebDriverException e) {
+                    // Driver-level failure must reach the guard so the breaker can trip and
+                    // @Retry can re-attempt. Swallowing it here defeats both.
+                    throw e;
                   } catch (Exception e) {
                     is503 = false;
                   }
