@@ -84,9 +84,9 @@ class SeleniumGuardTest {
 
   @Test
   void pageStateWebDriverErrorsDoNotTripBreaker() {
-    // WebDriverException subclasses that represent page state / user errors (per ErrorMapper's
-    // 4xx taxonomy) must be carved out of the breaker — a page with a persistent alert or stale
-    // elements should not take the replica offline.
+    // WebDriverException subclasses that represent page state / user errors must NOT count —
+    // a page with a persistent alert or stale elements should not take the replica offline. With
+    // the narrowed failOn list, these simply don't match the whitelist and pass through.
     for (int i = 0; i < 25; i++) {
       assertThatThrownBy(
               () ->
@@ -106,6 +106,19 @@ class SeleniumGuardTest {
                         throw new org.openqa.selenium.StaleElementReferenceException("stale");
                       }))
           .isInstanceOf(org.openqa.selenium.StaleElementReferenceException.class);
+    }
+    assertThat(maintenance.currentState("selenium")).isEqualTo(CircuitBreakerState.CLOSED);
+
+    // JavascriptException: user-script error from executeScript. Buggy client JS must not trip
+    // the replica's breaker — that was the specific gap the broader skipOn-only design missed.
+    for (int i = 0; i < 25; i++) {
+      assertThatThrownBy(
+              () ->
+                  guard.execute(
+                      () -> {
+                        throw new org.openqa.selenium.JavascriptException("syntax error");
+                      }))
+          .isInstanceOf(org.openqa.selenium.JavascriptException.class);
     }
     assertThat(maintenance.currentState("selenium")).isEqualTo(CircuitBreakerState.CLOSED);
   }

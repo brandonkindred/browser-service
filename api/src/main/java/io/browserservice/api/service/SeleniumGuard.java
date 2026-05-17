@@ -7,11 +7,9 @@ import java.time.temporal.ChronoUnit;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.faulttolerance.Bulkhead;
 import org.eclipse.microprofile.faulttolerance.CircuitBreaker;
-import org.openqa.selenium.NoSuchElementException;
-import org.openqa.selenium.StaleElementReferenceException;
-import org.openqa.selenium.TimeoutException;
-import org.openqa.selenium.UnhandledAlertException;
-import org.openqa.selenium.WebDriverException;
+import org.openqa.selenium.NoSuchSessionException;
+import org.openqa.selenium.SessionNotCreatedException;
+import org.openqa.selenium.remote.UnreachableBrowserException;
 
 /**
  * Shared fault-tolerance guard around the WebDriver-touching operations exposed by {@link
@@ -47,18 +45,19 @@ public class SeleniumGuard {
       delay = 30,
       delayUnit = ChronoUnit.SECONDS,
       successThreshold = 2,
-      // Only genuine upstream Selenium failures count toward the breaker. failOn is the positive
-      // whitelist; client-side ApiExceptions (SessionBusy, ElementHandleNotFound, Validation, …)
-      // and BulkheadException simply don't appear in it and pass through without affecting state.
-      // skipOn carves out WebDriverException subclasses that represent page-state / user errors
-      // (per ErrorMapper's 4xx taxonomy) — these inherit from WebDriverException but a chatty
-      // page with a stuck alert or stale elements should not take the replica offline.
-      failOn = {WebDriverException.class, UpstreamUnavailableException.class},
-      skipOn = {
-        NoSuchElementException.class,
-        TimeoutException.class,
-        UnhandledAlertException.class,
-        StaleElementReferenceException.class
+      // Narrow whitelist: only explicit transport / server-side failures count toward the breaker.
+      // Anything else (the dozens of WebDriverException subclasses that represent page-state or
+      // user errors — UnhandledAlert, StaleElement, JavascriptException, ElementNotInteractable,
+      // ElementClickIntercepted, InvalidSelector, NoSuchElement, page-load TimeoutException, …)
+      // passes through as breaker-neutral. The tradeoff: slightly less sensitive to oddball
+      // Selenium failure modes that don't surface as one of the listed classes, in exchange for
+      // not tripping on chatty buggy clients (false-positive trips were the bug that motivated
+      // this narrowing — see the earlier review iterations on #110).
+      failOn = {
+        UnreachableBrowserException.class,
+        NoSuchSessionException.class,
+        SessionNotCreatedException.class,
+        UpstreamUnavailableException.class
       })
   @CircuitBreakerName("selenium")
   @Bulkhead(4)
