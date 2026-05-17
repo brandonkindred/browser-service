@@ -19,8 +19,10 @@ resource "google_cloud_run_service" "api" {
         # the VPC (otherwise the public *.run.app URL is reached over the
         # internet and rejected by ingress=internal).
         "run.googleapis.com/vpc-access-egress" = "all-traffic"
-        "autoscaling.knative.dev/minScale"        = tostring(var.min_instances)
-        "autoscaling.knative.dev/maxScale"        = tostring(var.max_instances)
+        "autoscaling.knative.dev/minScale" = tostring(var.min_instances)
+        # Pinned to 1 by root-level validation on var.browser_service_max_instances —
+        # SessionRegistry holds session state per-JVM. See issue #119 / docs/capacity.md.
+        "autoscaling.knative.dev/maxScale" = tostring(var.max_instances)
       }
     }
 

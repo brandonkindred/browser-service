@@ -10,6 +10,25 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import org.springframework.stereotype.Component;
 
+/**
+ * In-memory registry of live browser sessions for the current JVM.
+ *
+ * <p>State lives entirely on the heap: a {@link ConcurrentHashMap} of {@link SessionHandle}s
+ * (each holding a live Selenium {@code WebDriver}, a {@link java.util.concurrent.locks.ReentrantLock},
+ * and other non-serializable references) plus a {@link Semaphore} that enforces the per-pod
+ * concurrent-session cap. None of this state is shared between pods.
+ *
+ * <p><b>Single-pod constraint.</b> Because session state is per-JVM, the service MUST run with
+ * exactly one Cloud Run instance. If {@code max_instances > 1}, follow-up requests
+ * ({@code /sessions/{id}/navigate}, screenshot, close, …) routed by the load balancer to a
+ * different pod will fail with {@code SessionNotFoundException} and silently leak the underlying
+ * WebDriver on the original pod. This is enforced at the infrastructure layer by a Terraform
+ * validation on {@code browser_service_max_instances} ({@code terraform/variables.tf}).
+ *
+ * <p>Lifting this constraint is tracked by issue #119 (R10 Phase 1): externalize the registry
+ * to Redis and either route by session-affinity or broker WebDriver access via Selenium Grid.
+ * See {@code docs/capacity.md} for the operator-facing summary.
+ */
 @Component
 public class SessionRegistry {
 

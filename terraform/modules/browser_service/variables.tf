@@ -41,7 +41,7 @@ variable "min_instances" {
 }
 
 variable "max_instances" {
-  description = "Maximum Cloud Run instances."
+  description = "Maximum Cloud Run instances. Root-level callers must pin this to 1 until R10 Phase 1 (issue #119) lands — SessionRegistry holds session state per-JVM, so >1 causes silent session loss across pods."
   type        = number
   default     = 10
 }

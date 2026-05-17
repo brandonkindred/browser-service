@@ -118,9 +118,9 @@ variable "browser_service_min_instances" {
 }
 
 variable "browser_service_max_instances" {
-  description = "Maximum browser-service Cloud Run instance count."
+  description = "Maximum browser-service Cloud Run instance count. Pinned to 1: SessionRegistry holds session state in-memory per JVM, so any value > 1 causes silent session loss when the LB routes a follow-up request to a different pod. Lift only after R10 Phase 1 (issue #119) externalizes the registry."
   type        = number
-  default     = 10
+  default     = 1
 
   validation {
     condition     = var.browser_service_max_instances >= 1 && floor(var.browser_service_max_instances) == var.browser_service_max_instances
@@ -130,6 +130,11 @@ variable "browser_service_max_instances" {
   validation {
     condition     = var.browser_service_max_instances >= var.browser_service_min_instances
     error_message = "browser_service_max_instances must be >= browser_service_min_instances."
+  }
+
+  validation {
+    condition     = var.browser_service_max_instances == 1
+    error_message = "browser_service_max_instances must be 1: SessionRegistry holds session state in a per-JVM ConcurrentHashMap and is not shared between pods. Land R10 Phase 1 (Redis-backed registry, issue #119) before relaxing this."
   }
 }
 
