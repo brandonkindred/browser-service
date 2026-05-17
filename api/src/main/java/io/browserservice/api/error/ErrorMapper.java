@@ -31,7 +31,6 @@ public final class ErrorMapper {
   public static final String RETRY_AFTER_KEY = "retry_after_seconds";
 
   private static final int CIRCUIT_OPEN_RETRY_AFTER_SECONDS = 30;
-  private static final int BULKHEAD_RETRY_AFTER_SECONDS = 1;
 
   private ErrorMapper() {}
 
@@ -105,15 +104,18 @@ public final class ErrorMapper {
           requestId);
     }
     if (t instanceof BulkheadException) {
+      // No Retry-After: bulkhead holders are bounded only by their per-method @Timeout (some have
+      // none), so any specific hint would be misleading. Clients should back off themselves.
       return build(
           HttpStatus.SERVICE_UNAVAILABLE,
           "concurrency_exceeded",
           "too many concurrent webdriver operations on this replica",
-          Map.of(RETRY_AFTER_KEY, BULKHEAD_RETRY_AFTER_SECONDS),
+          null,
           requestId);
     }
     if (t instanceof org.eclipse.microprofile.faulttolerance.exceptions.TimeoutException) {
-      return build(HttpStatus.GATEWAY_TIMEOUT, "upstream_timeout", safeMessage(t), null, requestId);
+      return build(
+          HttpStatus.GATEWAY_TIMEOUT, "selenium_call_timeout", safeMessage(t), null, requestId);
     }
     if (t instanceof UnreachableBrowserException) {
       return build(HttpStatus.BAD_GATEWAY, "upstream_unavailable", safeMessage(t), null, requestId);

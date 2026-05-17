@@ -20,6 +20,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.UUID;
 import org.eclipse.microprofile.faulttolerance.Retry;
+import org.eclipse.microprofile.faulttolerance.Timeout;
 import org.openqa.selenium.NoSuchElementException;
 import org.openqa.selenium.WebDriverException;
 import org.openqa.selenium.WebElement;
@@ -47,6 +48,7 @@ public class ElementOperationsService {
       jitterDelayUnit = ChronoUnit.MILLIS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
+  @Timeout(value = 5, unit = ChronoUnit.SECONDS)
   public ElementStateResponse find(UUID sessionId, CallerId caller, FindElementRequest req) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return guard.execute(
@@ -64,13 +66,15 @@ public class ElementOperationsService {
                     return new ElementStateResponse(null, false, false, Map.of(), null);
                   }
 
-                  String id = h.elements().put(element);
+                  // Read everything that might throw BEFORE registering the handle, so a retry
+                  // after a mid-read WebDriverException doesn't leak an orphaned entry.
                   boolean displayed = safeIsDisplayed(element);
                   Map<String, String> attributes =
                       h.isMobile()
                           ? h.asMobileDevice().extractAttributes(element)
                           : h.asBrowser().extractAttributes(element);
                   Rect rect = safeRect(element);
+                  String id = h.elements().put(element);
                   return new ElementStateResponse(id, true, displayed, attributes, rect);
                 }));
   }

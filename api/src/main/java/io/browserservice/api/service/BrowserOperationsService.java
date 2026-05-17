@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.time.temporal.ChronoUnit;
 import java.util.UUID;
 import org.eclipse.microprofile.faulttolerance.Retry;
+import org.eclipse.microprofile.faulttolerance.Timeout;
 import org.openqa.selenium.Dimension;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.Point;
@@ -98,6 +99,7 @@ public class BrowserOperationsService {
       jitterDelayUnit = ChronoUnit.MILLIS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
+  @Timeout(value = 5, unit = ChronoUnit.SECONDS)
   public PageSourceResponse getSource(UUID sessionId, CallerId caller) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return guard.execute(
@@ -119,6 +121,7 @@ public class BrowserOperationsService {
       jitterDelayUnit = ChronoUnit.MILLIS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
+  @Timeout(value = 5, unit = ChronoUnit.SECONDS)
   public PageStatusResponse getStatus(UUID sessionId, CallerId caller) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return guard.execute(
@@ -150,6 +153,7 @@ public class BrowserOperationsService {
       jitterDelayUnit = ChronoUnit.MILLIS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
+  @Timeout(value = 5, unit = ChronoUnit.SECONDS)
   public ViewportStateResponse getViewport(UUID sessionId, CallerId caller) {
     SessionHandle handle = sessionService.requireOwner(sessionId, caller);
     return guard.execute(
