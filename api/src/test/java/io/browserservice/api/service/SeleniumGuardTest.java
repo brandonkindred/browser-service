@@ -66,8 +66,8 @@ class SeleniumGuardTest {
 
   @Test
   void clientErrorsDoNotTripBreaker() {
-    // ApiException-style client errors must skipOn the breaker — a buggy client sending stale
-    // element handles or hammering a busy session shouldn't take the replica offline.
+    // ApiException-style client errors must NOT count — a buggy client sending stale element
+    // handles or hammering a busy session shouldn't take the replica offline.
     for (int i = 0; i < 25; i++) {
       assertThatThrownBy(
               () ->
@@ -80,6 +80,27 @@ class SeleniumGuardTest {
     }
 
     assertThat(maintenance.currentState("selenium")).isEqualTo(CircuitBreakerState.CLOSED);
+  }
+
+  @Test
+  void upstreamUnavailableTripsBreaker() {
+    // UpstreamUnavailableException IS a genuine upstream signal (wrapped from upstream IOExceptions
+    // in the screenshot paths), so it must count toward the breaker even though it's an
+    // ApiException subclass — that's why the breaker uses failOn (whitelist) not skipOn.
+    for (int i = 0; i < 25; i++) {
+      assertThatThrownBy(
+              () ->
+                  guard.execute(
+                      () -> {
+                        throw new io.browserservice.api.error.UpstreamUnavailableException(
+                            "shutterbug fetch failed");
+                      }))
+          .isInstanceOfAny(
+              io.browserservice.api.error.UpstreamUnavailableException.class,
+              CircuitBreakerOpenException.class);
+    }
+
+    assertThat(maintenance.currentState("selenium")).isEqualTo(CircuitBreakerState.OPEN);
   }
 
   public static class NoDbProfile implements QuarkusTestProfile {

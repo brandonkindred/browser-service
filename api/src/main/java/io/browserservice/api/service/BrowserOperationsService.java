@@ -92,16 +92,17 @@ public class BrowserOperationsService {
   }
 
   // @Retry.maxDuration is a best-effort total-time budget: MP-FT stops SCHEDULING new retries
-  // past 16s, but an in-flight attempt runs to completion (ultimately bounded by Selenium's HTTP
-  // read-timeout). @Timeout is 7s, not 5s, to clear the 5s session lock-acquire-timeout — a tied
-  // 5/5 race would mask SessionBusyException (409) as selenium_call_timeout (504).
+  // past 22s but an in-flight attempt runs to completion (ultimately bounded by Selenium's HTTP
+  // read-timeout). 22s = 3 × 7s @Timeout + 2 × ≤350ms jitter, so all three attempts can fire.
+  // @Timeout is 7s, not 5s, to clear the 5s session lock-acquire-timeout — a tied 5/5 race would
+  // mask SessionBusyException (409) as selenium_call_timeout (504).
   @Retry(
       maxRetries = 2,
       delay = 250,
       delayUnit = ChronoUnit.MILLIS,
       jitter = 100,
       jitterDelayUnit = ChronoUnit.MILLIS,
-      maxDuration = 16,
+      maxDuration = 22,
       durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
@@ -125,7 +126,7 @@ public class BrowserOperationsService {
       delayUnit = ChronoUnit.MILLIS,
       jitter = 100,
       jitterDelayUnit = ChronoUnit.MILLIS,
-      maxDuration = 16,
+      maxDuration = 22,
       durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
@@ -161,7 +162,7 @@ public class BrowserOperationsService {
       delayUnit = ChronoUnit.MILLIS,
       jitter = 100,
       jitterDelayUnit = ChronoUnit.MILLIS,
-      maxDuration = 16,
+      maxDuration = 22,
       durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
@@ -206,7 +207,7 @@ public class BrowserOperationsService {
       delayUnit = ChronoUnit.MILLIS,
       jitter = 100,
       jitterDelayUnit = ChronoUnit.MILLIS,
-      maxDuration = 16,
+      maxDuration = 22,
       durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)

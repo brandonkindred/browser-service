@@ -1,13 +1,13 @@
 package io.browserservice.api.service;
 
-import io.browserservice.api.error.ApiException;
+import io.browserservice.api.error.UpstreamUnavailableException;
 import io.smallrye.faulttolerance.api.CircuitBreakerName;
 import jakarta.enterprise.context.ApplicationScoped;
 import java.time.temporal.ChronoUnit;
 import java.util.function.Supplier;
 import org.eclipse.microprofile.faulttolerance.Bulkhead;
 import org.eclipse.microprofile.faulttolerance.CircuitBreaker;
-import org.eclipse.microprofile.faulttolerance.exceptions.BulkheadException;
+import org.openqa.selenium.WebDriverException;
 
 /**
  * Shared fault-tolerance guard around the WebDriver-touching operations exposed by {@link
@@ -43,11 +43,13 @@ public class SeleniumGuard {
       delay = 30,
       delayUnit = ChronoUnit.SECONDS,
       successThreshold = 2,
-      // Client-side errors (4xx-ish ApiExceptions like SessionBusyException, ElementHandleNotFound,
-      // ValidationFailed) must NOT count toward the breaker — a chatty buggy client could otherwise
-      // singlehandedly trip the replica's breaker while Selenium is perfectly healthy. Same for
-      // BulkheadException: a brief load spike is not a Selenium failure.
-      skipOn = {ApiException.class, BulkheadException.class})
+      // Only genuine upstream Selenium failures count toward the breaker. Positive whitelist
+      // because a blanket skipOn=ApiException would also silence UpstreamUnavailableException
+      // (wrapped from upstream IOExceptions inside pageScreenshot/elementScreenshot). Client-side
+      // ApiExceptions (SessionBusy, ElementHandleNotFound, ValidationFailed, …) and
+      // BulkheadException
+      // simply don't appear here, so they pass through without affecting breaker state.
+      failOn = {WebDriverException.class, UpstreamUnavailableException.class})
   @CircuitBreakerName("selenium")
   @Bulkhead(4)
   public <T> T execute(Supplier<T> op) {

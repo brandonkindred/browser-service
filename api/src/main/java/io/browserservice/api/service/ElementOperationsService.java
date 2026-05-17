@@ -46,7 +46,7 @@ public class ElementOperationsService {
       delayUnit = ChronoUnit.MILLIS,
       jitter = 100,
       jitterDelayUnit = ChronoUnit.MILLIS,
-      maxDuration = 16,
+      maxDuration = 22,
       durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
@@ -123,7 +123,7 @@ public class ElementOperationsService {
       delayUnit = ChronoUnit.MILLIS,
       jitter = 100,
       jitterDelayUnit = ChronoUnit.MILLIS,
-      maxDuration = 16,
+      maxDuration = 22,
       durationUnit = ChronoUnit.SECONDS,
       retryOn = WebDriverException.class,
       abortOn = ApiException.class)
