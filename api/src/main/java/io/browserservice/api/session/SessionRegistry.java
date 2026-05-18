@@ -10,6 +10,36 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Semaphore;
 import org.springframework.stereotype.Component;
 
+/**
+ * In-memory registry of live browser sessions for the current JVM.
+ *
+ * <p>State lives entirely on the heap: a {@link ConcurrentHashMap} of {@link SessionHandle}s (each
+ * holding a live Selenium {@code WebDriver}, a {@link java.util.concurrent.locks.ReentrantLock},
+ * and other non-serializable references) plus a {@link Semaphore} that enforces the per-pod
+ * concurrent-session cap. None of this state is shared between pods.
+ *
+ * <p><b>Single-pod constraint.</b> Because session state is per-JVM, the service MUST run with
+ * exactly one Cloud Run instance — neither horizontal scale-out ({@code max_instances > 1}) nor
+ * scale-to-zero ({@code min_instances = 0}) is safe. With {@code max_instances > 1}, follow-up
+ * requests ({@code /sessions/{id}/navigate}, screenshot, close, …) routed by the load balancer to a
+ * different pod fail with {@code SessionNotFoundException}. With {@code min_instances = 0}, the JVM
+ * (and this map) is discarded between requests, so a follow-up call cold-starts a fresh instance
+ * with an empty registry — same failure mode. Both bounds are pinned at the infrastructure layer by
+ * Terraform validations on {@code browser_service_min_instances} and {@code
+ * browser_service_max_instances} ({@code terraform/variables.tf}).
+ *
+ * <p><b>Deploy-window caveat.</b> The Terraform pin is revision-scoped — those Knative autoscaling
+ * annotations cap each revision, not the service as a whole. During a rolling deploy (and any
+ * future canary traffic split), two revisions briefly run in parallel, each with its own JVM and
+ * its own {@code SessionRegistry}. Sessions created against the outgoing revision will 404 once
+ * traffic shifts to the new revision; the reaper TTL eventually reclaims them. This window is
+ * bounded by deploy duration and is accepted as a known limitation of Phase 0 — closing it requires
+ * the Redis-backed registry (R10 Phase 1).
+ *
+ * <p>Lifting this constraint is tracked by issue #119 (R10 Phase 1): externalize the registry to
+ * Redis and either route by session-affinity or broker WebDriver access via Selenium Grid. See
+ * {@code docs/capacity.md} for the operator-facing summary.
+ */
 @Component
 public class SessionRegistry {
 

@@ -35,13 +35,13 @@ variable "vpc_connector_name" {
 }
 
 variable "min_instances" {
-  description = "Minimum warm Cloud Run instances."
+  description = "Minimum warm Cloud Run instances. Root-level callers must pin this to 1 until R10 Phase 1 (issue #119) lands — SessionRegistry holds session state per-JVM, so scale-to-zero evicts live sessions between requests."
   type        = number
   default     = 1
 }
 
 variable "max_instances" {
-  description = "Maximum Cloud Run instances."
+  description = "Maximum Cloud Run instances. Root-level callers must pin this to 1 until R10 Phase 1 (issue #119) lands — SessionRegistry holds session state per-JVM, so >1 causes silent session loss across pods."
   type        = number
   default     = 10
 }
