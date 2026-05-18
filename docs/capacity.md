@@ -60,6 +60,24 @@ The constraint is enforced at the infrastructure layer:
 - `SessionRegistry.java` — class-level Javadoc explaining the constraint to
   anyone editing the registry.
 
+### Known limitation: deploy windows
+
+The `autoscaling.knative.dev/{min,max}Scale` annotations Terraform sets are
+**revision-scoped**, not service-scoped. During a rolling deploy (or any
+future canary traffic split, see issue #123), Cloud Run briefly runs two
+revisions in parallel — the outgoing one and the incoming one — each with
+its own JVM and its own `SessionRegistry`. Sessions created against the
+outgoing revision will return 404 once traffic shifts to the new revision;
+the reaper TTL eventually reclaims the abandoned `WebDriver`.
+
+This window is bounded by deploy duration (typically seconds to a couple of
+minutes) and is **accepted as a Phase 0 limitation**. The same R10 Phase 1
+work (Redis-backed registry, issue #119) closes it. Until then:
+
+- Deploy during low-traffic windows when possible (see also #145).
+- Do not enable canary traffic splits (#123) until Phase 1 lands, or accept
+  that 10% of in-flight sessions will 404 during the canary window.
+
 ### Lift path
 
 Tracked by **issue #119 (R10 — Externalize `SessionRegistry` to Redis)**,

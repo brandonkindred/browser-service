@@ -28,6 +28,14 @@ import org.springframework.stereotype.Component;
  * Terraform validations on {@code browser_service_min_instances} and {@code
  * browser_service_max_instances} ({@code terraform/variables.tf}).
  *
+ * <p><b>Deploy-window caveat.</b> The Terraform pin is revision-scoped — those Knative autoscaling
+ * annotations cap each revision, not the service as a whole. During a rolling deploy (and any
+ * future canary traffic split), two revisions briefly run in parallel, each with its own JVM and
+ * its own {@code SessionRegistry}. Sessions created against the outgoing revision will 404 once
+ * traffic shifts to the new revision; the reaper TTL eventually reclaims them. This window is
+ * bounded by deploy duration and is accepted as a known limitation of Phase 0 — closing it requires
+ * the Redis-backed registry (R10 Phase 1).
+ *
  * <p>Lifting this constraint is tracked by issue #119 (R10 Phase 1): externalize the registry to
  * Redis and either route by session-affinity or broker WebDriver access via Selenium Grid. See
  * {@code docs/capacity.md} for the operator-facing summary.
