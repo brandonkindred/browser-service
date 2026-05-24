@@ -94,10 +94,7 @@ public class WebDriverProxyService {
 
     ProxyResponse response = forwardToGrid(method, path, body);
 
-    if ("DELETE".equalsIgnoreCase(method)
-        && (subPath == null || subPath.isEmpty())
-        && response.statusCode() >= 200
-        && response.statusCode() < 300) {
+    if ("DELETE".equalsIgnoreCase(method) && (subPath == null || subPath.isEmpty())) {
       if (wdSessions.remove(wdSessionId) != null) {
         releasePermit.run();
       }
@@ -136,22 +133,30 @@ public class WebDriverProxyService {
     for (var entry : wdSessions.entrySet()) {
       if (entry.getValue().lastUsedAt().isBefore(cutoff)) {
         if (wdSessions.remove(entry.getKey(), entry.getValue())) {
-          deleteGridSession(entry.getKey());
-          releasePermit.run();
-          log.info("reaped idle WebDriver session: wdSessionId={}", entry.getKey());
+          if (deleteGridSession(entry.getKey())) {
+            releasePermit.run();
+            log.info("reaped idle WebDriver session: wdSessionId={}", entry.getKey());
+          } else {
+            log.warn(
+                "reaped idle WebDriver session locally but grid delete failed;"
+                    + " permit held until grid confirms: wdSessionId={}",
+                entry.getKey());
+          }
         }
       }
     }
   }
 
-  private void deleteGridSession(String wdSessionId) {
+  private boolean deleteGridSession(String wdSessionId) {
     try {
       forwardToGrid("DELETE", "/session/" + wdSessionId, null);
+      return true;
     } catch (IOException e) {
       log.warn(
           "failed to delete grid session during reap: wdSessionId={} error={}",
           wdSessionId,
           e.getMessage());
+      return false;
     }
   }
 
