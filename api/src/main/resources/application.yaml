@@ -29,6 +29,10 @@ quarkus:
           paths:
           - "/v1/*"
           policy: "authenticated"
+        authenticated-wd:
+          paths:
+          - "/wd/hub/*"
+          policy: "authenticated"
   oidc:
     application-type: "service"
     auth-server-url: "${OIDC_ISSUER_URI:https://securetoken.google.com/replace-me}"
