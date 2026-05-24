@@ -94,6 +94,19 @@ class WebDriverApiKeyFilterTest {
   }
 
   @Test
+  void statusPathIsExemptFromAuth() {
+    WebDriverApiKeyFilter filter = new WebDriverApiKeyFilter(KEYS_CONFIG);
+    ContainerRequestContext ctx = mockRequest("/wd/hub/status", null);
+
+    filter.filter(ctx);
+
+    verify(ctx, never()).abortWith(org.mockito.ArgumentMatchers.any());
+    verify(ctx, never())
+        .setProperty(
+            eq(WebDriverCallerHolder.REQUEST_ATTRIBUTE), org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
   void emptyConfigYieldsNoKeys() {
     WebDriverApiKeyFilter filter = new WebDriverApiKeyFilter("");
     ContainerRequestContext ctx = mockRequest("/wd/hub/session", basicAuth("u", "anykey"));

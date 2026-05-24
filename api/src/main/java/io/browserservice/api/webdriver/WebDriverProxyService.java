@@ -129,9 +129,9 @@ public class WebDriverProxyService {
 
   /**
    * Periodically removes tracked sessions that have been idle longer than {@link
-   * #SESSION_IDLE_TTL}. Covers the case where a client disconnects or the grid expires a session
-   * out-of-band without a DELETE being proxied. Active sessions are kept alive by the {@link
-   * WebDriverSession#touch()} call in {@link #forward}.
+   * #SESSION_IDLE_TTL}. Sends a DELETE to the grid to free the upstream browser before dropping
+   * local state, preventing resource leaks and capacity overcommit. Active sessions are kept alive
+   * by the {@link WebDriverSession#touch()} call in {@link #forward}.
    */
   @Scheduled(every = "30s")
   void reapStaleSessions() {
@@ -139,10 +139,22 @@ public class WebDriverProxyService {
     for (var entry : wdSessions.entrySet()) {
       if (entry.getValue().lastUsedAt().isBefore(cutoff)) {
         if (wdSessions.remove(entry.getKey(), entry.getValue())) {
+          deleteGridSession(entry.getKey());
           capacity.release();
           log.info("reaped idle WebDriver session: wdSessionId={}", entry.getKey());
         }
       }
+    }
+  }
+
+  private void deleteGridSession(String wdSessionId) {
+    try {
+      forwardToGrid("DELETE", "/session/" + wdSessionId, null);
+    } catch (IOException e) {
+      log.warn(
+          "failed to delete grid session during reap: wdSessionId={} error={}",
+          wdSessionId,
+          e.getMessage());
     }
   }
 

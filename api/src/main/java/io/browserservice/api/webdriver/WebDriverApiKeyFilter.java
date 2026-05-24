@@ -56,7 +56,7 @@ public class WebDriverApiKeyFilter implements ContainerRequestFilter {
   @Override
   public void filter(ContainerRequestContext request) {
     String path = request.getUriInfo().getPath();
-    if (!isWdPath(path)) {
+    if (!isWdPath(path) || isStatusPath(path)) {
       return;
     }
 
@@ -137,5 +137,13 @@ public class WebDriverApiKeyFilter implements ContainerRequestFilter {
     }
     String normalized = path.startsWith("/") ? path.substring(1) : path;
     return normalized.startsWith(WD_PATH_PREFIX);
+  }
+
+  private static boolean isStatusPath(String path) {
+    if (path == null) {
+      return false;
+    }
+    String normalized = path.startsWith("/") ? path.substring(1) : path;
+    return "wd/hub/status".equals(normalized);
   }
 }
