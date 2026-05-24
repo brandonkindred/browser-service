@@ -1,20 +1,26 @@
 package io.browserservice.api.webdriver;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.error.SessionCapExceededException;
 import io.browserservice.api.error.SessionNotFoundException;
 import io.browserservice.api.session.CallerId;
+import io.quarkus.scheduler.Scheduled;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.Semaphore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -27,10 +33,13 @@ import org.springframework.stereotype.Service;
 public class WebDriverProxyService {
 
   private static final Logger log = LoggerFactory.getLogger(WebDriverProxyService.class);
+  private static final ObjectMapper MAPPER = new ObjectMapper();
+  private static final Duration SESSION_TTL = Duration.ofMinutes(30);
 
   private final String gridBaseUrl;
   private final HttpClient httpClient;
   private final ConcurrentMap<String, WebDriverSession> wdSessions = new ConcurrentHashMap<>();
+  private final Semaphore capacity;
   private final int maxConcurrent;
 
   /** Constructs the proxy service from configuration. */
@@ -42,27 +51,36 @@ public class WebDriverProxyService {
             .connectTimeout(Duration.ofMillis(props.selenium().connectTimeoutMs()))
             .build();
     this.maxConcurrent = props.session().maxConcurrent();
+    this.capacity = new Semaphore(this.maxConcurrent);
   }
 
   /** Creates a new WebDriver session on the grid and tracks it for the caller. */
   public ProxyResponse createSession(byte[] body, CallerId caller) throws IOException {
-    if (wdSessions.size() >= maxConcurrent) {
+    if (!capacity.tryAcquire()) {
       throw new SessionCapExceededException(maxConcurrent);
     }
 
-    ProxyResponse response = forwardToGrid("POST", "/session", body);
+    boolean releasePermit = true;
+    try {
+      ProxyResponse response = forwardToGrid("POST", "/session", body);
 
-    if (response.statusCode() >= 200 && response.statusCode() < 300) {
-      String wdSessionId = extractSessionId(response.body());
-      if (wdSessionId != null) {
-        WebDriverSession wdSession = new WebDriverSession(wdSessionId, caller);
-        wdSessions.put(wdSessionId, wdSession);
-        log.info(
-            "WebDriver session created: wdSessionId={} caller={}", wdSessionId, caller.value());
+      if (response.statusCode() >= 200 && response.statusCode() < 300) {
+        String wdSessionId = extractSessionId(response.body());
+        if (wdSessionId != null) {
+          WebDriverSession wdSession = new WebDriverSession(wdSessionId, caller);
+          wdSessions.put(wdSessionId, wdSession);
+          releasePermit = false;
+          log.info(
+              "WebDriver session created: wdSessionId={} caller={}", wdSessionId, caller.value());
+        }
+      }
+
+      return response;
+    } finally {
+      if (releasePermit) {
+        capacity.release();
       }
     }
-
-    return response;
   }
 
   /** Forwards a WebDriver command to the grid after verifying session ownership. */
@@ -82,7 +100,9 @@ public class WebDriverProxyService {
         && (subPath == null || subPath.isEmpty())
         && response.statusCode() >= 200
         && response.statusCode() < 300) {
-      wdSessions.remove(wdSessionId);
+      if (wdSessions.remove(wdSessionId) != null) {
+        capacity.release();
+      }
       log.info("WebDriver session deleted: wdSessionId={}", wdSessionId);
     }
 
@@ -101,18 +121,37 @@ public class WebDriverProxyService {
 
   /** Removes a tracked session without forwarding a delete to the grid. */
   public void removeSession(String wdSessionId) {
-    wdSessions.remove(wdSessionId);
+    if (wdSessions.remove(wdSessionId) != null) {
+      capacity.release();
+    }
+  }
+
+  /**
+   * Periodically removes tracked sessions that have exceeded their TTL. Covers the case where a
+   * client disconnects or the grid expires a session out-of-band without a DELETE being proxied.
+   */
+  @Scheduled(every = "30s")
+  void reapStaleSessions() {
+    Instant cutoff = Instant.now().minus(SESSION_TTL);
+    for (var entry : wdSessions.entrySet()) {
+      if (entry.getValue().createdAt().isBefore(cutoff)) {
+        if (wdSessions.remove(entry.getKey(), entry.getValue())) {
+          capacity.release();
+          log.info("reaped stale WebDriver session: wdSessionId={}", entry.getKey());
+        }
+      }
+    }
   }
 
   private void requireSessionOwner(String wdSessionId, CallerId caller) {
     WebDriverSession session = wdSessions.get(wdSessionId);
     if (session == null) {
       throw new SessionNotFoundException(
-          UUID.nameUUIDFromBytes(wdSessionId.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+          UUID.nameUUIDFromBytes(wdSessionId.getBytes(StandardCharsets.UTF_8)));
     }
     if (!session.owner().equals(caller)) {
       throw new io.browserservice.api.error.SessionForbiddenException(
-          UUID.nameUUIDFromBytes(wdSessionId.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+          UUID.nameUUIDFromBytes(wdSessionId.getBytes(StandardCharsets.UTF_8)));
     }
   }
 
@@ -142,27 +181,26 @@ public class WebDriverProxyService {
     }
   }
 
-  private static String extractSessionId(byte[] responseBody) {
+  /**
+   * Extracts the session ID from a W3C WebDriver create-session response using proper JSON parsing.
+   * The W3C spec defines the response as {@code {"value": {"sessionId": "...", "capabilities":
+   * {...}}}}.
+   */
+  static String extractSessionId(byte[] responseBody) {
     if (responseBody == null || responseBody.length == 0) {
       return null;
     }
-    String body = new String(responseBody, java.nio.charset.StandardCharsets.UTF_8);
-    int idx = body.indexOf("\"sessionId\"");
-    if (idx < 0) {
+    try {
+      JsonNode root = MAPPER.readTree(responseBody);
+      JsonNode value = root.path("value");
+      JsonNode sessionIdNode = value.path("sessionId");
+      if (sessionIdNode.isTextual()) {
+        return sessionIdNode.textValue();
+      }
+      return null;
+    } catch (IOException e) {
+      log.warn("failed to parse session creation response: {}", e.getMessage());
       return null;
     }
-    int colonIdx = body.indexOf(':', idx);
-    if (colonIdx < 0) {
-      return null;
-    }
-    int startQuote = body.indexOf('"', colonIdx + 1);
-    if (startQuote < 0) {
-      return null;
-    }
-    int endQuote = body.indexOf('"', startQuote + 1);
-    if (endQuote < 0) {
-      return null;
-    }
-    return body.substring(startQuote + 1, endQuote);
   }
 }

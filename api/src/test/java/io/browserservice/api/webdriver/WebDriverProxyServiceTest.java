@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.error.SessionNotFoundException;
 import io.browserservice.api.session.CallerId;
+import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -53,5 +54,46 @@ class WebDriverProxyServiceTest {
   void removeSessionCleansUp() {
     service.removeSession("some-id");
     assertThat(service.findSession("some-id")).isEmpty();
+  }
+
+  @Test
+  void extractSessionIdParsesW3cResponse() {
+    String json =
+        "{\"value\":{\"sessionId\":\"abc-123\",\"capabilities\":{\"browserName\":\"chrome\"}}}";
+    String sessionId =
+        WebDriverProxyService.extractSessionId(json.getBytes(StandardCharsets.UTF_8));
+    assertThat(sessionId).isEqualTo("abc-123");
+  }
+
+  @Test
+  void extractSessionIdReturnsNullForMalformedJson() {
+    String json = "not valid json";
+    String sessionId =
+        WebDriverProxyService.extractSessionId(json.getBytes(StandardCharsets.UTF_8));
+    assertThat(sessionId).isNull();
+  }
+
+  @Test
+  void extractSessionIdReturnsNullForMissingField() {
+    String json = "{\"value\":{\"capabilities\":{\"browserName\":\"chrome\"}}}";
+    String sessionId =
+        WebDriverProxyService.extractSessionId(json.getBytes(StandardCharsets.UTF_8));
+    assertThat(sessionId).isNull();
+  }
+
+  @Test
+  void extractSessionIdReturnsNullForEmptyBody() {
+    assertThat(WebDriverProxyService.extractSessionId(null)).isNull();
+    assertThat(WebDriverProxyService.extractSessionId(new byte[0])).isNull();
+  }
+
+  @Test
+  void extractSessionIdIgnoresNestedSessionIdInCapabilities() {
+    String json =
+        "{\"value\":{\"sessionId\":\"real-id\","
+            + "\"capabilities\":{\"sessionId\":\"fake-nested\",\"browserName\":\"chrome\"}}}";
+    String sessionId =
+        WebDriverProxyService.extractSessionId(json.getBytes(StandardCharsets.UTF_8));
+    assertThat(sessionId).isEqualTo("real-id");
   }
 }
