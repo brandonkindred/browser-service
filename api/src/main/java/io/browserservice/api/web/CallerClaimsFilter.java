@@ -46,8 +46,6 @@ public class CallerClaimsFilter implements ContainerRequestFilter {
       return false;
     }
     String normalized = path.startsWith("/") ? path.substring(1) : path;
-    return "v1".equals(normalized)
-        || normalized.startsWith("v1/")
-        || normalized.startsWith("wd/hub");
+    return "v1".equals(normalized) || normalized.startsWith("v1/");
   }
 }

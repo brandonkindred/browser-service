@@ -1,6 +1,6 @@
 package io.browserservice.api.webdriver;
 
-import io.browserservice.api.web.CallerContext;
+import io.browserservice.api.session.CallerId;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.DELETE;
 import jakarta.ws.rs.GET;
@@ -8,6 +8,8 @@ import jakarta.ws.rs.POST;
 import jakarta.ws.rs.Path;
 import jakarta.ws.rs.PathParam;
 import jakarta.ws.rs.Produces;
+import jakarta.ws.rs.container.ContainerRequestContext;
+import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
 import java.io.IOException;
@@ -17,25 +19,24 @@ import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 /**
  * W3C WebDriver protocol proxy. Clients point their {@code RemoteWebDriver} at this endpoint (e.g.
  * {@code http://host:8080/wd/hub}) just like they would BrowserStack or Sauce Labs. The service
- * authenticates via OIDC bearer token, enforces session ownership and quotas, then proxies the
- * WebDriver commands to the underlying Selenium Grid.
+ * authenticates via API key, enforces session ownership and quotas, then proxies the WebDriver
+ * commands to the underlying Selenium Grid.
  *
- * <p>Usage from a client:
+ * <p>Usage from a client (Basic Auth — most Selenium-native approach):
  *
  * <pre>{@code
  * ChromeOptions options = new ChromeOptions();
  * RemoteWebDriver driver = new RemoteWebDriver(
- *     new URL("http://browser-service:8080/wd/hub"), options);
+ *     new URL("http://user:your-api-key@browser-service:8080/wd/hub"), options);
  * driver.get("http://example.com");
  * }</pre>
  *
- * <p>Authentication: pass an OIDC bearer token in the standard {@code Authorization} header.
- * Selenium's {@code RemoteWebDriver} supports custom headers via {@code ClientConfig}:
+ * <p>Or using Selenium 4 ClientConfig:
  *
  * <pre>{@code
  * ClientConfig config = ClientConfig.defaultConfig()
  *     .baseUrl(new URL("http://browser-service:8080/wd/hub"))
- *     .authenticateAs(new UsernameAndPassword("token", jwtToken));
+ *     .authenticateAs(new UsernameAndPassword("user", "your-api-key"));
  * RemoteWebDriver driver = RemoteWebDriver.builder()
  *     .config(config)
  *     .oneOf(new ChromeOptions())
@@ -49,7 +50,7 @@ public class WebDriverProxyResource {
 
   @Inject WebDriverProxyService proxyService;
 
-  @Inject CallerContext callers;
+  @Context ContainerRequestContext requestContext;
 
   /** Creates a new browser session on the Selenium Grid via the W3C WebDriver protocol. */
   @POST
@@ -57,7 +58,7 @@ public class WebDriverProxyResource {
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(summary = "Create a new WebDriver session", operationId = "wdCreateSession")
   public Response createSession(byte[] body) throws IOException {
-    ProxyResponse resp = proxyService.createSession(body, callers.id());
+    ProxyResponse resp = proxyService.createSession(body, caller());
     return toJaxrsResponse(resp);
   }
 
@@ -67,7 +68,7 @@ public class WebDriverProxyResource {
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(summary = "Delete a WebDriver session", operationId = "wdDeleteSession")
   public Response deleteSession(@PathParam("sessionId") String sessionId) throws IOException {
-    ProxyResponse resp = proxyService.forward("DELETE", sessionId, null, null, callers.id());
+    ProxyResponse resp = proxyService.forward("DELETE", sessionId, null, null, caller());
     return toJaxrsResponse(resp);
   }
 
@@ -79,7 +80,7 @@ public class WebDriverProxyResource {
   public Response getSessionCommand(
       @PathParam("sessionId") String sessionId, @PathParam("subPath") String subPath)
       throws IOException {
-    ProxyResponse resp = proxyService.forward("GET", sessionId, subPath, null, callers.id());
+    ProxyResponse resp = proxyService.forward("GET", sessionId, subPath, null, caller());
     return toJaxrsResponse(resp);
   }
 
@@ -91,7 +92,7 @@ public class WebDriverProxyResource {
   public Response postSessionCommand(
       @PathParam("sessionId") String sessionId, @PathParam("subPath") String subPath, byte[] body)
       throws IOException {
-    ProxyResponse resp = proxyService.forward("POST", sessionId, subPath, body, callers.id());
+    ProxyResponse resp = proxyService.forward("POST", sessionId, subPath, body, caller());
     return toJaxrsResponse(resp);
   }
 
@@ -103,7 +104,7 @@ public class WebDriverProxyResource {
   public Response deleteSessionCommand(
       @PathParam("sessionId") String sessionId, @PathParam("subPath") String subPath)
       throws IOException {
-    ProxyResponse resp = proxyService.forward("DELETE", sessionId, subPath, null, callers.id());
+    ProxyResponse resp = proxyService.forward("DELETE", sessionId, subPath, null, caller());
     return toJaxrsResponse(resp);
   }
 
@@ -113,7 +114,7 @@ public class WebDriverProxyResource {
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(hidden = true)
   public Response getSession(@PathParam("sessionId") String sessionId) throws IOException {
-    ProxyResponse resp = proxyService.forward("GET", sessionId, null, null, callers.id());
+    ProxyResponse resp = proxyService.forward("GET", sessionId, null, null, caller());
     return toJaxrsResponse(resp);
   }
 
@@ -125,6 +126,10 @@ public class WebDriverProxyResource {
   public Response getStatus() throws IOException {
     ProxyResponse resp = proxyService.forwardStatus();
     return toJaxrsResponse(resp);
+  }
+
+  private CallerId caller() {
+    return WebDriverCallerHolder.get(requestContext);
   }
 
   private static Response toJaxrsResponse(ProxyResponse proxy) {
