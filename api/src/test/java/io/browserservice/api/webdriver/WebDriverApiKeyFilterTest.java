@@ -20,10 +20,23 @@ class WebDriverApiKeyFilterTest {
   private static final String KEYS_CONFIG = "sk_test_123:acme:alice,sk_test_456:corp:bob";
 
   @Test
-  void basicAuthWithValidKeySetsCaller() {
+  void basicAuthWithValidKeyUsesUsernameAsSubject() {
     WebDriverApiKeyFilter filter = new WebDriverApiKeyFilter(KEYS_CONFIG);
     ContainerRequestContext ctx =
         mockRequest("/wd/hub/session", basicAuth("myuser", "sk_test_123"));
+
+    filter.filter(ctx);
+
+    ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
+    verify(ctx).setProperty(eq(WebDriverCallerHolder.REQUEST_ATTRIBUTE), captor.capture());
+    CallerId caller = (CallerId) captor.getValue();
+    assertThat(caller).isEqualTo(CallerId.of("acme", "myuser"));
+  }
+
+  @Test
+  void basicAuthWithBlankUsernameFallsBackToKeySubject() {
+    WebDriverApiKeyFilter filter = new WebDriverApiKeyFilter(KEYS_CONFIG);
+    ContainerRequestContext ctx = mockRequest("/wd/hub/session", basicAuth("", "sk_test_123"));
 
     filter.filter(ctx);
 
@@ -88,6 +101,27 @@ class WebDriverApiKeyFilterTest {
     filter.filter(ctx);
 
     verify(ctx).abortWith(org.mockito.ArgumentMatchers.any());
+  }
+
+  @Test
+  void differentUsernamesSameKeyGetDistinctCallers() {
+    WebDriverApiKeyFilter filter = new WebDriverApiKeyFilter(KEYS_CONFIG);
+
+    ContainerRequestContext ctx1 =
+        mockRequest("/wd/hub/session", basicAuth("user-a", "sk_test_123"));
+    filter.filter(ctx1);
+    ArgumentCaptor<Object> cap1 = ArgumentCaptor.forClass(Object.class);
+    verify(ctx1).setProperty(eq(WebDriverCallerHolder.REQUEST_ATTRIBUTE), cap1.capture());
+
+    ContainerRequestContext ctx2 =
+        mockRequest("/wd/hub/session", basicAuth("user-b", "sk_test_123"));
+    filter.filter(ctx2);
+    ArgumentCaptor<Object> cap2 = ArgumentCaptor.forClass(Object.class);
+    verify(ctx2).setProperty(eq(WebDriverCallerHolder.REQUEST_ATTRIBUTE), cap2.capture());
+
+    assertThat(cap1.getValue()).isNotEqualTo(cap2.getValue());
+    assertThat(((CallerId) cap1.getValue()).subject()).isEqualTo("user-a");
+    assertThat(((CallerId) cap2.getValue()).subject()).isEqualTo("user-b");
   }
 
   private static ContainerRequestContext mockRequest(String path, String authHeader) {

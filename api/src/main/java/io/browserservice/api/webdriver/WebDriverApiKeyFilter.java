@@ -95,8 +95,16 @@ public class WebDriverApiKeyFilter implements ContainerRequestFilter {
       if (colonIdx < 0) {
         return null;
       }
+      String username = decoded.substring(0, colonIdx);
       String password = decoded.substring(colonIdx + 1);
-      return keyRegistry.get(password);
+      CallerId keyCaller = keyRegistry.get(password);
+      if (keyCaller == null) {
+        return null;
+      }
+      if (username.isBlank()) {
+        return keyCaller;
+      }
+      return CallerId.of(keyCaller.tenantId(), username);
     } catch (IllegalArgumentException e) {
       return null;
     }

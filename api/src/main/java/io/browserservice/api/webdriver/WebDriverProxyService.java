@@ -34,7 +34,7 @@ public class WebDriverProxyService {
 
   private static final Logger log = LoggerFactory.getLogger(WebDriverProxyService.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
-  private static final Duration SESSION_TTL = Duration.ofMinutes(30);
+  private static final Duration SESSION_IDLE_TTL = Duration.ofMinutes(30);
 
   private final String gridBaseUrl;
   private final HttpClient httpClient;
@@ -87,7 +87,8 @@ public class WebDriverProxyService {
   public ProxyResponse forward(
       String method, String wdSessionId, String subPath, byte[] body, CallerId caller)
       throws IOException {
-    requireSessionOwner(wdSessionId, caller);
+    WebDriverSession session = requireSessionOwner(wdSessionId, caller);
+    session.touch();
 
     String path = "/session/" + wdSessionId;
     if (subPath != null && !subPath.isEmpty()) {
@@ -127,23 +128,25 @@ public class WebDriverProxyService {
   }
 
   /**
-   * Periodically removes tracked sessions that have exceeded their TTL. Covers the case where a
-   * client disconnects or the grid expires a session out-of-band without a DELETE being proxied.
+   * Periodically removes tracked sessions that have been idle longer than {@link
+   * #SESSION_IDLE_TTL}. Covers the case where a client disconnects or the grid expires a session
+   * out-of-band without a DELETE being proxied. Active sessions are kept alive by the {@link
+   * WebDriverSession#touch()} call in {@link #forward}.
    */
   @Scheduled(every = "30s")
   void reapStaleSessions() {
-    Instant cutoff = Instant.now().minus(SESSION_TTL);
+    Instant cutoff = Instant.now().minus(SESSION_IDLE_TTL);
     for (var entry : wdSessions.entrySet()) {
-      if (entry.getValue().createdAt().isBefore(cutoff)) {
+      if (entry.getValue().lastUsedAt().isBefore(cutoff)) {
         if (wdSessions.remove(entry.getKey(), entry.getValue())) {
           capacity.release();
-          log.info("reaped stale WebDriver session: wdSessionId={}", entry.getKey());
+          log.info("reaped idle WebDriver session: wdSessionId={}", entry.getKey());
         }
       }
     }
   }
 
-  private void requireSessionOwner(String wdSessionId, CallerId caller) {
+  private WebDriverSession requireSessionOwner(String wdSessionId, CallerId caller) {
     WebDriverSession session = wdSessions.get(wdSessionId);
     if (session == null) {
       throw new SessionNotFoundException(
@@ -153,6 +156,7 @@ public class WebDriverProxyService {
       throw new io.browserservice.api.error.SessionForbiddenException(
           UUID.nameUUIDFromBytes(wdSessionId.getBytes(StandardCharsets.UTF_8)));
     }
+    return session;
   }
 
   private ProxyResponse forwardToGrid(String method, String path, byte[] body) throws IOException {
