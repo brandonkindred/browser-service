@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.error.SessionNotFoundException;
 import io.browserservice.api.session.CallerId;
+import io.browserservice.api.session.SessionRegistry;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -30,7 +31,7 @@ class WebDriverProxyServiceTest {
             new EngineProperties.WebSocketProps(
                 32, 300, 64, 10000, true, 250, true, 1000, true, 2000, 50, 16777216),
             new EngineProperties.SecurityProps(java.util.List.of()));
-    service = new WebDriverProxyService(props);
+    service = new WebDriverProxyService(props, new SessionRegistry(props));
   }
 
   @Test

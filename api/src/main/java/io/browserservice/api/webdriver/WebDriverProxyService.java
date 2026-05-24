@@ -3,9 +3,9 @@ package io.browserservice.api.webdriver;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.browserservice.api.config.EngineProperties;
-import io.browserservice.api.error.SessionCapExceededException;
 import io.browserservice.api.error.SessionNotFoundException;
 import io.browserservice.api.session.CallerId;
+import io.browserservice.api.session.SessionRegistry;
 import io.quarkus.scheduler.Scheduled;
 import java.io.IOException;
 import java.net.URI;
@@ -20,7 +20,6 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.Semaphore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -39,28 +38,26 @@ public class WebDriverProxyService {
   private final String gridBaseUrl;
   private final HttpClient httpClient;
   private final ConcurrentMap<String, WebDriverSession> wdSessions = new ConcurrentHashMap<>();
-  private final Semaphore capacity;
-  private final int maxConcurrent;
+  private final Runnable acquirePermit;
+  private final Runnable releasePermit;
 
-  /** Constructs the proxy service from configuration. */
-  public WebDriverProxyService(EngineProperties props) {
+  /** Constructs the proxy service from configuration and the shared session registry. */
+  public WebDriverProxyService(EngineProperties props, SessionRegistry sessionRegistry) {
     String urls = props.selenium().urls();
     this.gridBaseUrl = urls.contains(",") ? urls.split(",")[0].trim() : urls.trim();
     this.httpClient =
         HttpClient.newBuilder()
             .connectTimeout(Duration.ofMillis(props.selenium().connectTimeoutMs()))
             .build();
-    this.maxConcurrent = props.session().maxConcurrent();
-    this.capacity = new Semaphore(this.maxConcurrent);
+    this.acquirePermit = sessionRegistry::acquirePermit;
+    this.releasePermit = sessionRegistry::releasePermit;
   }
 
   /** Creates a new WebDriver session on the grid and tracks it for the caller. */
   public ProxyResponse createSession(byte[] body, CallerId caller) throws IOException {
-    if (!capacity.tryAcquire()) {
-      throw new SessionCapExceededException(maxConcurrent);
-    }
+    acquirePermit.run();
 
-    boolean releasePermit = true;
+    boolean shouldRelease = true;
     try {
       ProxyResponse response = forwardToGrid("POST", "/session", body);
 
@@ -69,7 +66,7 @@ public class WebDriverProxyService {
         if (wdSessionId != null) {
           WebDriverSession wdSession = new WebDriverSession(wdSessionId, caller);
           wdSessions.put(wdSessionId, wdSession);
-          releasePermit = false;
+          shouldRelease = false;
           log.info(
               "WebDriver session created: wdSessionId={} caller={}", wdSessionId, caller.value());
         }
@@ -77,8 +74,8 @@ public class WebDriverProxyService {
 
       return response;
     } finally {
-      if (releasePermit) {
-        capacity.release();
+      if (shouldRelease) {
+        releasePermit.run();
       }
     }
   }
@@ -102,7 +99,7 @@ public class WebDriverProxyService {
         && response.statusCode() >= 200
         && response.statusCode() < 300) {
       if (wdSessions.remove(wdSessionId) != null) {
-        capacity.release();
+        releasePermit.run();
       }
       log.info("WebDriver session deleted: wdSessionId={}", wdSessionId);
     }
@@ -123,7 +120,7 @@ public class WebDriverProxyService {
   /** Removes a tracked session without forwarding a delete to the grid. */
   public void removeSession(String wdSessionId) {
     if (wdSessions.remove(wdSessionId) != null) {
-      capacity.release();
+      releasePermit.run();
     }
   }
 
@@ -140,7 +137,7 @@ public class WebDriverProxyService {
       if (entry.getValue().lastUsedAt().isBefore(cutoff)) {
         if (wdSessions.remove(entry.getKey(), entry.getValue())) {
           deleteGridSession(entry.getKey());
-          capacity.release();
+          releasePermit.run();
           log.info("reaped idle WebDriver session: wdSessionId={}", entry.getKey());
         }
       }
