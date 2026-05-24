@@ -131,17 +131,17 @@ public class WebDriverProxyService {
   void reapStaleSessions() {
     Instant cutoff = Instant.now().minus(SESSION_IDLE_TTL);
     for (var entry : wdSessions.entrySet()) {
-      if (entry.getValue().lastUsedAt().isBefore(cutoff)) {
-        if (wdSessions.remove(entry.getKey(), entry.getValue())) {
-          if (deleteGridSession(entry.getKey())) {
+      WebDriverSession session = entry.getValue();
+      if (session.lastUsedAt().isBefore(cutoff)) {
+        if (deleteGridSession(entry.getKey())) {
+          if (wdSessions.remove(entry.getKey(), session)) {
             releasePermit.run();
-            log.info("reaped idle WebDriver session: wdSessionId={}", entry.getKey());
-          } else {
-            log.warn(
-                "reaped idle WebDriver session locally but grid delete failed;"
-                    + " permit held until grid confirms: wdSessionId={}",
-                entry.getKey());
           }
+          log.info("reaped idle WebDriver session: wdSessionId={}", entry.getKey());
+        } else {
+          log.warn(
+              "grid delete failed for idle session; will retry next cycle: wdSessionId={}",
+              entry.getKey());
         }
       }
     }
