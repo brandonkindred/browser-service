@@ -114,6 +114,10 @@ public class WebDriverProxyService {
 
     String path = "/session/" + wdSessionId;
     if (subPath != null && !subPath.isEmpty()) {
+      if (subPath.contains("..")) {
+        throw new io.browserservice.api.error.ValidationFailedException(
+            "subPath must not contain path traversal segments");
+      }
       path = path + "/" + subPath;
     }
 
@@ -130,6 +134,13 @@ public class WebDriverProxyService {
             "grid returned {} for DELETE session; keeping local tracking: wdSessionId={}",
             response.statusCode(),
             session.webdriverSessionId());
+      }
+    }
+
+    if (response.statusCode() == 404) {
+      if (wdSessions.remove(wdSessionId) != null) {
+        releasePermit.run();
+        log.info("evicted dead session after grid 404: wdSessionId={}", wdSessionId);
       }
     }
 
