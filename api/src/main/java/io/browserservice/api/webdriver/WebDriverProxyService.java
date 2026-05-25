@@ -80,12 +80,13 @@ public class WebDriverProxyService {
 
     boolean shouldRelease = true;
     try {
-      ProxyResponse response = forwardToGrid("POST", "/session", body);
+      String selectedUrl = selectGridUrl();
+      ProxyResponse response = forwardToUrl(selectedUrl, "POST", "/session", body);
 
       if (response.statusCode() >= 200 && response.statusCode() < 300) {
         String wdSessionId = extractSessionId(response.body());
         if (wdSessionId != null) {
-          WebDriverSession wdSession = new WebDriverSession(wdSessionId, caller);
+          WebDriverSession wdSession = new WebDriverSession(wdSessionId, caller, selectedUrl);
           wdSessions.put(wdSessionId, wdSession);
           shouldRelease = false;
           log.info(
@@ -112,9 +113,13 @@ public class WebDriverProxyService {
       path = path + "/" + subPath;
     }
 
-    ProxyResponse response = forwardToGrid(method, path, body);
+    ProxyResponse response = forwardToUrl(session.gridUrl(), method, path, body);
 
-    if ("DELETE".equalsIgnoreCase(method) && (subPath == null || subPath.isEmpty())) {
+    boolean isRootDelete =
+        "DELETE".equalsIgnoreCase(method) && (subPath == null || subPath.isEmpty());
+    boolean isCloseWindow = "DELETE".equalsIgnoreCase(method) && "window".equals(subPath);
+
+    if (isRootDelete || isCloseWindow) {
       if (response.statusCode() < 500) {
         if (wdSessions.remove(wdSessionId) != null) {
           releasePermit.run();
@@ -124,7 +129,7 @@ public class WebDriverProxyService {
         log.warn(
             "grid returned {} for DELETE session; keeping local tracking: wdSessionId={}",
             response.statusCode(),
-            wdSessionId);
+            session.webdriverSessionId());
       }
     }
 
@@ -133,7 +138,7 @@ public class WebDriverProxyService {
 
   /** Forwards the grid status request (no auth required for this endpoint). */
   public ProxyResponse forwardStatus() {
-    return forwardToGrid("GET", "/status", null);
+    return forwardToUrl(selectGridUrl(), "GET", "/status", null);
   }
 
   /** Looks up a tracked WebDriver session by its grid session ID. */
@@ -169,7 +174,7 @@ public class WebDriverProxyService {
       if (!wdSessions.remove(entry.getKey(), session)) {
         continue;
       }
-      if (deleteGridSession(entry.getKey())) {
+      if (deleteGridSession(session)) {
         releasePermit.run();
         log.info("reaped idle WebDriver session: wdSessionId={}", entry.getKey());
       } else {
@@ -181,21 +186,23 @@ public class WebDriverProxyService {
     }
   }
 
-  private boolean deleteGridSession(String wdSessionId) {
+  private boolean deleteGridSession(WebDriverSession session) {
     try {
-      ProxyResponse resp = forwardToGrid("DELETE", "/session/" + wdSessionId, null);
+      ProxyResponse resp =
+          forwardToUrl(
+              session.gridUrl(), "DELETE", "/session/" + session.webdriverSessionId(), null);
       if (resp.statusCode() >= 500) {
         log.warn(
             "grid returned {} for DELETE during reap: wdSessionId={}",
             resp.statusCode(),
-            wdSessionId);
+            session.webdriverSessionId());
         return false;
       }
       return true;
     } catch (UpstreamUnavailableException e) {
       log.warn(
           "failed to delete grid session during reap: wdSessionId={} error={}",
-          wdSessionId,
+          session.webdriverSessionId(),
           e.getMessage());
       return false;
     }
@@ -214,9 +221,12 @@ public class WebDriverProxyService {
     return session;
   }
 
-  private ProxyResponse forwardToGrid(String method, String path, byte[] body) {
-    String url =
-        gridBaseUrls[Math.floorMod(urlIndex.getAndIncrement(), gridBaseUrls.length)] + path;
+  private String selectGridUrl() {
+    return gridBaseUrls[Math.floorMod(urlIndex.getAndIncrement(), gridBaseUrls.length)];
+  }
+
+  private ProxyResponse forwardToUrl(String baseUrl, String method, String path, byte[] body) {
+    String url = baseUrl + path;
     HttpRequest.Builder reqBuilder =
         HttpRequest.newBuilder()
             .uri(URI.create(url))

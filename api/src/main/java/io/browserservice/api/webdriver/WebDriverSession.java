@@ -11,13 +11,15 @@ public final class WebDriverSession {
 
   private final String wdSessionId;
   private final CallerId sessionOwner;
+  private final String pinnedGridUrl;
   private final Instant created;
   private volatile Instant lastUsed;
 
   /** Creates a new tracked session with timestamps set to now. */
-  public WebDriverSession(String wdSessionId, CallerId sessionOwner) {
+  public WebDriverSession(String wdSessionId, CallerId sessionOwner, String gridUrl) {
     this.wdSessionId = wdSessionId;
     this.sessionOwner = sessionOwner;
+    this.pinnedGridUrl = gridUrl;
     this.created = Instant.now();
     this.lastUsed = this.created;
   }
@@ -30,6 +32,11 @@ public final class WebDriverSession {
   /** Returns the caller who owns this session. */
   public CallerId owner() {
     return sessionOwner;
+  }
+
+  /** Returns the grid URL this session is pinned to. */
+  public String gridUrl() {
+    return pinnedGridUrl;
   }
 
   /** Returns the instant when this session was created. */
