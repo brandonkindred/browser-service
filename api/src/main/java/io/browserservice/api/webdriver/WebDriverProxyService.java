@@ -41,6 +41,7 @@ public class WebDriverProxyService {
   private final ConcurrentMap<String, WebDriverSession> wdSessions = new ConcurrentHashMap<>();
   private final Runnable acquirePermit;
   private final Runnable releasePermit;
+  private final Duration readTimeout;
 
   /** Constructs the proxy service from configuration and the shared session registry. */
   public WebDriverProxyService(EngineProperties props, SessionRegistry sessionRegistry) {
@@ -50,6 +51,7 @@ public class WebDriverProxyService {
         HttpClient.newBuilder()
             .connectTimeout(Duration.ofMillis(props.selenium().connectTimeoutMs()))
             .build();
+    this.readTimeout = Duration.ofMillis(props.selenium().readTimeoutMs());
     this.acquirePermit = sessionRegistry::acquirePermit;
     this.releasePermit = sessionRegistry::releasePermit;
   }
@@ -139,21 +141,26 @@ public class WebDriverProxyService {
     Instant cutoff = Instant.now().minus(SESSION_IDLE_TTL);
     for (var entry : wdSessions.entrySet()) {
       WebDriverSession session = entry.getValue();
-      if (session.lastUsedAt().isBefore(cutoff)) {
-        if (!deleteGridSession(entry.getKey())) {
-          log.warn(
-              "grid delete failed for idle session; will retry next cycle: wdSessionId={}",
-              entry.getKey());
-          continue;
-        }
-        if (!session.lastUsedAt().isBefore(cutoff)) {
-          log.info("session touched during reap; keeping: wdSessionId={}", entry.getKey());
-          continue;
-        }
-        if (wdSessions.remove(entry.getKey(), session)) {
-          releasePermit.run();
-          log.info("reaped idle WebDriver session: wdSessionId={}", entry.getKey());
-        }
+      if (!session.lastUsedAt().isBefore(cutoff)) {
+        continue;
+      }
+      Instant snapshot = session.lastUsedAt();
+      if (!snapshot.isBefore(cutoff)) {
+        continue;
+      }
+      if (!deleteGridSession(entry.getKey())) {
+        log.warn(
+            "grid delete failed for idle session; will retry next cycle: wdSessionId={}",
+            entry.getKey());
+        continue;
+      }
+      if (!snapshot.equals(session.lastUsedAt())) {
+        log.info("session touched during reap; keeping: wdSessionId={}", entry.getKey());
+        continue;
+      }
+      if (wdSessions.remove(entry.getKey(), session)) {
+        releasePermit.run();
+        log.info("reaped idle WebDriver session: wdSessionId={}", entry.getKey());
       }
     }
   }
@@ -196,7 +203,7 @@ public class WebDriverProxyService {
     HttpRequest.Builder reqBuilder =
         HttpRequest.newBuilder()
             .uri(URI.create(url))
-            .timeout(Duration.ofSeconds(60))
+            .timeout(readTimeout)
             .header("Content-Type", "application/json");
 
     HttpRequest.BodyPublisher bodyPublisher =
