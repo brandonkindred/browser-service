@@ -95,10 +95,17 @@ public class WebDriverProxyService {
     ProxyResponse response = forwardToGrid(method, path, body);
 
     if ("DELETE".equalsIgnoreCase(method) && (subPath == null || subPath.isEmpty())) {
-      if (wdSessions.remove(wdSessionId) != null) {
-        releasePermit.run();
+      if (response.statusCode() < 500) {
+        if (wdSessions.remove(wdSessionId) != null) {
+          releasePermit.run();
+        }
+        log.info("WebDriver session deleted: wdSessionId={}", wdSessionId);
+      } else {
+        log.warn(
+            "grid returned {} for DELETE session; keeping local tracking: wdSessionId={}",
+            response.statusCode(),
+            wdSessionId);
       }
-      log.info("WebDriver session deleted: wdSessionId={}", wdSessionId);
     }
 
     return response;
@@ -149,7 +156,14 @@ public class WebDriverProxyService {
 
   private boolean deleteGridSession(String wdSessionId) {
     try {
-      forwardToGrid("DELETE", "/session/" + wdSessionId, null);
+      ProxyResponse resp = forwardToGrid("DELETE", "/session/" + wdSessionId, null);
+      if (resp.statusCode() >= 500) {
+        log.warn(
+            "grid returned {} for DELETE during reap: wdSessionId={}",
+            resp.statusCode(),
+            wdSessionId);
+        return false;
+      }
       return true;
     } catch (IOException e) {
       log.warn(
