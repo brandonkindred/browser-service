@@ -145,6 +145,9 @@ public class WebDriverApiKeyFilter implements ContainerRequestFilter {
       return false;
     }
     String normalized = path.startsWith("/") ? path.substring(1) : path;
+    if (normalized.endsWith("/")) {
+      normalized = normalized.substring(0, normalized.length() - 1);
+    }
     return "wd/hub/status".equals(normalized);
   }
 }

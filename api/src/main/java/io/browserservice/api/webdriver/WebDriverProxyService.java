@@ -34,24 +34,31 @@ public class WebDriverProxyService {
 
   private static final Logger log = LoggerFactory.getLogger(WebDriverProxyService.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
-  private static final Duration SESSION_IDLE_TTL = Duration.ofMinutes(30);
 
-  private final String gridBaseUrl;
+  private final String[] gridBaseUrls;
   private final HttpClient httpClient;
   private final ConcurrentMap<String, WebDriverSession> wdSessions = new ConcurrentHashMap<>();
   private final Runnable acquirePermit;
   private final Runnable releasePermit;
   private final Duration readTimeout;
+  private final Duration sessionIdleTtl;
+  private volatile int urlIndex;
 
   /** Constructs the proxy service from configuration and the shared session registry. */
   public WebDriverProxyService(EngineProperties props, SessionRegistry sessionRegistry) {
     String urls = props.selenium().urls();
-    this.gridBaseUrl = urls.contains(",") ? urls.split(",")[0].trim() : urls.trim();
+    this.gridBaseUrls =
+        java.util.Arrays.stream(urls.split(","))
+            .map(String::trim)
+            .filter(s -> !s.isEmpty())
+            .map(WebDriverProxyService::stripWdHubSuffix)
+            .toArray(String[]::new);
     this.httpClient =
         HttpClient.newBuilder()
             .connectTimeout(Duration.ofMillis(props.selenium().connectTimeoutMs()))
             .build();
     this.readTimeout = Duration.ofMillis(props.selenium().readTimeoutMs());
+    this.sessionIdleTtl = Duration.ofSeconds(props.session().idleTtlSeconds());
     this.acquirePermit = sessionRegistry::acquirePermit;
     this.releasePermit = sessionRegistry::releasePermit;
   }
@@ -131,19 +138,16 @@ public class WebDriverProxyService {
   }
 
   /**
-   * Periodically removes tracked sessions that have been idle longer than {@link
-   * #SESSION_IDLE_TTL}. Sends a DELETE to the grid to free the upstream browser before dropping
-   * local state, preventing resource leaks and capacity overcommit. Active sessions are kept alive
-   * by the {@link WebDriverSession#touch()} call in {@link #forward}.
+   * Periodically removes tracked sessions that have been idle longer than the configured idle TTL.
+   * Atomically removes the local entry first to prevent commands racing against the grid DELETE,
+   * then issues the upstream DELETE. On grid failure the entry is re-inserted for retry. Active
+   * sessions are kept alive by the {@link WebDriverSession#touch()} call in {@link #forward}.
    */
   @Scheduled(every = "30s")
   void reapStaleSessions() {
-    Instant cutoff = Instant.now().minus(SESSION_IDLE_TTL);
+    Instant cutoff = Instant.now().minus(sessionIdleTtl);
     for (var entry : wdSessions.entrySet()) {
       WebDriverSession session = entry.getValue();
-      if (!session.lastUsedAt().isBefore(cutoff)) {
-        continue;
-      }
       Instant snapshot = session.lastUsedAt();
       if (!snapshot.isBefore(cutoff)) {
         continue;
@@ -151,19 +155,17 @@ public class WebDriverProxyService {
       if (!snapshot.equals(session.lastUsedAt())) {
         continue;
       }
-      if (!deleteGridSession(entry.getKey())) {
-        log.warn(
-            "grid delete failed for idle session; will retry next cycle: wdSessionId={}",
-            entry.getKey());
+      if (!wdSessions.remove(entry.getKey(), session)) {
         continue;
       }
-      if (!snapshot.equals(session.lastUsedAt())) {
-        log.info("session touched during reap; keeping: wdSessionId={}", entry.getKey());
-        continue;
-      }
-      if (wdSessions.remove(entry.getKey(), session)) {
+      if (deleteGridSession(entry.getKey())) {
         releasePermit.run();
         log.info("reaped idle WebDriver session: wdSessionId={}", entry.getKey());
+      } else {
+        wdSessions.put(entry.getKey(), session);
+        log.warn(
+            "grid delete failed for idle session; re-inserted for retry: wdSessionId={}",
+            entry.getKey());
       }
     }
   }
@@ -202,7 +204,9 @@ public class WebDriverProxyService {
   }
 
   private ProxyResponse forwardToGrid(String method, String path, byte[] body) {
-    String url = gridBaseUrl.replaceAll("/wd/hub$", "") + path;
+    int current = urlIndex;
+    urlIndex = current + 1;
+    String url = gridBaseUrls[Math.floorMod(current, gridBaseUrls.length)] + path;
     HttpRequest.Builder reqBuilder =
         HttpRequest.newBuilder()
             .uri(URI.create(url))
@@ -227,6 +231,16 @@ public class WebDriverProxyService {
     } catch (IOException e) {
       throw new UpstreamUnavailableException("grid unreachable: " + e.getMessage(), e);
     }
+  }
+
+  private static String stripWdHubSuffix(String url) {
+    if (url.endsWith("/wd/hub/")) {
+      return url.substring(0, url.length() - "/wd/hub/".length());
+    }
+    if (url.endsWith("/wd/hub")) {
+      return url.substring(0, url.length() - "/wd/hub".length());
+    }
+    return url;
   }
 
   /**
