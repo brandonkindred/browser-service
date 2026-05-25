@@ -53,7 +53,7 @@ public class WebDriverProxyService {
         java.util.Arrays.stream(urls.split(","))
             .map(String::trim)
             .filter(s -> !s.isEmpty())
-            .map(WebDriverProxyService::stripWdHubSuffix)
+            .map(WebDriverProxyService::normalizeGridUrl)
             .toArray(String[]::new);
     this.httpClient =
         HttpClient.newBuilder()
@@ -257,12 +257,9 @@ public class WebDriverProxyService {
     }
   }
 
-  private static String stripWdHubSuffix(String url) {
-    if (url.endsWith("/wd/hub/")) {
-      return url.substring(0, url.length() - "/wd/hub/".length());
-    }
-    if (url.endsWith("/wd/hub")) {
-      return url.substring(0, url.length() - "/wd/hub".length());
+  private static String normalizeGridUrl(String url) {
+    if (url.endsWith("/")) {
+      return url.substring(0, url.length() - 1);
     }
     return url;
   }
