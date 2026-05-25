@@ -12,7 +12,6 @@ import jakarta.ws.rs.container.ContainerRequestContext;
 import jakarta.ws.rs.core.Context;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
-import java.io.IOException;
 import org.eclipse.microprofile.openapi.annotations.Operation;
 import org.eclipse.microprofile.openapi.annotations.tags.Tag;
 
@@ -57,7 +56,7 @@ public class WebDriverProxyResource {
   @Path("/session")
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(summary = "Create a new WebDriver session", operationId = "wdCreateSession")
-  public Response createSession(byte[] body) throws IOException {
+  public Response createSession(byte[] body) {
     ProxyResponse resp = proxyService.createSession(body, caller());
     return toJaxrsResponse(resp);
   }
@@ -67,7 +66,7 @@ public class WebDriverProxyResource {
   @Path("/session/{sessionId}")
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(summary = "Delete a WebDriver session", operationId = "wdDeleteSession")
-  public Response deleteSession(@PathParam("sessionId") String sessionId) throws IOException {
+  public Response deleteSession(@PathParam("sessionId") String sessionId) {
     ProxyResponse resp = proxyService.forward("DELETE", sessionId, null, null, caller());
     return toJaxrsResponse(resp);
   }
@@ -78,8 +77,7 @@ public class WebDriverProxyResource {
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(hidden = true)
   public Response getSessionCommand(
-      @PathParam("sessionId") String sessionId, @PathParam("subPath") String subPath)
-      throws IOException {
+      @PathParam("sessionId") String sessionId, @PathParam("subPath") String subPath) {
     ProxyResponse resp = proxyService.forward("GET", sessionId, subPath, null, caller());
     return toJaxrsResponse(resp);
   }
@@ -90,8 +88,7 @@ public class WebDriverProxyResource {
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(hidden = true)
   public Response postSessionCommand(
-      @PathParam("sessionId") String sessionId, @PathParam("subPath") String subPath, byte[] body)
-      throws IOException {
+      @PathParam("sessionId") String sessionId, @PathParam("subPath") String subPath, byte[] body) {
     ProxyResponse resp = proxyService.forward("POST", sessionId, subPath, body, caller());
     return toJaxrsResponse(resp);
   }
@@ -102,8 +99,7 @@ public class WebDriverProxyResource {
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(hidden = true)
   public Response deleteSessionCommand(
-      @PathParam("sessionId") String sessionId, @PathParam("subPath") String subPath)
-      throws IOException {
+      @PathParam("sessionId") String sessionId, @PathParam("subPath") String subPath) {
     ProxyResponse resp = proxyService.forward("DELETE", sessionId, subPath, null, caller());
     return toJaxrsResponse(resp);
   }
@@ -113,7 +109,7 @@ public class WebDriverProxyResource {
   @Path("/session/{sessionId}")
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(hidden = true)
-  public Response getSession(@PathParam("sessionId") String sessionId) throws IOException {
+  public Response getSession(@PathParam("sessionId") String sessionId) {
     ProxyResponse resp = proxyService.forward("GET", sessionId, null, null, caller());
     return toJaxrsResponse(resp);
   }
@@ -123,7 +119,7 @@ public class WebDriverProxyResource {
   @Path("/status")
   @Produces(MediaType.APPLICATION_JSON)
   @Operation(summary = "Get grid status", operationId = "wdGetStatus")
-  public Response getStatus() throws IOException {
+  public Response getStatus() {
     ProxyResponse resp = proxyService.forwardStatus();
     return toJaxrsResponse(resp);
   }

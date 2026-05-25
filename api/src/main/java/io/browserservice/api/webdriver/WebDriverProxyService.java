@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.error.SessionNotFoundException;
+import io.browserservice.api.error.UpstreamUnavailableException;
 import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.SessionRegistry;
 import io.quarkus.scheduler.Scheduled;
@@ -54,7 +55,7 @@ public class WebDriverProxyService {
   }
 
   /** Creates a new WebDriver session on the grid and tracks it for the caller. */
-  public ProxyResponse createSession(byte[] body, CallerId caller) throws IOException {
+  public ProxyResponse createSession(byte[] body, CallerId caller) {
     acquirePermit.run();
 
     boolean shouldRelease = true;
@@ -82,8 +83,7 @@ public class WebDriverProxyService {
 
   /** Forwards a WebDriver command to the grid after verifying session ownership. */
   public ProxyResponse forward(
-      String method, String wdSessionId, String subPath, byte[] body, CallerId caller)
-      throws IOException {
+      String method, String wdSessionId, String subPath, byte[] body, CallerId caller) {
     WebDriverSession session = requireSessionOwner(wdSessionId, caller);
     session.touch();
 
@@ -112,7 +112,7 @@ public class WebDriverProxyService {
   }
 
   /** Forwards the grid status request (no auth required for this endpoint). */
-  public ProxyResponse forwardStatus() throws IOException {
+  public ProxyResponse forwardStatus() {
     return forwardToGrid("GET", "/status", null);
   }
 
@@ -140,15 +140,19 @@ public class WebDriverProxyService {
     for (var entry : wdSessions.entrySet()) {
       WebDriverSession session = entry.getValue();
       if (session.lastUsedAt().isBefore(cutoff)) {
-        if (deleteGridSession(entry.getKey())) {
-          if (wdSessions.remove(entry.getKey(), session)) {
-            releasePermit.run();
-          }
-          log.info("reaped idle WebDriver session: wdSessionId={}", entry.getKey());
-        } else {
+        if (!deleteGridSession(entry.getKey())) {
           log.warn(
               "grid delete failed for idle session; will retry next cycle: wdSessionId={}",
               entry.getKey());
+          continue;
+        }
+        if (!session.lastUsedAt().isBefore(cutoff)) {
+          log.info("session touched during reap; keeping: wdSessionId={}", entry.getKey());
+          continue;
+        }
+        if (wdSessions.remove(entry.getKey(), session)) {
+          releasePermit.run();
+          log.info("reaped idle WebDriver session: wdSessionId={}", entry.getKey());
         }
       }
     }
@@ -165,7 +169,7 @@ public class WebDriverProxyService {
         return false;
       }
       return true;
-    } catch (IOException e) {
+    } catch (UpstreamUnavailableException e) {
       log.warn(
           "failed to delete grid session during reap: wdSessionId={} error={}",
           wdSessionId,
@@ -187,7 +191,7 @@ public class WebDriverProxyService {
     return session;
   }
 
-  private ProxyResponse forwardToGrid(String method, String path, byte[] body) throws IOException {
+  private ProxyResponse forwardToGrid(String method, String path, byte[] body) {
     String url = gridBaseUrl.replaceAll("/wd/hub$", "") + path;
     HttpRequest.Builder reqBuilder =
         HttpRequest.newBuilder()
@@ -209,7 +213,9 @@ public class WebDriverProxyService {
       return new ProxyResponse(response.statusCode(), response.body(), contentType);
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      throw new IOException("request interrupted", e);
+      throw new UpstreamUnavailableException("grid request interrupted", e);
+    } catch (IOException e) {
+      throw new UpstreamUnavailableException("grid unreachable: " + e.getMessage(), e);
     }
   }
 
