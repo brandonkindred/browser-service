@@ -33,7 +33,7 @@ public class CallerClaimsFilter implements ContainerRequestFilter {
 
   @Override
   public void filter(ContainerRequestContext request) {
-    if (!isV1Path(request.getUriInfo().getPath())) {
+    if (!requiresCallerCheck(request.getUriInfo().getPath())) {
       return;
     }
     // Triggers resolution; any failure throws CallerUnidentifiedException → 401 via
@@ -41,7 +41,7 @@ public class CallerClaimsFilter implements ContainerRequestFilter {
     callers.id();
   }
 
-  private static boolean isV1Path(String path) {
+  private static boolean requiresCallerCheck(String path) {
     if (path == null) {
       return false;
     }

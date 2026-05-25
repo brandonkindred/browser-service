@@ -29,6 +29,10 @@ quarkus:
           paths:
           - "/v1/*"
           policy: "authenticated"
+        public-wd:
+          paths:
+          - "/wd/hub/*"
+          policy: "permit"
   oidc:
     application-type: "service"
     auth-server-url: "${OIDC_ISSUER_URI:https://securetoken.google.com/replace-me}"
@@ -139,6 +143,8 @@ browserservice:
     real-mobile: true
     local: false
     debug: true
+  webdriver:
+    api-keys: "${WEBDRIVER_API_KEYS:}"
   web-socket:
     path: "/v1/ws/sessions"
     command-queue-depth: 32
