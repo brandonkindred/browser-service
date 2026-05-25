@@ -91,6 +91,10 @@ public class WebDriverProxyService {
           shouldRelease = false;
           log.info(
               "WebDriver session created: wdSessionId={} caller={}", wdSessionId, caller.value());
+        } else {
+          log.error("grid returned 2xx but no sessionId could be extracted from response");
+          throw new UpstreamUnavailableException(
+              "grid returned success but response is missing sessionId");
         }
       }
 
@@ -115,11 +119,7 @@ public class WebDriverProxyService {
 
     ProxyResponse response = forwardToUrl(session.gridUrl(), method, path, body);
 
-    boolean isRootDelete =
-        "DELETE".equalsIgnoreCase(method) && (subPath == null || subPath.isEmpty());
-    boolean isCloseWindow = "DELETE".equalsIgnoreCase(method) && "window".equals(subPath);
-
-    if (isRootDelete || isCloseWindow) {
+    if ("DELETE".equalsIgnoreCase(method) && (subPath == null || subPath.isEmpty())) {
       if (response.statusCode() < 500) {
         if (wdSessions.remove(wdSessionId) != null) {
           releasePermit.run();
