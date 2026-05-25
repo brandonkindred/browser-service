@@ -8,6 +8,7 @@ import io.browserservice.api.error.UpstreamUnavailableException;
 import io.browserservice.api.session.CallerId;
 import io.browserservice.api.session.SessionRegistry;
 import io.quarkus.scheduler.Scheduled;
+import jakarta.annotation.PostConstruct;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -21,6 +22,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -42,7 +44,7 @@ public class WebDriverProxyService {
   private final Runnable releasePermit;
   private final Duration readTimeout;
   private final Duration sessionIdleTtl;
-  private volatile int urlIndex;
+  private final AtomicInteger urlIndex = new AtomicInteger();
 
   /** Constructs the proxy service from configuration and the shared session registry. */
   public WebDriverProxyService(EngineProperties props, SessionRegistry sessionRegistry) {
@@ -61,6 +63,15 @@ public class WebDriverProxyService {
     this.sessionIdleTtl = Duration.ofSeconds(props.session().idleTtlSeconds());
     this.acquirePermit = sessionRegistry::acquirePermit;
     this.releasePermit = sessionRegistry::releasePermit;
+  }
+
+  /** Validates that at least one Selenium Grid URL is configured. */
+  @PostConstruct
+  void validateConfig() {
+    if (gridBaseUrls.length == 0) {
+      throw new IllegalStateException(
+          "No Selenium Grid URLs configured. Set browserservice.selenium.urls.");
+    }
   }
 
   /** Creates a new WebDriver session on the grid and tracks it for the caller. */
@@ -204,9 +215,8 @@ public class WebDriverProxyService {
   }
 
   private ProxyResponse forwardToGrid(String method, String path, byte[] body) {
-    int current = urlIndex;
-    urlIndex = current + 1;
-    String url = gridBaseUrls[Math.floorMod(current, gridBaseUrls.length)] + path;
+    String url =
+        gridBaseUrls[Math.floorMod(urlIndex.getAndIncrement(), gridBaseUrls.length)] + path;
     HttpRequest.Builder reqBuilder =
         HttpRequest.newBuilder()
             .uri(URI.create(url))

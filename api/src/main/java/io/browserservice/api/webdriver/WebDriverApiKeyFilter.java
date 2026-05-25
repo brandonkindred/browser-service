@@ -78,7 +78,10 @@ public class WebDriverApiKeyFilter implements ContainerRequestFilter {
     String authHeader = request.getHeaderString("Authorization");
     if (authHeader != null
         && authHeader.regionMatches(true, 0, BASIC_PREFIX, 0, BASIC_PREFIX.length())) {
-      return authenticateBasic(authHeader.substring(BASIC_PREFIX.length()));
+      CallerId caller = authenticateBasic(authHeader.substring(BASIC_PREFIX.length()));
+      if (caller != null) {
+        return caller;
+      }
     }
 
     String apiKey = request.getHeaderString(API_KEY_HEADER);
