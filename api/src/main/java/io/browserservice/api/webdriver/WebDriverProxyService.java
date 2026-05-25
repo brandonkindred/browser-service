@@ -148,6 +148,9 @@ public class WebDriverProxyService {
       if (!snapshot.isBefore(cutoff)) {
         continue;
       }
+      if (!snapshot.equals(session.lastUsedAt())) {
+        continue;
+      }
       if (!deleteGridSession(entry.getKey())) {
         log.warn(
             "grid delete failed for idle session; will retry next cycle: wdSessionId={}",
