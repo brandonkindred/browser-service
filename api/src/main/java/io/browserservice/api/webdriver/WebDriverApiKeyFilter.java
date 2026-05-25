@@ -140,7 +140,7 @@ public class WebDriverApiKeyFilter implements ContainerRequestFilter {
       return false;
     }
     String normalized = path.startsWith("/") ? path.substring(1) : path;
-    return normalized.startsWith(WD_PATH_PREFIX);
+    return WD_PATH_PREFIX.equals(normalized) || normalized.startsWith(WD_PATH_PREFIX + "/");
   }
 
   private static boolean isStatusPath(String path) {

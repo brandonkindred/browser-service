@@ -137,13 +137,6 @@ public class WebDriverProxyService {
       }
     }
 
-    if (response.statusCode() == 404) {
-      if (wdSessions.remove(wdSessionId) != null) {
-        releasePermit.run();
-        log.info("evicted dead session after grid 404: wdSessionId={}", wdSessionId);
-      }
-    }
-
     return response;
   }
 
