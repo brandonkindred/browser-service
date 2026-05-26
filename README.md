@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🌐 browser-service
+# browser-service
 
 ### Browsers as a service — live, dedicated browser instances on demand.
 
@@ -26,7 +26,7 @@
 
 ---
 
-## ✨ Why browser-service?
+## Why browser-service?
 
 Browser interactions are inherently **stateful** — checking email, filling out a form, completing a checkout flow all rely on the browser remembering what just happened. A caller can't drive that across stateless, ephemeral sessions; the browser needs continuity from one step to the next.
 
@@ -34,18 +34,18 @@ Browser interactions are inherently **stateful** — checking email, filling out
 
 | | |
 |---|---|
-| 🧷 **Sticky sessions** | Each `session_id` is pinned to one browser instance. Same browser, every step. |
-| ⚡ **Real-time socket** | Primary channel is a per-session socket — drive the browser and stream results back live. |
-| 🔁 **HTTP fallback** | Full async REST API (OpenAPI 3.0) for callers that prefer request/response. |
-| 📱 **Web + mobile** | Selenium 4 for desktop, Appium 8 for Android & iOS. Same session API for both. |
-| 🌍 **Polyglot** | Java client for JVM consumers; anything else talks plain HTTP/JSON. |
-| 🧹 **Self-healing** | 5-min idle TTL + 30-min absolute TTL. Sessions are reaped automatically. |
-| 🛡️ **Per-caller isolation** | OIDC JWT bearer token scopes ownership by `tenant_id` + `sub` claims; 10 concurrent sessions per caller. |
-| 📦 **Docker-ready** | Multi-stage image (`eclipse-temurin:21-jre`). Cloud Run-friendly. |
+| **Sticky sessions** | Each `session_id` is pinned to one browser instance. Same browser, every step. |
+| **Real-time socket** | Primary channel is a per-session socket — drive the browser and stream results back live. |
+| **HTTP fallback** | Full async REST API (OpenAPI 3.0) for callers that prefer request/response. |
+| **Web + mobile** | Selenium 4 for desktop, Appium 8 for Android & iOS. Same session API for both. |
+| **Polyglot** | Java client for JVM consumers; anything else talks plain HTTP/JSON. |
+| **Self-healing** | 5-min idle TTL + 30-min absolute TTL. Sessions are reaped automatically. |
+| **Per-caller isolation** | OIDC JWT bearer token scopes ownership by `tenant_id` + `sub` claims; 10 concurrent sessions per caller. |
+| **Docker-ready** | Multi-stage image (`eclipse-temurin:21-jre`). Cloud Run-friendly. |
 
 ---
 
-## 🚀 Quick start
+## Quick start
 
 ```bash
 # Build and run locally (brings up Postgres, Selenium, and the API together)
@@ -59,7 +59,7 @@ To point at an **external** Selenium Grid instead of the bundled one, override `
 
 ---
 
-## 🧭 Session model
+## Session model
 
 The shape is: **open → interact → close**. Every operation in a session runs against the same dedicated browser the connection was opened against.
 
@@ -134,15 +134,7 @@ curl -X DELETE http://browser-service/v1/sessions/abc123 \
 
 Idle sessions expire after 5 minutes; all sessions expire after 30 minutes, no matter what. The registry reaps them automatically. Operations against a `session_id` that has been reaped return a `session_expired` error so the caller can react instead of silently retrying on a fresh browser.
 
-> 💡 **Shortcut:** for the trivial *open → navigate → screenshot → close* path, `POST /v1/capture` collapses all of the above into one request.
-
----
-
-## 👥 Who this is for
-
-- **LookseeCore** — today's consumer. Existing services (PageBuilder, element-enrichment, journeyExecutor, audits, etc.) migrate behind a compatibility shim: `BrowserService` keeps its public signatures but delegates to a remote client instead of an in-process `Browser`.
-- **Khala** ([brandonkindred/Khala-Agentic-AI-Teams](https://github.com/brandonkindred/Khala-Agentic-AI-Teams)) — Python agentic-teams project that needs a browsing capability. Talks to this service over the wire; no Java dependency.
-- **Anyone else** — the service is open source (MIT) and intentionally generic. No Look-see domain concepts leak into the public API.
+> **Shortcut:** for the trivial *open → navigate → screenshot → close* path, `POST /v1/capture` collapses all of the above into one request.
 
 ---
 
@@ -172,7 +164,7 @@ Configure the issuer and audience via env vars `OIDC_ISSUER_URI` (e.g. `https://
 
 ---
 
-## 🎯 MVP scope
+## MVP scope
 
 | Area | Decision |
 |---|---|
@@ -201,7 +193,7 @@ Listed here so nothing gets forgotten:
 
 ---
 
-## 📁 Repo layout
+## Repo layout
 
 ```mermaid
 graph LR
@@ -225,7 +217,7 @@ graph LR
 
 ---
 
-## 🔍 How to review
+## How to review
 
 1. **Build everything.** `mvn clean verify` from the repo root — both modules build, tests pass, and `SpecExportTest` enforces that `openapi/generated.yaml` matches the current controller annotations.
 2. **Render the spec.** Open `openapi/generated.yaml` in <https://editor.swagger.io>, or run `npx @redocly/cli preview-docs openapi/generated.yaml` for a browsable view. During development, `/swagger-ui.html` on a running instance offers the same view.
@@ -264,7 +256,142 @@ Engine methods that are intentionally **not** exposed:
 
 ---
 
-## 🗺️ Extraction program (full context)
+## 🔌 RemoteWebDriver direct connection
+
+browser-service exposes a W3C WebDriver proxy at `/wd/hub`. You can point any standard `RemoteWebDriver` at it and drive a real browser without touching the REST API at all.
+
+### How it works
+
+```
+Your code  ──RemoteWebDriver──▶  browser-service /wd/hub  ──▶  Selenium Grid  ──▶  Chrome / Firefox
+```
+
+The proxy authenticates your request, enforces the per-caller session cap, then forwards every W3C WebDriver command to the underlying Selenium Grid. Session ownership is tracked so one caller cannot interfere with another's sessions.
+
+### Authentication
+
+The `/wd/hub` endpoint uses **API keys** instead of OIDC JWTs (Selenium clients can't set arbitrary headers on a WebDriver session). Two mechanisms are supported:
+
+| Mechanism | How to use |
+|---|---|
+| **Basic Auth** (recommended) | Embed credentials in the hub URL: `http://user:YOUR_API_KEY@host:9999/wd/hub` |
+| **X-API-Key header** | Pass `X-API-Key: YOUR_API_KEY` on every request |
+
+API keys are provisioned via the `WEBDRIVER_API_KEYS` environment variable as a comma-separated list of `key:tenant_id:subject` triples:
+
+```bash
+WEBDRIVER_API_KEYS=sk_live_abc123:acme:alice,sk_live_def456:acme:bob
+```
+
+Each triple maps a key to a caller identity (`tenant_id:subject`). The same 10-concurrent-session cap applies per identity.
+
+> `/wd/hub/status` is unauthenticated — useful for health checks.
+
+### Java (Selenium 4)
+
+**Basic Auth in the URL** — the most Selenium-native approach:
+
+```java
+ChromeOptions options = new ChromeOptions();
+
+RemoteWebDriver driver = new RemoteWebDriver(
+    new URL("http://myuser:sk_live_abc123@localhost:9999/wd/hub"),
+    options
+);
+
+driver.get("https://example.com");
+System.out.println(driver.getTitle());
+driver.quit();
+```
+
+**Selenium 4 `ClientConfig`** — keeps credentials out of the URL:
+
+```java
+import org.openqa.selenium.remote.http.ClientConfig;
+import org.openqa.selenium.remote.RemoteWebDriver;
+
+ClientConfig config = ClientConfig.defaultConfig()
+    .baseUrl(new URL("http://localhost:9999/wd/hub"))
+    .authenticateAs(new UsernameAndPassword("myuser", "sk_live_abc123"));
+
+RemoteWebDriver driver = RemoteWebDriver.builder()
+    .config(config)
+    .oneOf(new ChromeOptions())
+    .build();
+
+driver.get("https://example.com");
+driver.quit();
+```
+
+### Python
+
+```python
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+
+options = Options()
+
+driver = webdriver.Remote(
+    command_executor="http://myuser:sk_live_abc123@localhost:9999/wd/hub",
+    options=options,
+)
+
+driver.get("https://example.com")
+print(driver.title)
+driver.quit()
+```
+
+### Node.js
+
+```js
+const { Builder } = require("selenium-webdriver");
+const chrome = require("selenium-webdriver/chrome");
+
+const driver = await new Builder()
+  .forBrowser("chrome")
+  .setChromeOptions(new chrome.Options())
+  .usingServer("http://myuser:sk_live_abc123@localhost:9999/wd/hub")
+  .build();
+
+await driver.get("https://example.com");
+console.log(await driver.getTitle());
+await driver.quit();
+```
+
+### Docker Compose setup
+
+The bundled Compose file wires everything up. To enable the WebDriver proxy, add `WEBDRIVER_API_KEYS` to the `api` service:
+
+```yaml
+api:
+  environment:
+    DATABASE_URL: jdbc:postgresql://postgres:5432/browser_service
+    DATABASE_USERNAME: browser_service
+    DATABASE_PASSWORD: browser_service
+    SELENIUM_GRID_URLS: http://selenium:4444/wd/hub
+    WEBDRIVER_API_KEYS: sk_live_abc123:acme:alice
+```
+
+Then connect on port **9999** (the API port), not 4444:
+
+```
+http://alice:sk_live_abc123@localhost:9999/wd/hub
+```
+
+Port 4444 is the raw Selenium Grid — no auth, no session tracking. Port 9999 is browser-service — auth enforced, quotas applied, sessions owned.
+
+### Supported browsers
+
+| `browserName` capability | Notes |
+|---|---|
+| `chrome` | Headless, 1920×1080, `user-agent=LookseeBot` |
+| `firefox` | Maximized window |
+
+Mobile (Android / iOS) is not available via the WebDriver proxy — use `POST /v1/sessions` with `browserType: ANDROID` or `IOS` for Appium-backed mobile sessions.
+
+---
+
+## Extraction program (full context)
 
 This spec is **phase 0**. The whole program, for reviewers who want it:
 
@@ -281,7 +408,7 @@ Each phase ends in a shippable, revertible state.
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Issues and PRs are welcome. Before opening a PR:
 
@@ -289,6 +416,6 @@ Issues and PRs are welcome. Before opening a PR:
 - If you touched a controller or DTO, regenerate the spec: `./mvnw test -pl api -Dtest=SpecExportTest -Dopenapi.update=true`.
 - See [`API_TESTING.md`](API_TESTING.md) and [`TESTING.md`](TESTING.md) for the testing playbook.
 
-## 📄 Licence
+## Licence
 
 [MIT](LICENSE) — inherited from Look-see. Use it, fork it, ship it.

@@ -18,7 +18,7 @@ services:
     restart: unless-stopped
 
   selenium:
-    image: selenium/standalone-chrome:latest
+    image: seleniarm/standalone-chromium:latest
     container_name: browser-service-selenium
     shm_size: 2gb
     ports:

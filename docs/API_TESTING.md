@@ -43,32 +43,44 @@ Both run in Docker containers below.
 
 ## 2. Bring up the dependencies
 
-`docker-compose.yml` ships both upstreams the API needs — Postgres (host port
-**5433** to avoid colliding with anything on `5432`) and a Selenium standalone
-Chrome (host ports **4444** for the WebDriver hub and **7900** for noVNC).
-Bring them both up together:
+### Postgres
+
+`docker-compose.yml` ships a Postgres on host port **5433** so it does not
+collide with anything you already run on `5432`:
 
 ```bash
-docker compose up -d postgres selenium
+docker compose up -d postgres
 ```
 
-Verify Postgres:
+Verify:
 
 ```bash
 docker compose ps postgres
 docker compose exec postgres pg_isready -U browser_service -d browser_service
 ```
 
-Verify Selenium:
+### Selenium Grid (Chrome)
+
+The default config points at `http://localhost:4444/wd/hub`. The simplest way
+to satisfy that is the Selenium standalone image:
 
 ```bash
-docker compose ps selenium
+docker run -d --rm --name selenium-chrome \
+  -p 4444:4444 -p 7900:7900 \
+  --shm-size=2g \
+  selenium/standalone-chrome:latest
+```
+
+- `4444` — WebDriver hub.
+- `7900` — noVNC (open `http://localhost:7900`, password `secret`) so you can
+  watch the browser drive itself while you test.
+
+Verify:
+
+```bash
 curl -s http://localhost:4444/status | jq .value.ready
 # -> true
 ```
-
-Open `http://localhost:7900` (password `secret`) to watch the browser drive
-itself while you run the walkthrough below.
 
 Appium is **not** required unless you want to drive `ANDROID` / `IOS` sessions.
 Leave `APPIUM_URLS` unset and stick to `CHROME`.
@@ -80,47 +92,42 @@ Pick **one** of these. Option A is the fastest dev loop.
 ### A. From the repo with Maven (hot path for development)
 
 ```bash
-./mvnw -pl api spring-boot:run \
-  -Dspring-boot.run.arguments="--spring.datasource.url=jdbc:postgresql://localhost:5433/browser_service"
+DATABASE_URL=jdbc:postgresql://localhost:5433/browser_service \
+  ./mvnw -pl api -am quarkus:dev
 ```
 
 The override is needed because `application.yaml` defaults to `5432`, but
-docker-compose maps Postgres to `5433`.
+docker-compose maps Postgres to `5433`. You can also pass it as a Quarkus
+system property: `-Dquarkus.datasource.jdbc.url=jdbc:postgresql://localhost:5433/browser_service`.
 
 ### B. Built jar
 
 ```bash
 ./mvnw -pl api -am -DskipTests package
 DATABASE_URL=jdbc:postgresql://localhost:5433/browser_service \
-java -jar api/target/browser-service-api-*-exec.jar
+java -jar api/target/quarkus-app/quarkus-run.jar
 ```
 
-### C. Full docker-compose (api + postgres + selenium in containers)
+### C. Full docker-compose (api + postgres in containers)
 
 ```bash
 docker compose up -d --build
 ```
 
-This brings up Postgres, the Selenium standalone Chrome, **and** the API in
-one shot. No extra `docker run` needed. The API is exposed on **host port
-9999** (mapped to container `8080`); every example below assumes the
-local-Maven setup on `:8080`, so substitute `:9999` if you go this route. The
-API service is wired with `SELENIUM_GRID_URLS=http://selenium:4444/wd/hub` so
-it talks to the Selenium container over the compose network.
+This exposes the API on **host port 9999** (mapped to container `8080`). Every
+example below assumes the local-Maven setup on `:8080` — substitute `:9999` if
+you go this route. Note that the containerised API will resolve
+`http://localhost:4444` from inside the container, not the host, so you will
+also need to either run Selenium in the same compose network or pass
+`-e SELENIUM_GRID_URLS=http://host.docker.internal:4444/wd/hub`.
 
-### Mint a bearer token
+### Pick a caller ID
 
-Every `/v1/...` request must carry an `Authorization: Bearer <jwt>` header.
-The token must be signed by the configured OIDC issuer, with `sub` and
-`tenant_id` claims set.
-
-For local work, run `./mvnw -pl api quarkus:dev` with
-`quarkus.oidc.devservices.enabled=true` (the dev-services Keycloak prints a
-ready-to-paste token at startup), or use the `TestTokens` helper from the
-test suite:
+Every `/v1/...` request must carry an `X-Caller-Id` header. Pick anything
+printable; `me` is fine for local work.
 
 ```bash
-export TOKEN=<paste-jwt-here>
+export CALLER=me
 ```
 
 ## 4. Smoke test
@@ -146,7 +153,7 @@ Caller-ID guard:
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/v1/sessions
-# -> 401  (unauthenticated)
+# -> 400  (caller_unidentified)
 ```
 
 ## 5. Walkthrough: a full session over HTTP
@@ -181,7 +188,7 @@ sequenceDiagram
 
 ```bash
 SESSION=$(curl -s -X POST http://localhost:8080/v1/sessions \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Caller-Id: $CALLER" \
   -H 'Content-Type: application/json' \
   -d '{"browser_type":"CHROME","environment":"TEST"}' \
   | jq -r .session_id)
@@ -198,7 +205,7 @@ If you opened the noVNC window in step 2, you should now see a fresh Chrome.
 
 ```bash
 curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/navigate" \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Caller-Id: $CALLER" \
   -H 'Content-Type: application/json' \
   -d '{"url":"https://example.com"}' | jq
 ```
@@ -207,7 +214,7 @@ curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/navigate" \
 
 ```bash
 HANDLE=$(curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/element/find" \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Caller-Id: $CALLER" \
   -H 'Content-Type: application/json' \
   -d '{"xpath":"//a"}' \
   | jq -r .element_handle)
@@ -226,7 +233,7 @@ the optional `input` field.
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" \
   -X POST "http://localhost:8080/v1/sessions/$SESSION/element/action" \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Caller-Id: $CALLER" \
   -H 'Content-Type: application/json' \
   -d "{\"element_handle\":\"$HANDLE\",\"action\":\"CLICK\"}"
 # -> 204
@@ -238,7 +245,7 @@ Binary (default):
 
 ```bash
 curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/screenshot" \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Caller-Id: $CALLER" \
   -H 'Content-Type: application/json' \
   -d '{"strategy":"VIEWPORT"}' \
   --output /tmp/page.png
@@ -252,7 +259,7 @@ Base64 (for MCP / non-binary callers):
 
 ```bash
 curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/screenshot" \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Caller-Id: $CALLER" \
   -H 'Content-Type: application/json' \
   -d '{"strategy":"VIEWPORT","encoding":"BASE64"}' | jq -r .png_base64 | head -c 80
 ```
@@ -261,22 +268,22 @@ curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/screenshot" \
 
 ```bash
 # Page status (URL + 503 detection)
-curl -s "http://localhost:8080/v1/sessions/$SESSION/status" -H "Authorization: Bearer $TOKEN" | jq
+curl -s "http://localhost:8080/v1/sessions/$SESSION/status" -H "X-Caller-Id: $CALLER" | jq
 
 # Viewport size + scroll offset
-curl -s "http://localhost:8080/v1/sessions/$SESSION/viewport" -H "Authorization: Bearer $TOKEN" | jq
+curl -s "http://localhost:8080/v1/sessions/$SESSION/viewport" -H "X-Caller-Id: $CALLER" | jq
 
 # Full HTML source
-curl -s "http://localhost:8080/v1/sessions/$SESSION/source" -H "Authorization: Bearer $TOKEN" | jq -r .html | head -20
+curl -s "http://localhost:8080/v1/sessions/$SESSION/source" -H "X-Caller-Id: $CALLER" | jq -r .html | head -20
 
 # Scroll
 curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/scroll" \
-  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -H "X-Caller-Id: $CALLER" -H 'Content-Type: application/json' \
   -d '{"mode":"BOTTOM"}'
 
 # Execute arbitrary JS (escape hatch, no engine method behind it)
 curl -s -X POST "http://localhost:8080/v1/sessions/$SESSION/execute" \
-  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -H "X-Caller-Id: $CALLER" -H 'Content-Type: application/json' \
   -d '{"script":"return document.title;"}' | jq
 ```
 
@@ -286,13 +293,13 @@ Full path-to-engine map lives in [`README.md` § Engine → endpoint map](./READ
 
 ```bash
 curl -s http://localhost:8080/v1/sessions \
-  -H "Authorization: Bearer $TOKEN" | jq
+  -H "X-Caller-Id: $CALLER" | jq
 
 curl -s "http://localhost:8080/v1/sessions/$SESSION" \
-  -H "Authorization: Bearer $TOKEN" | jq
+  -H "X-Caller-Id: $CALLER" | jq
 ```
 
-Sessions are scoped per caller — two different `tenant_id:sub` identities cannot
+Sessions are scoped per caller — two different `X-Caller-Id` values cannot
 see each other's sessions.
 
 ### 5.8 Close
@@ -300,7 +307,7 @@ see each other's sessions.
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" \
   -X DELETE "http://localhost:8080/v1/sessions/$SESSION" \
-  -H "Authorization: Bearer $TOKEN"
+  -H "X-Caller-Id: $CALLER"
 # -> 204
 ```
 
@@ -313,7 +320,7 @@ For "open → navigate → screenshot → close" in a single request:
 
 ```bash
 curl -s -X POST http://localhost:8080/v1/capture \
-  -H "Authorization: Bearer $TOKEN" \
+  -H "X-Caller-Id: $CALLER" \
   -H 'Content-Type: application/json' \
   -d '{
     "url":"https://example.com",
@@ -329,7 +336,7 @@ download the PNG bytes:
 
 ```bash
 curl -s "http://localhost:8080/v1/capture/<capture_id>/screenshot" \
-  -H "Authorization: Bearer $TOKEN" --output /tmp/capture.png
+  -H "X-Caller-Id: $CALLER" --output /tmp/capture.png
 ```
 
 With `encoding: "BASE64"` the bytes are inlined in the JSON.
@@ -337,10 +344,8 @@ With `encoding: "BASE64"` the bytes are inlined in the JSON.
 ## 7. WebSocket walkthrough
 
 The WebSocket is the primary interaction channel for stateful, multi-step
-flows. URL: `ws://localhost:8080/v1/ws/sessions`. Browsers cannot set the
-`Authorization` header on a WS upgrade, so the JWT travels in the
-`Sec-WebSocket-Protocol` subprotocol negotiation as two values: the literal
-`bearer` sentinel followed by the JWT itself.
+flows. URL: `ws://localhost:8080/v1/ws/sessions`. The handshake requires the
+same `X-Caller-Id` header.
 
 Frames are JSON of shape:
 
@@ -362,7 +367,7 @@ Available ops (mirrors the REST surface): `session.create`, `session.attach`,
 ### Quick smoke test with `websocat`
 
 ```bash
-websocat --protocol "bearer,$TOKEN" ws://localhost:8080/v1/ws/sessions
+websocat -H 'X-Caller-Id: me' ws://localhost:8080/v1/ws/sessions
 ```
 
 Then paste:
@@ -417,16 +422,15 @@ open api/target/site/jacoco/index.html
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
-| `401 unauthenticated` | Missing, malformed, expired, wrong-issuer, or wrong-audience JWT | Mint a fresh token via dev-services Keycloak and re-export `$TOKEN`. |
-| `401 missing_tenant_claim` | Token validates but lacks the `tenant_id` claim | Ensure the token issuer adds the claim. |
-| `403 forbidden` | Different caller is hitting another caller's session | Use a token for the `tenant_id:sub` that created the session. |
+| `400 caller_unidentified` | Missing or blank `X-Caller-Id` | Add the header. |
+| `403 session_forbidden` | Different caller is hitting another caller's session | Use the same `X-Caller-Id` that created the session. |
 | `404 session_not_found` | Session was closed or never existed | Open a new one. |
 | `410 session_expired` | Idle (5 min) or absolute (30 min) TTL fired | Open a new one. |
 | `429 session_cap_exceeded` | More than 20 concurrent sessions for this caller (see `application.yaml`) | Close some. |
-| `502 upstream_unavailable` on `POST /v1/sessions` | Selenium hub not reachable | `curl http://localhost:4444/status`; check the `selenium` compose service. |
+| `502 upstream_unavailable` on `POST /v1/sessions` | Selenium hub not reachable | `curl http://localhost:4444/status`; check the `selenium-chrome` container. |
 | `readyz` returns 503 | Postgres or Selenium probe failed | Inspect the JSON body — it names the failing dependency. |
-| App fails to boot with `password authentication failed` / `Connection refused` on `:5432` | Postgres is on host `:5433` from compose, but the app's default is `:5432` | Pass `--spring.datasource.url=jdbc:postgresql://localhost:5433/browser_service` (see § 3.A). |
-| WebSocket handshake closed immediately | Missing JWT subprotocol on the upgrade | Pass `--protocol "bearer,$TOKEN"` to `websocat`. |
+| App fails to boot with `password authentication failed` / `Connection refused` on `:5432` | Postgres is on host `:5433` from compose, but the app's default is `:5432` | Set `DATABASE_URL=jdbc:postgresql://localhost:5433/browser_service` (see § 3.A). |
+| WebSocket handshake closed immediately | Missing `X-Caller-Id` header on the upgrade | Pass it via `-H` to `websocat`. |
 
 To watch what the browser is actually doing, leave the noVNC tab from § 2
 open at `http://localhost:7900` while you run the requests.
