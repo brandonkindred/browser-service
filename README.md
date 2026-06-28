@@ -203,7 +203,7 @@ graph LR
     A --> E[Dockerfile]
     A --> F[terraform/]
     B -->|framework-free jar| B1[Selenium 4 + Appium 8]
-    C -->|Spring Boot 3| C1[/v1/... endpoints]
+    C -->|Spring Boot 3| C1[V1 endpoints]
     C -->|wraps| B
     C -.SpecExportTest.-> D
 ```
