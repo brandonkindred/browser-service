@@ -110,8 +110,10 @@ public class BrowserConnectionHelperTest {
 
   @Test
   public void testGetConnectionWithDiscoveryEnvironmentChrome() {
-    BrowserConnectionHelper.setConfiguredSeleniumUrls(
-        new String[] {"http://localhost:4444/wd/hub"});
+    // Use a guaranteed-unreachable loopback port (1) rather than 4444 — the repo's
+    // docker-compose.yml runs a real Selenium Chrome grid on localhost:4444, so a session
+    // would actually be created there and the expected connection failure would not occur.
+    BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[] {"http://localhost:1/wd/hub"});
     // Will fail when trying to connect to hub, but exercises the round-robin path
     assertThrows(
         Exception.class,
@@ -122,8 +124,8 @@ public class BrowserConnectionHelperTest {
 
   @Test
   public void testGetConnectionWithDiscoveryEnvironmentFirefox() {
-    BrowserConnectionHelper.setConfiguredSeleniumUrls(
-        new String[] {"http://localhost:4444/wd/hub"});
+    // See testGetConnectionWithDiscoveryEnvironmentChrome for why this avoids localhost:4444.
+    BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[] {"http://localhost:1/wd/hub"});
     assertThrows(
         Exception.class,
         () ->
@@ -137,8 +139,10 @@ public class BrowserConnectionHelperTest {
     // helper short-circuited to a null server_url for non-DISCOVERY env, causing an NPE in
     // RemoteWebDriver.<init>). The connect attempt itself will still fail since nothing is
     // listening — but the exception must come from the network layer, not a NullPointerException.
-    BrowserConnectionHelper.setConfiguredSeleniumUrls(
-        new String[] {"http://localhost:4444/wd/hub"});
+    // Use a guaranteed-unreachable loopback port (1) rather than 4444 — the repo's
+    // docker-compose.yml runs a real Selenium Chrome grid on localhost:4444, so a session
+    // would actually be created there and the expected connection failure would not occur.
+    BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[] {"http://localhost:1/wd/hub"});
     Exception ex =
         assertThrows(
             Exception.class,

@@ -33,15 +33,19 @@ public class BrowserFactoryTest {
 
   @Test
   public void testCreateDriverChromeConnectsToHub() throws MalformedURLException {
-    // Chrome driver will try to connect to the hub and fail since no hub exists
-    URL url = new URL("http://localhost:4444/wd/hub");
+    // Chrome driver will try to connect to the hub and fail since the endpoint is closed.
+    // Use a guaranteed-unreachable loopback port (1) rather than 4444 — the repo's
+    // docker-compose.yml runs a real Selenium Chrome grid on localhost:4444, so a session
+    // would actually be created there and the expected failure would not occur.
+    URL url = new URL("http://localhost:1/wd/hub");
     assertThrows(Exception.class, () -> BrowserFactory.createDriver("chrome", url));
   }
 
   @Test
   public void testCreateDriverFirefoxConnectsToHub() throws MalformedURLException {
-    // Firefox driver will try to connect to the hub and fail since no hub exists
-    URL url = new URL("http://localhost:4444/wd/hub");
+    // Firefox driver will try to connect to the hub and fail since the endpoint is closed.
+    // See testCreateDriverChromeConnectsToHub for why this avoids localhost:4444.
+    URL url = new URL("http://localhost:1/wd/hub");
     assertThrows(Exception.class, () -> BrowserFactory.createDriver("firefox", url));
   }
 
