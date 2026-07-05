@@ -1,0 +1,1175 @@
+<title>browser-service · Console</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  /* ============================================================
+     Signal — browser-service operator console (interactive mock)
+     Tokens: light is the base; dark via prefers-color-scheme;
+     data-theme on :root overrides both (in-page + viewer toggle).
+     ============================================================ */
+  :root {
+    --ground:#f2f1f7; --surface:#ffffff; --surface-2:#faf9fe; --surface-3:#f1eff9;
+    --border:#e3e0ee; --border-soft:#ece9f4;
+    --text:#191d2b; --text-dim:#586074; --muted:#8089a0;
+    --accent:#6b4dff; --accent-strong:#5a38ff; --accent-dim:rgba(107,77,255,.10);
+    --good:#1f9d4d; --warn:#b7791f; --crit:#d64530; --live:#e0821a;
+    --shadow:0 1px 2px rgba(20,18,40,.06), 0 8px 24px -12px rgba(20,18,40,.18);
+    --chrome-r:#ec6a5e; --chrome-y:#f4bf4f; --chrome-g:#61c554;
+    --mono:ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,"Liberation Mono",monospace;
+    --sans:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:#0a0e16; --surface:#111725; --surface-2:#172033; --surface-3:#1e293f;
+      --border:#26324a; --border-soft:#1c2740;
+      --text:#e7ecf5; --text-dim:#9aa7be; --muted:#67748d;
+      --accent:#8b7bff; --accent-strong:#a99bff; --accent-dim:rgba(139,123,255,.14);
+      --good:#43c667; --warn:#e0a83a; --crit:#f4634e; --live:#ffb020;
+      --shadow:0 1px 0 rgba(255,255,255,.02), 0 12px 32px -16px rgba(0,0,0,.7);
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground:#0a0e16; --surface:#111725; --surface-2:#172033; --surface-3:#1e293f;
+    --border:#26324a; --border-soft:#1c2740;
+    --text:#e7ecf5; --text-dim:#9aa7be; --muted:#67748d;
+    --accent:#8b7bff; --accent-strong:#a99bff; --accent-dim:rgba(139,123,255,.14);
+    --good:#43c667; --warn:#e0a83a; --crit:#f4634e; --live:#ffb020;
+    --shadow:0 1px 0 rgba(255,255,255,.02), 0 12px 32px -16px rgba(0,0,0,.7);
+  }
+  :root[data-theme="light"] {
+    --ground:#f2f1f7; --surface:#ffffff; --surface-2:#faf9fe; --surface-3:#f1eff9;
+    --border:#e3e0ee; --border-soft:#ece9f4;
+    --text:#191d2b; --text-dim:#586074; --muted:#8089a0;
+    --accent:#6b4dff; --accent-strong:#5a38ff; --accent-dim:rgba(107,77,255,.10);
+    --good:#1f9d4d; --warn:#b7791f; --crit:#d64530; --live:#e0821a;
+    --shadow:0 1px 2px rgba(20,18,40,.06), 0 8px 24px -12px rgba(20,18,40,.18);
+  }
+
+  * { box-sizing:border-box; }
+  html,body { margin:0; height:100%; }
+  body {
+    background:var(--ground); color:var(--text);
+    font-family:var(--sans); font-size:14px; line-height:1.5;
+    -webkit-font-smoothing:antialiased; text-rendering:optimizeLegibility;
+  }
+  ::selection { background:var(--accent-dim); }
+  a { color:inherit; }
+  button { font-family:inherit; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; border-radius:6px; }
+  svg { width:16px; height:16px; flex:none; } /* guard: unsized inline SVGs must never balloon to 300×150 */
+  .mono { font-family:var(--mono); font-variant-numeric:tabular-nums; }
+  .num { font-variant-numeric:tabular-nums; }
+
+  /* ---- shell ---- */
+  .app { display:grid; grid-template-columns:236px 1fr; min-height:100vh; }
+  .rail {
+    display:flex; flex-direction:column; gap:4px;
+    background:var(--surface); border-right:1px solid var(--border);
+    padding:18px 14px; position:sticky; top:0; height:100vh;
+  }
+  .brand { display:flex; align-items:center; gap:10px; padding:6px 8px 16px; }
+  .brand .glyph {
+    width:30px; height:30px; border-radius:9px; flex:none; position:relative;
+    background:linear-gradient(150deg,var(--accent),var(--accent-strong));
+    box-shadow:0 0 0 1px var(--border), 0 6px 16px -6px var(--accent);
+  }
+  .brand .glyph::before {
+    content:""; position:absolute; inset:9px 8px; border-radius:2px;
+    border:1.5px solid rgba(255,255,255,.92);
+    border-top-width:5px; border-top-color:rgba(255,255,255,.92);
+  }
+  .brand b { font-size:14.5px; letter-spacing:-.2px; }
+  .brand span { display:block; font-size:10.5px; color:var(--muted); font-family:var(--mono); letter-spacing:.5px; }
+  .nav-label { font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); padding:14px 8px 6px; }
+  .nav-item {
+    display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+    background:none; border:0; color:var(--text-dim); cursor:pointer;
+    padding:9px 10px; border-radius:9px; font-size:13.5px; transition:background .12s,color .12s;
+  }
+  .nav-item:hover { background:var(--surface-2); color:var(--text); }
+  .nav-item.on { background:var(--accent-dim); color:var(--text); font-weight:550; }
+  .nav-item.on svg { color:var(--accent); }
+  .nav-item svg { width:17px; height:17px; flex:none; color:var(--muted); }
+  .nav-item .count {
+    margin-left:auto; font-family:var(--mono); font-size:11px; color:var(--muted);
+    background:var(--surface-2); border:1px solid var(--border-soft); border-radius:20px; padding:1px 7px;
+  }
+  .nav-item.on .count { color:var(--accent); border-color:transparent; background:transparent; }
+  .rail-foot { margin-top:auto; display:flex; flex-direction:column; gap:10px; padding-top:12px; }
+  .ident {
+    display:flex; align-items:center; gap:10px; padding:9px 10px;
+    background:var(--surface-2); border:1px solid var(--border-soft); border-radius:11px;
+  }
+  .ident .av {
+    width:28px; height:28px; border-radius:8px; flex:none; display:grid; place-items:center;
+    background:conic-gradient(from 210deg,var(--accent),var(--live),var(--accent));
+    color:#fff; font-weight:700; font-size:12px;
+  }
+  .ident .who { line-height:1.25; min-width:0; }
+  .ident .who b { font-size:12.5px; }
+  .ident .who span { display:block; font-family:var(--mono); font-size:10.5px; color:var(--muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .theme-toggle {
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    background:var(--surface-2); border:1px solid var(--border); color:var(--text-dim);
+    border-radius:10px; padding:9px; cursor:pointer; font-size:12.5px; transition:background .12s;
+  }
+  .theme-toggle:hover { background:var(--surface-3); color:var(--text); }
+  .theme-toggle svg { width:15px; height:15px; }
+
+  /* ---- main ---- */
+  .main { min-width:0; display:flex; flex-direction:column; }
+  .topbar {
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+    padding:12px 26px; border-bottom:1px solid var(--border);
+    background:color-mix(in srgb, var(--surface) 72%, transparent);
+    backdrop-filter:blur(8px); position:sticky; top:0; z-index:20;
+  }
+  .stat { display:flex; align-items:center; gap:9px; }
+  .stat .k { font-size:10.5px; letter-spacing:.11em; text-transform:uppercase; color:var(--muted); }
+  .dot { width:8px; height:8px; border-radius:50%; flex:none; position:relative; }
+  .dot.good { background:var(--good); box-shadow:0 0 0 3px color-mix(in srgb,var(--good) 22%,transparent); }
+  .dot.warn { background:var(--warn); box-shadow:0 0 0 3px color-mix(in srgb,var(--warn) 22%,transparent); }
+  .dot.crit { background:var(--crit); box-shadow:0 0 0 3px color-mix(in srgb,var(--crit) 22%,transparent); }
+  .dot.live::after {
+    content:""; position:absolute; inset:-3px; border-radius:50%;
+    border:1px solid var(--good); animation:ping 1.8s ease-out infinite;
+  }
+  @keyframes ping { 0%{transform:scale(1);opacity:.7} 100%{transform:scale(2.4);opacity:0} }
+  .sep { width:1px; height:22px; background:var(--border); }
+  .cap-meter { display:flex; align-items:center; gap:10px; }
+  .cap-bar { width:120px; height:7px; border-radius:20px; background:var(--surface-3); overflow:hidden; border:1px solid var(--border-soft); }
+  .cap-fill { height:100%; border-radius:20px; transition:width .4s cubic-bezier(.2,.7,.2,1),background .3s; }
+  .topbar .grow { margin-left:auto; }
+
+  .view { padding:26px; max-width:1320px; width:100%; }
+  .page-head { margin-bottom:20px; }
+  .page-head h1 { margin:0; font-size:22px; letter-spacing:-.4px; text-wrap:balance; }
+  .page-head p { margin:5px 0 0; color:var(--text-dim); font-size:13.5px; max-width:70ch; }
+
+  /* ---- primitives ---- */
+  .btn {
+    display:inline-flex; align-items:center; justify-content:center; gap:7px;
+    border:1px solid var(--border); background:var(--surface-2); color:var(--text);
+    padding:8px 13px; border-radius:9px; font-size:13px; cursor:pointer; font-weight:520;
+    transition:background .12s,border-color .12s,transform .05s;
+  }
+  .btn:hover { background:var(--surface-3); }
+  .btn:active { transform:translateY(1px); }
+  .btn svg { width:15px; height:15px; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:#fff; }
+  .btn.primary:hover { background:var(--accent-strong); }
+  .btn.ghost { background:transparent; }
+  .btn.sm { padding:5px 10px; font-size:12px; border-radius:7px; }
+  .btn.icon { padding:7px; }
+  .btn[disabled] { opacity:.45; cursor:not-allowed; }
+
+  .card {
+    background:var(--surface); border:1px solid var(--border);
+    border-radius:14px; box-shadow:var(--shadow);
+  }
+  .grid { display:grid; gap:16px; }
+  .cols-3 { grid-template-columns:repeat(3,1fr); }
+  @media (max-width:900px){ .cols-3{ grid-template-columns:1fr; } }
+
+  .kpi { padding:16px 18px; }
+  .kpi .lbl { font-size:10.5px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+  .kpi .big { font-size:30px; font-weight:650; letter-spacing:-1px; margin-top:6px; font-family:var(--mono); }
+  .kpi .sub { color:var(--text-dim); font-size:12px; margin-top:2px; }
+
+  .chip {
+    display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600;
+    padding:2px 9px; border-radius:20px; letter-spacing:.02em;
+    border:1px solid transparent; font-family:var(--mono);
+  }
+  .chip .d { width:6px; height:6px; border-radius:50%; }
+  .chip.active { color:var(--good); background:color-mix(in srgb,var(--good) 12%,transparent); border-color:color-mix(in srgb,var(--good) 30%,transparent); }
+  .chip.active .d { background:var(--good); }
+  .chip.expired { color:var(--crit); background:color-mix(in srgb,var(--crit) 12%,transparent); border-color:color-mix(in srgb,var(--crit) 30%,transparent); }
+  .chip.expired .d { background:var(--crit); }
+  .chip.closed { color:var(--muted); background:var(--surface-2); border-color:var(--border); }
+  .chip.closed .d { background:var(--muted); }
+  .chip.neutral { color:var(--text-dim); background:var(--surface-2); border-color:var(--border-soft); }
+
+  .badge-br { display:inline-flex; align-items:center; gap:6px; font-size:12px; font-family:var(--mono); }
+  .badge-br .ico { width:15px; height:15px; }
+
+  /* ---- table ---- */
+  .tbl-wrap { overflow-x:auto; min-width:0; }
+  .dash-grid { display:grid; grid-template-columns:minmax(0,1fr) 320px; gap:16px; align-items:start; }
+  @media (max-width:960px){ .dash-grid{ grid-template-columns:1fr; } }
+  table.tbl { width:100%; border-collapse:collapse; font-size:13px; min-width:720px; }
+  table.tbl th {
+    text-align:left; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase;
+    color:var(--muted); font-weight:600; padding:11px 14px; border-bottom:1px solid var(--border);
+  }
+  table.tbl td { padding:12px 14px; border-bottom:1px solid var(--border-soft); vertical-align:middle; }
+  table.tbl tr:last-child td { border-bottom:0; }
+  table.tbl tbody tr { transition:background .1s; }
+  table.tbl tbody tr:hover { background:var(--surface-2); }
+  .row-click { cursor:pointer; }
+  .url-cell { font-size:12px; color:var(--text-dim); display:inline-block; max-width:230px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; }
+  .u { color:var(--accent); text-decoration:none; }
+  .u:hover { text-decoration:underline; }
+  .empty { padding:44px; text-align:center; color:var(--muted); }
+  .empty svg { width:34px; height:34px; opacity:.5; margin-bottom:10px; }
+
+  /* ---- ttl ring ---- */
+  .ttl { display:inline-flex; align-items:center; gap:9px; }
+  .ttl svg { width:26px; height:26px; transform:rotate(-90deg); flex:none; }
+  .ttl .track { stroke:var(--border); }
+  .ttl .val { font-family:var(--mono); font-size:12.5px; font-variant-numeric:tabular-nums; }
+
+  /* ---- health strip ---- */
+  .hstrip { display:flex; flex-direction:column; gap:2px; }
+  .hrow { display:flex; align-items:center; gap:10px; padding:9px 14px; border-bottom:1px solid var(--border-soft); font-size:12.5px; }
+  .hrow:last-child { border-bottom:0; }
+  .hrow .url { font-family:var(--mono); font-size:11.5px; color:var(--text-dim); }
+  .hrow .tag { margin-left:auto; font-family:var(--mono); font-size:11px; }
+
+  /* ---- cockpit ---- */
+  .cockpit { display:grid; grid-template-columns:1fr 400px; gap:16px; align-items:start; }
+  @media (max-width:1120px){ .cockpit{ grid-template-columns:1fr; } }
+  .browser { overflow:hidden; }
+  .bchrome { display:flex; align-items:center; gap:12px; padding:10px 14px; border-bottom:1px solid var(--border); background:var(--surface-2); }
+  .lights { display:flex; gap:7px; }
+  .lights i { width:11px; height:11px; border-radius:50%; display:block; }
+  .lights i:nth-child(1){ background:var(--chrome-r); }
+  .lights i:nth-child(2){ background:var(--chrome-y); }
+  .lights i:nth-child(3){ background:var(--chrome-g); }
+  .omni { flex:1; display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:6px 11px; min-width:0; }
+  .omni svg { width:13px; height:13px; color:var(--muted); flex:none; }
+  .omni .addr { font-family:var(--mono); font-size:12px; color:var(--text-dim); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .viewport {
+    position:relative; height:520px; overflow:auto; background:#fff; color:#1a1a2e;
+    scroll-behavior:smooth;
+  }
+  :root[data-theme="dark"] .viewport { background:#fff; }
+  .viewport .flash { position:absolute; inset:0; background:#fff; opacity:0; pointer-events:none; z-index:9; }
+  .viewport .flash.go { animation:shot .5s ease; }
+  @keyframes shot { 0%{opacity:0} 22%{opacity:.85} 100%{opacity:0} }
+  .vp-meta {
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap; padding:9px 14px;
+    border-top:1px solid var(--border); background:var(--surface-2); font-family:var(--mono); font-size:11.5px; color:var(--muted);
+  }
+  .vp-meta b { color:var(--text-dim); font-weight:600; }
+
+  /* mock page render (inside white viewport, fixed light palette) */
+  .pg { padding:34px 40px; font-family:var(--sans); min-height:760px; }
+  .pg h1 { font-size:30px; margin:0 0 14px; color:#12131f; }
+  .pg h2 { font-size:19px; margin:26px 0 10px; color:#12131f; }
+  .pg p { color:#41465c; max-width:60ch; margin:0 0 12px; line-height:1.6; }
+  .pg a.lnk { color:#4a2fe0; text-decoration:underline; }
+  .pg .field { display:block; margin:0 0 14px; max-width:340px; }
+  .pg .field span { display:block; font-size:12px; color:#5a5f74; margin-bottom:5px; }
+  .pg .field input { width:100%; padding:9px 11px; border:1px solid #d4d6e2; border-radius:7px; font-size:13px; background:#fff; color:#222; }
+  .pg .cta { display:inline-block; background:#4a2fe0; color:#fff; border:0; padding:10px 18px; border-radius:8px; font-size:14px; cursor:pointer; }
+  .pg .prod { display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #eceef4; color:#2a2e40; }
+  .pg .muted { color:#8a8fa3; font-size:13px; }
+  .pg .art { padding:14px 0; border-bottom:1px solid #eceef4; }
+  .pg .art h3 { margin:0 0 4px; font-size:16px; color:#181a28; }
+  .pg .hl { outline:2px solid #ff8a00; outline-offset:2px; border-radius:3px; background:rgba(255,138,0,.10); transition:outline .2s; }
+  .overlay-gdpr {
+    position:sticky; bottom:0; left:0; right:0; margin-top:24px;
+    background:#141726; color:#eceff7; padding:16px 20px; display:flex; gap:14px; align-items:center; flex-wrap:wrap;
+    box-shadow:0 -8px 24px rgba(0,0,0,.18);
+  }
+  .overlay-gdpr small { flex:1; min-width:200px; font-size:12.5px; color:#c3c8d6; }
+  .overlay-gdpr button { background:#4a2fe0; color:#fff; border:0; padding:8px 14px; border-radius:7px; font-size:12.5px; cursor:pointer; }
+  .drift {
+    position:absolute; right:20px; bottom:18px; background:#0a7cff; color:#fff;
+    width:52px; height:52px; border-radius:50%; display:grid; place-items:center; box-shadow:0 8px 22px rgba(10,124,255,.4);
+  }
+
+  /* command deck */
+  .deck { display:flex; flex-direction:column; gap:10px; position:sticky; top:76px; }
+  .op { border:1px solid var(--border); border-radius:11px; background:var(--surface); overflow:hidden; }
+  .op > summary {
+    list-style:none; cursor:pointer; padding:11px 14px; display:flex; align-items:center; gap:10px;
+    font-size:13px; font-weight:560; user-select:none;
+  }
+  .op > summary::-webkit-details-marker { display:none; }
+  .op > summary .caret { margin-left:auto; transition:transform .15s; color:var(--muted); }
+  .op[open] > summary .caret { transform:rotate(90deg); }
+  .op > summary svg.opico { width:16px; height:16px; color:var(--accent); }
+  .op-body { padding:4px 14px 14px; display:flex; flex-direction:column; gap:10px; }
+  .op-body.row { flex-direction:row; flex-wrap:wrap; align-items:flex-end; }
+  label.f { display:flex; flex-direction:column; gap:5px; font-size:11px; color:var(--text-dim); flex:1; min-width:120px; }
+  label.f .lt { letter-spacing:.04em; text-transform:uppercase; font-size:10px; color:var(--muted); }
+  input.t, select.t, textarea.t {
+    background:var(--surface-2); border:1px solid var(--border); border-radius:8px;
+    padding:8px 10px; color:var(--text); font-size:13px; font-family:var(--mono); width:100%;
+  }
+  input.t:focus, select.t:focus, textarea.t:focus { outline:none; border-color:var(--accent); background:var(--surface); }
+  textarea.t { resize:vertical; min-height:62px; line-height:1.5; }
+  select.t { font-family:var(--sans); cursor:pointer; }
+
+  /* console / events tabs */
+  .console { display:flex; flex-direction:column; height:520px; }
+  .tabs { display:flex; gap:2px; padding:8px 10px 0; border-bottom:1px solid var(--border); }
+  .tab { background:none; border:0; color:var(--muted); padding:7px 12px; font-size:12.5px; cursor:pointer; border-radius:8px 8px 0 0; position:relative; }
+  .tab.on { color:var(--text); background:var(--surface-2); }
+  .tab.on::after { content:""; position:absolute; left:10px; right:10px; bottom:-1px; height:2px; background:var(--accent); border-radius:2px; }
+  .tab .b { font-family:var(--mono); font-size:10px; margin-left:6px; color:var(--muted); }
+  .logpane { flex:1; overflow-y:auto; padding:10px 12px; font-family:var(--mono); font-size:12px; }
+  .logline { padding:6px 0; border-bottom:1px solid var(--border-soft); }
+  .logline .op-tag { color:var(--accent); }
+  .logline .meth { color:var(--live); }
+  .logline pre { margin:6px 0 0; white-space:pre-wrap; word-break:break-word; color:var(--text-dim); background:var(--surface-2); padding:8px 10px; border-radius:7px; font-size:11.5px; border:1px solid var(--border-soft); }
+  .logline .err { color:var(--crit); }
+  .logline .ok { color:var(--good); }
+  .logline .ts { color:var(--muted); font-size:10.5px; }
+  .evt { display:flex; gap:9px; padding:8px 0; border-bottom:1px solid var(--border-soft); align-items:baseline; }
+  .evt .kind { font-family:var(--mono); font-size:11px; padding:1px 7px; border-radius:6px; flex:none; }
+  .evt .kind.alert { color:var(--warn); background:color-mix(in srgb,var(--warn) 14%,transparent); }
+  .evt .kind.console { color:var(--text-dim); background:var(--surface-2); }
+  .evt .kind.nav { color:var(--accent); background:var(--accent-dim); }
+  .evt .msg { font-size:12px; color:var(--text-dim); font-family:var(--mono); word-break:break-word; }
+
+  .result-box {
+    font-family:var(--mono); font-size:11.5px; background:var(--surface-2);
+    border:1px solid var(--border-soft); border-radius:8px; padding:9px 11px; color:var(--text-dim);
+    white-space:pre-wrap; word-break:break-word; max-height:180px; overflow:auto;
+  }
+  .kv { display:grid; grid-template-columns:auto 1fr; gap:3px 12px; font-family:var(--mono); font-size:12px; }
+  .kv dt { color:var(--muted); }
+  .kv dd { margin:0; color:var(--text); word-break:break-all; }
+
+  /* capture */
+  .cap-grid { display:grid; grid-template-columns:380px 1fr; gap:16px; align-items:start; }
+  @media (max-width:900px){ .cap-grid{ grid-template-columns:1fr; } }
+  .shot-frame { border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--surface-2); }
+  .shot-frame .bar { display:flex; align-items:center; gap:8px; padding:8px 12px; border-bottom:1px solid var(--border); font-family:var(--mono); font-size:11.5px; color:var(--muted); }
+  .shot-body { max-height:520px; overflow:auto; background:#fff; }
+
+  /* modal */
+  .scrim { position:fixed; inset:0; background:rgba(8,10,18,.55); backdrop-filter:blur(3px); display:grid; place-items:center; z-index:60; animation:fade .15s; padding:20px; }
+  @keyframes fade { from{opacity:0} to{opacity:1} }
+  .modal { width:100%; max-width:440px; animation:pop .18s cubic-bezier(.2,.8,.2,1); }
+  @keyframes pop { from{opacity:0; transform:translateY(8px) scale(.98)} to{opacity:1; transform:none} }
+  .modal-h { padding:18px 20px 4px; }
+  .modal-h h3 { margin:0; font-size:17px; }
+  .modal-h p { margin:5px 0 0; color:var(--text-dim); font-size:12.5px; }
+  .modal-b { padding:16px 20px; display:flex; flex-direction:column; gap:14px; }
+  .modal-f { padding:14px 20px; display:flex; gap:9px; justify-content:flex-end; border-top:1px solid var(--border); }
+  .seg { display:flex; gap:6px; flex-wrap:wrap; }
+  .seg button {
+    border:1px solid var(--border); background:var(--surface-2); color:var(--text-dim);
+    padding:7px 12px; border-radius:8px; cursor:pointer; font-size:12.5px; display:flex; align-items:center; gap:7px;
+  }
+  .seg button.on { border-color:var(--accent); background:var(--accent-dim); color:var(--text); }
+
+  /* toasts */
+  #toasts { position:fixed; right:20px; bottom:20px; z-index:80; display:flex; flex-direction:column; gap:10px; max-width:360px; }
+  .toast {
+    background:var(--surface); border:1px solid var(--border); border-left-width:3px; border-radius:10px;
+    padding:12px 14px; box-shadow:var(--shadow); animation:slidein .2s cubic-bezier(.2,.8,.2,1); display:flex; gap:11px;
+  }
+  @keyframes slidein { from{opacity:0; transform:translateX(16px)} to{opacity:1; transform:none} }
+  .toast.ok { border-left-color:var(--good); }
+  .toast.err { border-left-color:var(--crit); }
+  .toast.info { border-left-color:var(--accent); }
+  .toast .ico { flex:none; margin-top:1px; }
+  .toast .ico svg { width:17px; height:17px; }
+  .toast.ok .ico { color:var(--good); } .toast.err .ico { color:var(--crit); } .toast.info .ico { color:var(--accent); }
+  .toast .body b { font-size:13px; } .toast .body p { margin:2px 0 0; font-size:12px; color:var(--text-dim); }
+  .toast .body code { font-family:var(--mono); font-size:11px; color:var(--muted); }
+
+  .banner {
+    display:flex; gap:10px; align-items:center; padding:11px 15px; border-radius:11px; font-size:12.5px;
+    background:var(--accent-dim); border:1px solid color-mix(in srgb,var(--accent) 26%,transparent); color:var(--text-dim); margin-bottom:18px;
+  }
+  .banner svg { width:16px; height:16px; color:var(--accent); flex:none; }
+  .banner b { color:var(--text); }
+
+  @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
+  @media (max-width:720px){
+    .app { grid-template-columns:1fr; }
+    .rail { position:static; height:auto; flex-direction:row; flex-wrap:wrap; align-items:center; }
+    .rail .nav-label, .rail-foot { display:none; }
+    .nav-item { width:auto; }
+  }
+</style>
+
+<div class="app">
+  <aside class="rail">
+    <div class="brand">
+      <div class="glyph"></div>
+      <div><b>browser-service</b><span>OPERATOR&nbsp;CONSOLE</span></div>
+    </div>
+    <div class="nav-label">Operate</div>
+    <nav id="nav"></nav>
+    <div class="rail-foot">
+      <div class="ident">
+        <div class="av">A</div>
+        <div class="who"><b>alice</b><span id="owner-id">acme:alice</span></div>
+      </div>
+      <button class="theme-toggle" data-act="toggle-theme">
+        <svg id="theme-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"></svg>
+        <span id="theme-label">Theme</span>
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar" id="topbar"></div>
+    <div class="view" id="view"></div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+<div id="modal-root"></div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (s, r=document) => r.querySelector(s);
+  const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+  const now = () => Date.now();
+  const uid = p => p + Math.random().toString(36).slice(2, 8);
+  const pad = n => String(n).padStart(2, "0");
+  const clock = ts => { const d = new Date(ts); return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()); };
+  const fmtDur = s => { s = Math.max(0, Math.round(s)); return Math.floor(s/60)+":"+pad(s%60); };
+  const fmtAge = ms => { const s=Math.round(ms/1000); if(s<60) return s+"s"; if(s<3600) return Math.floor(s/60)+"m "+(s%60)+"s"; return Math.floor(s/3600)+"h "+Math.floor((s%3600)/60)+"m"; };
+
+  // ---------- icons ----------
+  const I = {
+    grid:'<path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/>',
+    camera:'<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>',
+    history:'<path d="M3 3v5h5"/><path d="M3.05 13A9 9 0 1 0 6 5.3L3 8"/><path d="M12 7v5l4 2"/>',
+    sun:'<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    moon:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',
+    plus:'<path d="M12 5v14M5 12h14"/>',
+    globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18M12 3a15 15 0 0 0 0 18"/>',
+    lock:'<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    nav:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+    search:'<circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/>',
+    hand:'<path d="M18 11V6a2 2 0 0 0-4 0M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8a8 8 0 0 0 8 8h.5a6.5 6.5 0 0 0 6.5-6.5V11a2 2 0 0 0-4 0"/>',
+    scroll:'<path d="M12 5v14M6 13l6 6 6-6"/>',
+    scissors:'<circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M20 4L8.1 15.9M14.5 14.5L20 20M8.1 8.1L12 12"/>',
+    bell:'<path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 0 1-3.4 0"/>',
+    code:'<path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/>',
+    mouse:'<rect x="6" y="3" width="12" height="18" rx="6"/><path d="M12 7v4"/>',
+    doc:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/>',
+    check:'<path d="M20 6L9 17l-5-5"/>',
+    x:'<path d="M18 6L6 18M6 6l12 12"/>',
+    warn:'<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+    info:'<circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/>',
+    chevron:'<path d="M9 6l6 6-6 6"/>',
+    play:'<path d="M6 3l14 9-14 9z"/>',
+    inbox:'<path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.5 5.5L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.5-6.5A2 2 0 0 0 16.7 4H7.3a2 2 0 0 0-1.8 1.5z"/>',
+    phone:'<rect x="7" y="2" width="10" height="20" rx="2"/><path d="M11 18h2"/>',
+    close:'<path d="M18 6L6 18M6 6l12 12"/>',
+  };
+  const svg = (p, cls="") => `<svg class="${cls}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+
+  const BROWSERS = {
+    chrome:{label:"Chrome", ico:I.globe, mobile:false},
+    firefox:{label:"Firefox", ico:I.globe, mobile:false},
+    safari:{label:"Safari", ico:I.globe, mobile:false},
+    ie:{label:"IE", ico:I.globe, mobile:false},
+    android:{label:"Android", ico:I.phone, mobile:true},
+    ios:{label:"iOS", ico:I.phone, mobile:true},
+  };
+
+  // ---------- fake pages ----------
+  const PAGES = {
+    "https://example.com": { title:"Example Domain", viewport:{width:1280,height:720}, source:"<!doctype html><html><head><title>Example Domain</title></head><body><h1>Example Domain</h1>…</body></html>",
+      elements:{ '//h1':{tag:"h1",displayed:true,rect:{x:40,y:34,width:300,height:38},attrs:{}},
+                 '//a[@id="more"]':{tag:"a",displayed:true,rect:{x:40,y:150,width:180,height:20},attrs:{id:"more",href:"https://www.iana.org/domains/example"}} },
+      body:`<div class="pg"><h1 data-x="//h1">Example Domain</h1>
+        <p>This domain is for use in illustrative examples in documents. You may use this domain in literature without prior coordination or asking for permission.</p>
+        <p><a class="lnk" id="more" data-x='//a[@id="more"]' href="#">More information…</a></p></div>` },
+    "https://shop.demo/checkout": { title:"Checkout · shop.demo", viewport:{width:1280,height:720}, source:"<html><body><form id='checkout'>…</form></body></html>", alertOn:'//button[@id="pay"]',
+      elements:{ '//input[@name="card"]':{tag:"input",displayed:true,rect:{x:40,y:150,width:340,height:38},attrs:{name:"card",type:"text",placeholder:"Card number"}},
+                 '//button[@id="pay"]':{tag:"button",displayed:true,rect:{x:40,y:320,width:160,height:42},attrs:{id:"pay",type:"submit"}} },
+      body:`<div class="pg"><h1>Secure checkout</h1><p class="muted">Order #48213 · 2 items · $84.00</p>
+        <div class="prod"><span>Aerodynamic keyboard</span><b>$59.00</b></div>
+        <div class="prod"><span>Braided USB-C cable</span><b>$25.00</b></div>
+        <label class="field" style="margin-top:22px"><span>Card number</span><input data-x='//input[@name="card"]' placeholder="4242 4242 4242 4242"></label>
+        <label class="field"><span>Name on card</span><input placeholder="Alice Nguyen"></label>
+        <button class="cta" id="pay" data-x='//button[@id="pay"]'>Pay $84.00</button></div>` },
+    "https://news.demo": { title:"The Daily Signal", viewport:{width:1280,height:720}, source:"<html><body><main>…</main></body></html>", gdpr:true, drift:true,
+      elements:{ '//h1':{tag:"h1",displayed:true,rect:{x:40,y:34,width:420,height:40},attrs:{}},
+                 '//article[1]':{tag:"article",displayed:true,rect:{x:40,y:120,width:600,height:80},attrs:{"data-id":"1"}} },
+      body:`<div class="pg"><h1 data-x="//h1">The Daily Signal</h1>
+        <div class="art" data-x="//article[1]"><h3>Remote browsers, reconsidered</h3><p class="muted">Why stateful sessions beat stateless scraping for real workflows.</p></div>
+        <div class="art"><h3>Selenium 4 lands in production fleets</h3><p class="muted">Grid topologies for the WebDriver era.</p></div>
+        <div class="art"><h3>The 30-minute browser</h3><p class="muted">Designing TTLs that reap themselves.</p></div></div>` },
+    "https://login.demo": { title:"Sign in · demo", viewport:{width:1280,height:720}, source:"<html><body><form id='login'>…</form></body></html>",
+      elements:{ '//input[@name="email"]':{tag:"input",displayed:true,rect:{x:40,y:150,width:320,height:38},attrs:{name:"email",type:"email"}},
+                 '//button[@type="submit"]':{tag:"button",displayed:true,rect:{x:40,y:280,width:120,height:40},attrs:{type:"submit"}} },
+      body:`<div class="pg"><h1>Welcome back</h1><p class="muted">Sign in to continue.</p>
+        <label class="field" style="margin-top:20px"><span>Email</span><input data-x='//input[@name="email"]' placeholder="you@company.com"></label>
+        <label class="field"><span>Password</span><input type="password" placeholder="••••••••"></label>
+        <button class="cta" data-x='//button[@type="submit"]'>Sign in</button></div>` },
+  };
+  const KNOWN_URLS = Object.keys(PAGES);
+  const genericPage = url => ({ title:url.replace(/^https?:\/\//,""), viewport:{width:1280,height:720}, source:"<html><body>…</body></html>", elements:{},
+    body:`<div class="pg"><h1>${esc(url.replace(/^https?:\/\//,"").split("/")[0])}</h1><p>A live browser session is pinned to this page. Use <b>Find element</b> with an XPath to resolve nodes, or <b>Execute JS</b> to run script in the page.</p><p class="muted">${esc(url)}</p></div>` });
+  const pageFor = url => PAGES[url] || (KNOWN_URLS.includes(url) ? PAGES[url] : genericPage(url));
+
+  // ---------- state ----------
+  const CFG = { maxConcurrent:10, idleTtlDefault:300, absoluteTtl:1800 };
+  const state = {
+    view:"dashboard", activeSessionId:null, cockpitTab:"console",
+    sessions:[], history:[],
+    readiness:{ status:"ready",
+      seleniumHubs:[{url:"http://selenium-01:4444/wd/hub",reachable:true},{url:"http://selenium-02:4444/wd/hub",reachable:true}],
+      appiumServers:[{url:"http://appium-01:4723",reachable:true},{url:"http://appium-02:4723",reachable:false}] },
+    reaped:0, wsConnected:true,
+  };
+
+  function makeSession(browserType, environment, idleTtl, seed) {
+    const t = now();
+    const created = seed ? t - (seed.ageMs||0) : t;
+    const s = {
+      sessionId: uid("s_"), ownerId:"acme:alice", browserType, environment,
+      createdAt: created, lastUsedAt: seed ? t - (seed.idleMs||0) : t,
+      idleTtlSeconds: idleTtl, absoluteTtlSeconds: CFG.absoluteTtl,
+      currentUrl: seed?.url || null, pageKey: seed?.url || null,
+      viewport:{width:1280,height:720}, scrollOffset:{x:0,y:0},
+      status:"ACTIVE", elements:{}, elementSeq:0, log:[], events:[],
+      gdprShown: true, driftShown: true, pendingAlert:null,
+    };
+    return s;
+  }
+  function expiresAt(s){ return Math.min(s.lastUsedAt + s.idleTtlSeconds*1000, s.createdAt + s.absoluteTtlSeconds*1000); }
+  function remainingMs(s){ return expiresAt(s) - now(); }
+  function touch(s){ s.lastUsedAt = now(); }
+  const activeSessions = () => state.sessions.filter(s => s.status==="ACTIVE");
+  const getSession = id => state.sessions.find(s => s.sessionId===id);
+
+  // seed a couple sessions so the console isn't empty
+  function seed(){
+    const a = makeSession("chrome","test",300,{url:"https://shop.demo/checkout", ageMs:214000, idleMs:40000});
+    a.viewport = pageFor(a.currentUrl).viewport;
+    logOp(a,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url:a.currentUrl},{currentUrl:a.currentUrl,status:"LOADED"},"ok",true);
+    const b = makeSession("android","discovery",300,{url:"https://news.demo", ageMs:70000, idleMs:275000}); // near idle-expiry
+    b.viewport = {width:390,height:844};
+    logOp(b,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url:b.currentUrl},{currentUrl:b.currentUrl,status:"LOADED"},"ok",true);
+    state.sessions.push(a,b);
+    // some history
+    state.history.push(
+      { sessionId:uid("s_"), browserType:"firefox", environment:"test", createdAt:now()-3.2e6, closedAt:now()-3.0e6, closedReason:"CLIENT" },
+      { sessionId:uid("s_"), browserType:"chrome", environment:"discovery", createdAt:now()-2.1e6, closedAt:now()-1.6e6, closedReason:"REAPED_ABSOLUTE" },
+      { sessionId:uid("s_"), browserType:"ios", environment:"test", createdAt:now()-9e5, closedAt:now()-6e5, closedReason:"REAPED_IDLE" },
+    );
+  }
+
+  // ---------- ops (logging + effects) ----------
+  function logOp(s, op, http, req, res, level, silent){
+    s.log.unshift({ ts:now(), op, http, req, res, level });
+    if(s.log.length>60) s.log.pop();
+    if(!silent && state.view==="cockpit" && state.activeSessionId===s.sessionId) renderConsole();
+  }
+  function pushEvent(s, kind, data){
+    s.events.unshift({ ts:now(), kind, data });
+    if(s.events.length>50) s.events.pop();
+    if(state.view==="cockpit" && state.activeSessionId===s.sessionId){
+      if(state.cockpitTab==="events") renderConsole();
+      const t = $("#tab-events-b"); if(t) t.textContent = s.events.length;
+    }
+  }
+
+  const REAP_LABEL = { REAPED_IDLE:"idle TTL", REAPED_ABSOLUTE:"absolute TTL" };
+  function closeSession(s, reason){
+    if(s.status!=="ACTIVE") return;
+    s.status = (reason==="CLIENT") ? "CLOSED" : "EXPIRED";
+    state.history.unshift({ sessionId:s.sessionId, browserType:s.browserType, environment:s.environment, createdAt:s.createdAt, closedAt:now(), closedReason:reason });
+    state.sessions = state.sessions.filter(x => x.sessionId!==s.sessionId);
+    if(reason!=="CLIENT") state.reaped++;
+    if(state.view==="cockpit" && state.activeSessionId===s.sessionId){ go("dashboard"); }
+  }
+
+  // ---------- toasts ----------
+  function toast(kind, title, msg, codeStr){
+    const el = document.createElement("div");
+    el.className = "toast "+kind;
+    const ico = kind==="ok"?I.check:kind==="err"?I.warn:I.info;
+    el.innerHTML = `<span class="ico">${svg(ico)}</span><div class="body"><b>${esc(title)}</b>${msg?`<p>${esc(msg)}${codeStr?` · <code>${esc(codeStr)}</code>`:""}</p>`:""}</div>`;
+    $("#toasts").appendChild(el);
+    setTimeout(()=>{ el.style.transition="opacity .3s, transform .3s"; el.style.opacity=0; el.style.transform="translateX(16px)"; setTimeout(()=>el.remove(),300); }, kind==="err"?5200:3600);
+  }
+
+  // ---------- theme ----------
+  function currentTheme(){
+    const set = document.documentElement.getAttribute("data-theme");
+    if(set) return set;
+    return matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+  function paintThemeToggle(){
+    const dark = currentTheme()==="dark";
+    $("#theme-ico").innerHTML = dark ? I.sun : I.moon;
+    $("#theme-label").textContent = dark ? "Light mode" : "Dark mode";
+  }
+  function toggleTheme(){
+    const next = currentTheme()==="dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    paintThemeToggle();
+  }
+
+  // ---------- ring ----------
+  function ttlRing(s){
+    const rem = remainingMs(s)/1000;
+    const total = s.idleTtlSeconds;
+    const frac = Math.max(0, Math.min(1, rem/total));
+    const col = frac>0.5 ? "var(--accent)" : frac>0.2 ? "var(--live)" : "var(--crit)";
+    const C = 2*Math.PI*9;
+    const off = C*(1-frac);
+    return `<span class="ttl" title="Reaps at ${clock(expiresAt(s))} · idle ${s.idleTtlSeconds}s / absolute ${s.absoluteTtlSeconds}s">
+      <svg viewBox="0 0 26 26"><circle class="track" cx="13" cy="13" r="9" fill="none" stroke-width="3"/>
+      <circle cx="13" cy="13" r="9" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/></svg>
+      <span class="val" style="color:${col}">${fmtDur(rem)}</span></span>`;
+  }
+
+  // ---------- nav ----------
+  function renderNav(){
+    const items = [
+      {id:"dashboard", label:"Dashboard", ico:I.grid, count:activeSessions().length},
+      {id:"capture", label:"Quick capture", ico:I.camera},
+      {id:"history", label:"History", ico:I.history, count:state.history.length},
+    ];
+    $("#nav").innerHTML = items.map(it =>
+      `<button class="nav-item ${state.view===it.id||(it.id==="dashboard"&&state.view==="cockpit")?"on":""}" data-act="go" data-view="${it.id}">
+        ${svg(it.ico)}<span>${it.label}</span>${it.count!=null?`<span class="count">${it.count}</span>`:""}</button>`).join("");
+  }
+
+  // ---------- topbar ----------
+  function renderTopbar(){
+    const r = state.readiness;
+    const ready = r.appiumServers.concat(r.seleniumHubs).every(h=>h.reachable);
+    r.status = ready ? "ready" : "degraded";
+    const active = activeSessions().length;
+    const frac = active/CFG.maxConcurrent;
+    const capCol = frac>=1?"var(--crit)":frac>=0.7?"var(--live)":"var(--accent)";
+    $("#topbar").innerHTML = `
+      <div class="stat"><span class="dot ${state.wsConnected?"good live":"crit"}"></span><span class="k">WS ${state.wsConnected?"connected":"down"}</span></div>
+      <div class="sep"></div>
+      <div class="stat"><span class="dot ${ready?"good":"warn"}"></span><span class="k">Readiness · ${r.status}</span></div>
+      <div class="sep"></div>
+      <div class="cap-meter">
+        <span class="k">Capacity</span>
+        <span class="cap-bar"><span class="cap-fill" style="width:${Math.min(100,frac*100)}%; background:${capCol}"></span></span>
+        <span class="mono" style="font-size:12px; color:var(--text-dim)">${active}/${CFG.maxConcurrent}</span>
+      </div>
+      <div class="grow"></div>
+      <button class="btn primary sm" data-act="new-session">${svg(I.plus)} New session</button>`;
+  }
+
+  // ---------- views ----------
+  function renderView(){
+    renderNav(); renderTopbar();
+    const v = $("#view");
+    if(state.view==="dashboard") v.innerHTML = viewDashboard();
+    else if(state.view==="cockpit") v.innerHTML = viewCockpit();
+    else if(state.view==="capture") v.innerHTML = viewCapture();
+    else if(state.view==="history") v.innerHTML = viewHistory();
+    if(state.view==="cockpit"){ restoreViewportScroll(); }
+  }
+
+  function brBadge(bt){ const b=BROWSERS[bt]; return `<span class="badge-br">${svg(b.ico,"ico")}${b.label}</span>`; }
+
+  function viewDashboard(){
+    const sessions = activeSessions();
+    const r = state.readiness;
+    const rows = sessions.length ? sessions.map(s => `
+      <tr class="row-click" data-act="open" data-id="${s.sessionId}">
+        <td><span class="mono" style="color:var(--accent)">${s.sessionId}</span></td>
+        <td>${brBadge(s.browserType)}</td>
+        <td><span class="chip neutral">${s.environment}</span></td>
+        <td><span class="mono url-cell" title="${s.currentUrl?esc(s.currentUrl):""}">${s.currentUrl?esc(s.currentUrl):"—"}</span></td>
+        <td class="num">${fmtAge(now()-s.createdAt)}</td>
+        <td>${ttlRing(s)}</td>
+        <td><span class="chip active"><span class="d"></span>ACTIVE</span></td>
+        <td style="text-align:right"><button class="btn sm icon ghost" data-act="close" data-id="${s.sessionId}" title="Close session">${svg(I.x)}</button></td>
+      </tr>`).join("")
+      : `<tr><td colspan="8"><div class="empty">${svg(I.inbox)}<div>No open sessions. Create one to pin a dedicated browser.</div></div></td></tr>`;
+
+    const health = h => `<div class="hrow"><span class="dot ${h.reachable?"good":"crit"}"></span><span class="url">${esc(h.url)}</span><span class="tag" style="color:${h.reachable?"var(--good)":"var(--crit)"}">${h.reachable?"reachable":"unreachable"}</span></div>`;
+    const active = sessions.length;
+
+    return `
+      <div class="page-head"><h1>Session fleet</h1><p>Every session is one real browser, pinned for its lifetime. Open one to drive it live; it reaps itself on idle (5&nbsp;min) or absolute (30&nbsp;min) TTL.</p></div>
+      <div class="banner">${svg(I.info)}<div><b>Interactive mock.</b> Simulated in-browser — not wired to a live backend. Every control maps 1:1 to a real endpoint or WebSocket op.</div></div>
+      <div class="grid cols-3" style="margin-bottom:16px">
+        <div class="card kpi"><div class="lbl">Open sessions</div><div class="big">${active}<span style="font-size:16px;color:var(--muted)"> / ${CFG.maxConcurrent}</span></div><div class="sub">${CFG.maxConcurrent-active} permits free · per-caller cap</div></div>
+        <div class="card kpi"><div class="lbl">Reaped this session</div><div class="big">${state.reaped}</div><div class="sub">idle + absolute TTL expirations</div></div>
+        <div class="card kpi"><div class="lbl">Upstream readiness</div><div class="big" style="color:${r.status==="ready"?"var(--good)":"var(--warn)"};font-size:24px;text-transform:uppercase">${r.status}</div><div class="sub">${r.seleniumHubs.length} Selenium · ${r.appiumServers.length} Appium hubs</div></div>
+      </div>
+      <div class="dash-grid">
+        <div class="card">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border)">
+            <b style="font-size:13.5px">Active sessions</b>
+            <button class="btn sm primary" data-act="new-session">${svg(I.plus)} New session</button>
+          </div>
+          <div class="tbl-wrap"><table class="tbl">
+            <thead><tr><th>Session</th><th>Browser</th><th>Env</th><th>Current URL</th><th>Age</th><th>Reaps in</th><th>Status</th><th></th></tr></thead>
+            <tbody>${rows}</tbody></table></div>
+        </div>
+        <div class="card">
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border)"><b style="font-size:13.5px">Infrastructure</b><div style="font-size:11.5px;color:var(--muted);margin-top:2px;font-family:var(--mono)">GET /readyz</div></div>
+          <div class="hstrip">
+            ${r.seleniumHubs.map(health).join("")}
+            ${r.appiumServers.map(health).join("")}
+          </div>
+        </div>
+      </div>`;
+  }
+
+  // ------ cockpit ------
+  function renderPageInto(s){
+    const p = pageFor(s.currentUrl);
+    let html = p.body;
+    if(p.gdpr && s.gdprShown) html += `<div class="overlay-gdpr"><small>We use cookies to personalise content and analyse traffic. This is a mock GDPR banner — strip it with <b>DOM remove → GDPR_MODAL</b>.</small><button>Accept all</button></div>`;
+    if(p.drift && s.driftShown) html += `<div class="drift">${svg(I.bell)}</div>`;
+    return html;
+  }
+  let _pendingScroll = 0;
+  function restoreViewportScroll(){ const vp=$("#viewport"); if(vp){ vp.scrollTop=_pendingScroll; } }
+
+  function viewCockpit(){
+    const s = getSession(state.activeSessionId);
+    if(!s) return `<div class="empty" style="margin-top:60px">${svg(I.inbox)}<div>Session not found. It may have been reaped.</div><button class="btn sm" data-act="go" data-view="dashboard" style="margin-top:12px">Back to dashboard</button></div>`;
+    const b = BROWSERS[s.browserType];
+    const rem = remainingMs(s)/1000;
+    _pendingScroll = s.scrollOffset.y;
+    return `
+      <div class="page-head" style="display:flex;align-items:center;gap:14px;justify-content:space-between">
+        <div style="display:flex;align-items:center;gap:12px">
+          <button class="btn sm ghost" data-act="go" data-view="dashboard">← Fleet</button>
+          <div><h1 style="font-size:18px">${b.label} session</h1><div class="mono" style="font-size:12px;color:var(--accent)">${s.sessionId}</div></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px">
+          ${ttlRing(s)}
+          <button class="btn sm" data-act="close" data-id="${s.sessionId}">${svg(I.x)} Close session</button>
+        </div>
+      </div>
+      <div class="cockpit">
+        <div class="card browser">
+          <div class="bchrome">
+            <span class="lights"><i></i><i></i><i></i></span>
+            <div class="omni">${svg(I.lock)}<span class="addr" id="addr">${s.currentUrl?esc(s.currentUrl):"about:blank"}</span></div>
+            <span class="chip active"><span class="d"></span>LIVE</span>
+          </div>
+          <div class="viewport" id="viewport" style="${b.mobile?"max-width:412px;margin:0 auto;border-left:1px solid var(--border);border-right:1px solid var(--border)":""}">
+            <div class="flash" id="flash"></div>
+            <div id="pagebody">${s.currentUrl?renderPageInto(s):`<div class="pg"><p class="muted">Blank session. Navigate to a URL to load a page.</p></div>`}</div>
+          </div>
+          <div class="vp-meta">
+            <span><b>viewport</b> ${s.viewport.width}×${s.viewport.height}</span>
+            <span><b>scroll</b> x:<span id="sx">${s.scrollOffset.x}</span> y:<span id="sy">${s.scrollOffset.y}</span></span>
+            <span><b>env</b> ${s.environment}</span>
+            <span><b>reaps in</b> <span id="cp-rem">${fmtDur(rem)}</span></span>
+          </div>
+        </div>
+        <div class="deck">${deckHtml(s)}</div>
+      </div>
+      <div class="card console" style="margin-top:16px">
+        <div class="tabs">
+          <button class="tab ${state.cockpitTab==="console"?"on":""}" data-act="tab" data-tab="console">Console<span class="b">${s.log.length}</span></button>
+          <button class="tab ${state.cockpitTab==="events"?"on":""}" data-act="tab" data-tab="events">Event feed<span class="b" id="tab-events-b">${s.events.length}</span></button>
+        </div>
+        <div class="logpane" id="logpane">${state.cockpitTab==="console"?consoleHtml(s):eventsHtml(s)}</div>
+      </div>`;
+  }
+
+  function op(title, ico, id, bodyHtml, open){
+    return `<details class="op" ${open?"open":""}><summary>${svg(ico,"opico")}${title}${svg(I.chevron,"caret")}</summary><div class="op-body">${bodyHtml}</div></details>`;
+  }
+  function deckHtml(s){
+    const b = BROWSERS[s.browserType];
+    const opts = (arr,val) => arr.map(o=>`<option value="${o}" ${o===val?"selected":""}>${o}</option>`).join("");
+    let html = "";
+    html += op("Navigate", I.nav, "nav", `
+      <label class="f"><span class="lt">url</span><input class="t" id="nav-url" value="https://example.com" placeholder="https://…"></label>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">${KNOWN_URLS.map(u=>`<button class="btn sm ghost" data-act="fill-url" data-url="${u}">${esc(u.replace("https://",""))}</button>`).join("")}</div>
+      <button class="btn primary" data-act="navigate">${svg(I.play)} Navigate</button>`, true);
+
+    html += op("Find element", I.search, "find", `
+      <label class="f"><span class="lt">xpath</span><input class="t" id="find-xpath" value="//h1" placeholder="//button[@id=&quot;submit&quot;]"></label>
+      <button class="btn" data-act="find">Resolve element</button>
+      <div id="find-out"></div>`);
+
+    if(!b.mobile){
+      html += op("Element action", I.hand, "action", `
+        <label class="f"><span class="lt">element handle</span><input class="t" id="act-handle" placeholder="el_1 (from Find)"></label>
+        <div class="op-body row" style="padding:0">
+          <label class="f"><span class="lt">action</span><select class="t" id="act-kind">${opts(["click","doubleClick","hover","clickAndHold","contextClick","release","sendKeys","mouseover"])}</select></label>
+          <label class="f"><span class="lt">input (sendKeys)</span><input class="t" id="act-input" placeholder="text…"></label>
+        </div>
+        <button class="btn" data-act="element-action">Perform action</button>`);
+    } else {
+      html += op("Touch gesture", I.hand, "touch", `
+        <label class="f"><span class="lt">element handle</span><input class="t" id="act-handle" placeholder="el_1 (from Find)"></label>
+        <label class="f"><span class="lt">gesture</span><select class="t" id="touch-kind">${opts(["tap","doubleTap","longPress","swipeUp","swipeDown","swipeLeft","swipeRight","scrollUp","scrollDown","pinch","zoom","sendKeys"])}</select></label>
+        <button class="btn" data-act="touch">Perform gesture</button>`);
+    }
+
+    html += op("Screenshot", I.camera, "shot", `
+      <label class="f"><span class="lt">strategy</span><select class="t" id="shot-strat">${opts(["VIEWPORT","FULL_PAGE_SHUTTERBUG","FULL_PAGE_ASHOT","FULL_PAGE_SHUTTERBUG_PAUSED"])}</select></label>
+      <button class="btn" data-act="screenshot">${svg(I.camera)} Capture</button>`);
+
+    html += op("Scroll", I.scroll, "scroll", `
+      <label class="f"><span class="lt">mode</span><select class="t" id="scroll-mode">${opts(["TO_TOP","TO_BOTTOM","DOWN_FULL","DOWN_PERCENT","TO_ELEMENT"])}</select></label>
+      <button class="btn" data-act="scroll">Scroll viewport</button>`);
+
+    html += op("Remove overlay", I.scissors, "dom", `
+      <label class="f"><span class="lt">preset</span><select class="t" id="dom-preset">${opts(["GDPR_MODAL","GDPR","DRIFT_CHAT","BY_CLASS"])}</select></label>
+      <button class="btn" data-act="dom-remove">Strip from DOM</button>`);
+
+    html += op("Alert", I.bell, "alert", `
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn sm" data-act="alert-state">Detect alert</button>
+        <button class="btn sm" data-act="alert-respond" data-choice="accept">Accept</button>
+        <button class="btn sm" data-act="alert-respond" data-choice="dismiss">Dismiss</button>
+      </div><div id="alert-out"></div>`);
+
+    html += op("Execute JS", I.code, "exec", `
+      <label class="f"><span class="lt">script</span><textarea class="t" id="exec-src">return document.title;</textarea></label>
+      <button class="btn" data-act="execute">Run script</button>
+      <div id="exec-out"></div>`);
+
+    html += op("Page source", I.doc, "source", `
+      <button class="btn sm" data-act="get-source">GET /source</button>
+      <div id="source-out"></div>`);
+
+    return html;
+  }
+
+  function consoleHtml(s){
+    if(!s.log.length) return `<div class="empty" style="padding:30px">${svg(I.code)}<div>No operations yet. Drive the session from the command deck.</div></div>`;
+    return s.log.map(l => `<div class="logline">
+      <span class="ts">${clock(l.ts)}</span> <span class="meth">${esc(l.http.split(" ")[0])}</span> <span class="op-tag">${esc(l.op)}</span>
+      ${l.level==="err"?`<span class="err"> · error</span>`:`<span class="ok"> · 2xx</span>`}
+      <pre>${esc(JSON.stringify(l.level==="err"?l.res:{request:l.req,response:l.res}, null, 2))}</pre>
+    </div>`).join("");
+  }
+  function eventsHtml(s){
+    if(!s.events.length) return `<div class="empty" style="padding:30px">${svg(I.bell)}<div>Server-pushed events stream here — <span class="mono">alert.appeared</span>, <span class="mono">console.log</span>, <span class="mono">navigation.changed</span>.</div></div>`;
+    return s.events.map(e => {
+      const cls = e.kind.startsWith("alert")?"alert":e.kind.startsWith("nav")?"nav":"console";
+      return `<div class="evt"><span class="kind ${cls}">${esc(e.kind)}</span><span class="msg">${esc(e.data)}</span><span class="ts" style="margin-left:auto">${clock(e.ts)}</span></div>`;
+    }).join("");
+  }
+  function renderConsole(){ const p=$("#logpane"); if(!p) return; const s=getSession(state.activeSessionId); if(!s) return; p.innerHTML = state.cockpitTab==="console"?consoleHtml(s):eventsHtml(s); }
+
+  // ------ capture view ------
+  const capState = { browserType:"chrome", environment:"test", strategy:"FULL_PAGE_SHUTTERBUG", encoding:"BINARY", includeSource:false, url:"https://example.com", xpath:"", result:null };
+  function viewCapture(){
+    const seg = (key, arr) => arr.map(o=>`<button class="${capState[key]===o.v?"on":""}" data-act="cap-set" data-key="${key}" data-val="${o.v}">${o.i?svg(o.i):""}${o.l}</button>`).join("");
+    const res = capState.result;
+    return `
+      <div class="page-head"><h1>Quick capture</h1><p>The one-shot path — <span class="mono">POST /v1/capture</span> collapses open → navigate → screenshot → close into a single request. No session to manage.</p></div>
+      <div class="cap-grid">
+        <div class="card" style="padding:18px;display:flex;flex-direction:column;gap:16px">
+          <label class="f"><span class="lt">Target URL</span><input class="t" id="cap-url" value="${esc(capState.url)}"></label>
+          <div><div class="lt" style="margin-bottom:6px;color:var(--muted);font-size:10px;letter-spacing:.04em;text-transform:uppercase">Browser</div><div class="seg">${seg("browserType",[{v:"chrome",l:"Chrome"},{v:"firefox",l:"Firefox"},{v:"android",l:"Android",i:I.phone},{v:"ios",l:"iOS",i:I.phone}])}</div></div>
+          <div><div class="lt" style="margin-bottom:6px;color:var(--muted);font-size:10px;letter-spacing:.04em;text-transform:uppercase">Environment</div><div class="seg">${seg("environment",[{v:"test",l:"test"},{v:"discovery",l:"discovery"}])}</div></div>
+          <div><div class="lt" style="margin-bottom:6px;color:var(--muted);font-size:10px;letter-spacing:.04em;text-transform:uppercase">Strategy</div><div class="seg">${seg("strategy",[{v:"VIEWPORT",l:"Viewport"},{v:"FULL_PAGE_SHUTTERBUG",l:"Full page"},{v:"FULL_PAGE_ASHOT",l:"aShot"}])}</div></div>
+          <div><div class="lt" style="margin-bottom:6px;color:var(--muted);font-size:10px;letter-spacing:.04em;text-transform:uppercase">Encoding</div><div class="seg">${seg("encoding",[{v:"BINARY",l:"PNG bytes"},{v:"BASE64",l:"base64 JSON"}])}</div></div>
+          <label class="f" style="flex-direction:row;align-items:center;gap:9px"><input type="checkbox" id="cap-src" ${capState.includeSource?"checked":""}><span class="lt" style="text-transform:none;font-size:12px">Include page source</span></label>
+          <label class="f"><span class="lt">XPath (optional element)</span><input class="t" id="cap-xpath" value="${esc(capState.xpath)}" placeholder="//h1"></label>
+          <button class="btn primary" data-act="run-capture">${svg(I.camera)} Run capture</button>
+        </div>
+        <div>
+          ${res ? `
+            <div class="shot-frame">
+              <div class="bar">${svg(I.camera)} captureId: <span style="color:var(--accent)">${esc(res.captureId)}</span> · ${res.screenshot.width}×${res.screenshot.height} · ${esc(capState.strategy)}</div>
+              <div class="shot-body">${res.render}</div>
+            </div>
+            <div class="card" style="margin-top:14px;padding:14px 16px">
+              <dl class="kv">
+                <dt>currentUrl</dt><dd>${esc(res.currentUrl)}</dd>
+                <dt>screenshot</dt><dd>${capState.encoding==="BINARY"?esc(res.screenshot.href):"imageBase64 (data:image/png;base64, iVBORw0KGgo…)"}</dd>
+                ${res.element?`<dt>element</dt><dd>${esc(res.element.tag)} · displayed=${res.element.displayed} · handle=${esc(res.element.elementHandle)}</dd>`:""}
+                ${res.source?`<dt>source</dt><dd>${esc(res.source.slice(0,60))}…</dd>`:""}
+              </dl>
+            </div>` : `<div class="card"><div class="empty" style="padding:70px 30px">${svg(I.camera)}<div>Run a capture to preview the screenshot and <span class="mono">CaptureResponse</span> here.</div></div></div>`}
+        </div>
+      </div>`;
+  }
+
+  // ------ history view ------
+  const REASON_CHIP = { CLIENT:["closed","client closed"], REAPED_IDLE:["expired","idle TTL reaped"], REAPED_ABSOLUTE:["expired","absolute TTL reaped"], ERROR:["expired","errored"] };
+  function viewHistory(){
+    const rows = state.history.length ? state.history.map(h => {
+      const [cls,lbl] = REASON_CHIP[h.closedReason]||["closed",h.closedReason];
+      return `<tr>
+        <td><span class="mono" style="color:var(--text-dim)">${h.sessionId}</span></td>
+        <td>${brBadge(h.browserType)}</td>
+        <td><span class="chip neutral">${h.environment}</span></td>
+        <td class="num">${fmtAge(h.closedAt-h.createdAt)}</td>
+        <td><span class="mono" style="font-size:11.5px;color:var(--muted)">${h.closedReason}</span></td>
+        <td><span class="chip ${cls}"><span class="d"></span>${lbl}</span></td>
+        <td class="num" style="color:var(--muted)">${clock(h.closedAt)}</td>
+      </tr>`;
+    }).join("") : `<tr><td colspan="7"><div class="empty">${svg(I.history)}<div>No closed sessions yet.</div></div></td></tr>`;
+    return `
+      <div class="page-head"><h1>Session history</h1><p>The audit trail from the <span class="mono">browser_sessions</span> table — every session that closed, and why it closed.</p></div>
+      <div class="card"><div class="tbl-wrap"><table class="tbl">
+        <thead><tr><th>Session</th><th>Browser</th><th>Env</th><th>Lifetime</th><th>Closed reason</th><th>Outcome</th><th>Closed at</th></tr></thead>
+        <tbody>${rows}</tbody></table></div></div>`;
+  }
+
+  // ---------- modal ----------
+  const nsState = { browserType:"chrome", environment:"test", idleTtl:300 };
+  function openNewSession(){
+    if(activeSessions().length>=CFG.maxConcurrent){
+      toast("err","Session cap reached","Close a session before opening another.","429 session_cap_exceeded");
+      return;
+    }
+    const bseg = Object.entries(BROWSERS).map(([k,b])=>`<button class="${nsState.browserType===k?"on":""}" data-act="ns-set" data-key="browserType" data-val="${k}">${svg(b.ico)}${b.label}</button>`).join("");
+    const eseg = ["test","discovery"].map(e=>`<button class="${nsState.environment===e?"on":""}" data-act="ns-set" data-key="environment" data-val="${e}">${e}</button>`).join("");
+    const tseg = [{v:60,l:"60s"},{v:300,l:"5 min"},{v:900,l:"15 min"}].map(t=>`<button class="${nsState.idleTtl===t.v?"on":""}" data-act="ns-set" data-key="idleTtl" data-val="${t.v}">${t.l}</button>`).join("");
+    $("#modal-root").innerHTML = `
+      <div class="scrim">
+        <div class="card modal">
+          <div class="modal-h"><h3>New browser session</h3><p>Pin a dedicated browser. Counts against your ${CFG.maxConcurrent}-session cap.</p></div>
+          <div class="modal-b">
+            <div><div class="lt" style="margin-bottom:7px;color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase">Browser type</div><div class="seg">${bseg}</div></div>
+            <div><div class="lt" style="margin-bottom:7px;color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase">Environment</div><div class="seg">${eseg}</div></div>
+            <div><div class="lt" style="margin-bottom:7px;color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase">Idle TTL <span style="text-transform:none;letter-spacing:0">(absolute stays 30 min)</span></div><div class="seg">${tseg}</div></div>
+          </div>
+          <div class="modal-f"><button class="btn ghost" data-act="close-modal">Cancel</button><button class="btn primary" data-act="ns-create">${svg(I.plus)} Create session</button></div>
+        </div>
+      </div>`;
+  }
+  function closeModal(){ $("#modal-root").innerHTML=""; }
+
+  // ---------- actions ----------
+  function go(view, id){ state.view=view; if(id) state.activeSessionId=id; renderView(); }
+
+  function doNavigate(s, url){
+    if(!/^https?:\/\//.test(url)){ logOp(s,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url},{error:{code:"validation_failed",message:"url must be absolute http(s)",requestId:uid("req_")}},"err"); toast("err","Navigation rejected","URL must start with http:// or https://","validation_failed"); return; }
+    touch(s);
+    s.currentUrl=url; s.pageKey=url; s.scrollOffset={x:0,y:0}; s.gdprShown=true; s.driftShown=true;
+    const p=pageFor(url); s.viewport = BROWSERS[s.browserType].mobile ? {width:390,height:844} : p.viewport;
+    logOp(s,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url},{currentUrl:url,status:"LOADED"},"ok");
+    pushEvent(s,"navigation.changed",`→ ${url}`);
+    toast("ok","Navigated",p.title||url);
+    const pb=$("#pagebody"); if(pb) pb.innerHTML=renderPageInto(s);
+    const ad=$("#addr"); if(ad) ad.textContent=url;
+    const vp=$("#viewport"); if(vp) vp.scrollTop=0;
+    updateVpMeta(s);
+  }
+  function doFind(s, xpath){
+    touch(s);
+    const p=pageFor(s.currentUrl); const found=p.elements[xpath];
+    let res, out;
+    if(found){
+      let handle = Object.keys(s.elements).find(h=>s.elements[h]===xpath);
+      if(!handle){ handle="el_"+(++s.elementSeq); s.elements[handle]=xpath; }
+      res={ elementHandle:handle, found:true, displayed:found.displayed, attributes:found.attrs, rect:found.rect };
+      out=`<div class="result-box">elementHandle: <span style="color:var(--accent)">${handle}</span>\nfound: true · displayed: ${found.displayed}\nrect: {x:${found.rect.x}, y:${found.rect.y}, w:${found.rect.width}, h:${found.rect.height}}\nattributes: ${esc(JSON.stringify(found.attrs))}</div>`;
+      // highlight in page
+      const node = document.querySelector(`#pagebody [data-x='${xpath.replace(/'/g,"\\'")}']`);
+      if(node){ node.classList.add("hl"); setTimeout(()=>node.classList.remove("hl"),1600); }
+      toast("ok","Element resolved",`${handle} · ${found.tag}`);
+    } else {
+      res={ found:false, displayed:false };
+      out=`<div class="result-box">found: false — no node matches this XPath on the current page.</div>`;
+      toast("info","No match","Element not found for that XPath.");
+    }
+    logOp(s,"element.find","POST /v1/sessions/{id}/element/find",{xpath},res,"ok");
+    const o=$("#find-out"); if(o) o.innerHTML=out;
+  }
+  function doElementAction(s, handle, kind, input){
+    if(!handle || !s.elements[handle]){ toast("err","Unknown handle","Run Find element first to get a handle.","validation_failed"); return; }
+    touch(s);
+    const xpath=s.elements[handle]; const p=pageFor(s.currentUrl);
+    logOp(s,"element.action","POST /v1/sessions/{id}/element/action",{elementHandle:handle,action:kind,input:input||null},{status:204},"ok");
+    pushEvent(s,"console.log",`[click] dispatched ${kind} on ${xpath}`);
+    // trigger a JS alert on paying / clicking pay
+    if(p.alertOn===xpath && (kind==="click"||kind==="doubleClick")){
+      s.pendingAlert="Confirm payment of $84.00?";
+      pushEvent(s,"alert.appeared",s.pendingAlert);
+      toast("info","Alert appeared","Handle it under Alert → Accept/Dismiss.");
+    } else {
+      toast("ok","Action performed",`${kind} · ${handle}`);
+    }
+  }
+  function doTouch(s, handle, kind){
+    if(!handle || !s.elements[handle]){ toast("err","Unknown handle","Run Find element first to get a handle.","validation_failed"); return; }
+    touch(s);
+    logOp(s,"touch.tap","POST /v1/sessions/{id}/element/touch",{elementHandle:handle,action:kind},{status:204},"ok");
+    pushEvent(s,"console.log",`[touch] ${kind} on ${s.elements[handle]}`);
+    toast("ok","Gesture performed",`${kind} · ${handle}`);
+  }
+  function doScreenshot(s, strat){
+    touch(s);
+    const full = strat.startsWith("FULL");
+    const dims = full ? {width:s.viewport.width, height:Math.max(s.viewport.height, 1840)} : {width:s.viewport.width, height:s.viewport.height};
+    logOp(s,"screenshot.page","POST /v1/sessions/{id}/screenshot",{strategy:strat},{mime:"image/png",width:dims.width,height:dims.height,bytes:Math.round(dims.width*dims.height/47)},"ok");
+    const f=$("#flash"); if(f){ f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
+    toast("ok","Screenshot captured",`${strat} · ${dims.width}×${dims.height}`);
+  }
+  function doScroll(s, mode){
+    touch(s);
+    const vp=$("#viewport"); const max = vp ? vp.scrollHeight-vp.clientHeight : 800;
+    let y=s.scrollOffset.y;
+    if(mode==="TO_TOP") y=0;
+    else if(mode==="TO_BOTTOM"||mode==="DOWN_FULL") y=max;
+    else if(mode==="DOWN_PERCENT") y=Math.min(max,y+ (vp?vp.clientHeight*0.5:300));
+    else if(mode==="TO_ELEMENT") y=Math.min(max, 160);
+    s.scrollOffset.y=Math.round(y);
+    if(vp) vp.scrollTop=y;
+    logOp(s,"scroll.to","POST /v1/sessions/{id}/scroll",{mode},{x:0,y:s.scrollOffset.y},"ok");
+    updateVpMeta(s);
+    toast("ok","Scrolled",`${mode} · y=${s.scrollOffset.y}`);
+  }
+  function doDomRemove(s, preset){
+    touch(s); const p=pageFor(s.currentUrl); let removed=false;
+    if((preset==="GDPR_MODAL"||preset==="GDPR") && p.gdpr && s.gdprShown){ s.gdprShown=false; removed=true; }
+    if(preset==="DRIFT_CHAT" && p.drift && s.driftShown){ s.driftShown=false; removed=true; }
+    logOp(s,"dom.remove","POST /v1/sessions/{id}/dom/remove",{preset},{status:204,removed},"ok");
+    const pb=$("#pagebody"); if(pb) pb.innerHTML=renderPageInto(s);
+    toast(removed?"ok":"info", removed?"Overlay stripped":"Nothing to strip", removed?`${preset} removed from DOM`:`No ${preset} overlay on this page`);
+  }
+  function doAlertState(s){
+    touch(s);
+    const present=!!s.pendingAlert;
+    logOp(s,"alert.state","GET /v1/sessions/{id}/alert",{},{present,text:s.pendingAlert||null},"ok");
+    const o=$("#alert-out"); if(o) o.innerHTML=`<div class="result-box">present: ${present}${present?`\ntext: "${esc(s.pendingAlert)}"`:""}</div>`;
+    toast(present?"info":"ok", present?"Alert present":"No alert", present?s.pendingAlert:"No alert is currently visible.");
+  }
+  function doAlertRespond(s, choice){
+    if(!s.pendingAlert){ toast("info","No alert","There is no alert to respond to."); return; }
+    touch(s);
+    const txt=s.pendingAlert; s.pendingAlert=null;
+    logOp(s,"alert.respond","POST /v1/sessions/{id}/alert/respond",{choice},{status:204},"ok");
+    pushEvent(s,"console.log",`[alert] ${choice}ed: "${txt}"`);
+    const o=$("#alert-out"); if(o) o.innerHTML=`<div class="result-box">responded: ${choice}</div>`;
+    toast("ok","Alert "+choice+"ed",txt);
+  }
+  function doExecute(s, src){
+    touch(s);
+    let result;
+    if(/document\.title/.test(src)) result=pageFor(s.currentUrl).title||"";
+    else if(/location|href|url/i.test(src)) result=s.currentUrl;
+    else if(/innerWidth|viewport|width/i.test(src)) result=s.viewport.width;
+    else if(/scrollY|pageYOffset/i.test(src)) result=s.scrollOffset.y;
+    else result="undefined";
+    logOp(s,"script.execute","POST /v1/sessions/{id}/execute",{script:src},{result},"ok");
+    const o=$("#exec-out"); if(o) o.innerHTML=`<div class="result-box">result: ${esc(JSON.stringify(result))}</div>`;
+    toast("ok","Script executed",`→ ${JSON.stringify(result)}`);
+  }
+  function doGetSource(s){
+    touch(s);
+    const src=pageFor(s.currentUrl).source;
+    logOp(s,"navigation.source","GET /v1/sessions/{id}/source",{},{currentUrl:s.currentUrl,source:src.slice(0,40)+"…"},"ok");
+    const o=$("#source-out"); if(o) o.innerHTML=`<div class="result-box">${esc(src)}</div>`;
+  }
+  function updateVpMeta(s){
+    const sx=$("#sx"), sy=$("#sy"); if(sx) sx.textContent=s.scrollOffset.x; if(sy) sy.textContent=s.scrollOffset.y;
+  }
+
+  function runCapture(){
+    const p=pageFor(capState.url);
+    const dims = capState.strategy==="VIEWPORT" ? {width:1280,height:720} : {width:1280,height:1840};
+    const el = capState.xpath && p.elements[capState.xpath];
+    capState.result = {
+      captureId: uid("cap_"), currentUrl: capState.url,
+      screenshot: { width:dims.width, height:dims.height, href:`/v1/capture/{captureId}/screenshot` },
+      element: el ? { tag:el.tag, displayed:el.displayed, elementHandle:"el_1" } : null,
+      source: capState.includeSource ? p.source : null,
+      render: `<div style="transform-origin:top left">${p.body}</div>`,
+    };
+    toast("ok","Capture complete",`${p.title} · ${dims.width}×${dims.height}`);
+    renderView();
+  }
+
+  // ---------- event delegation ----------
+  document.addEventListener("click", e => {
+    if(e.target.classList && e.target.classList.contains("scrim")){ closeModal(); return; }
+    const t = e.target.closest("[data-act]");
+    if(!t) return;
+    const act = t.dataset.act;
+    if(act==="toggle-theme") return toggleTheme();
+    if(act==="go") return go(t.dataset.view);
+    if(act==="new-session") return openNewSession();
+    if(act==="close-modal") return closeModal();
+    if(act==="open") return go("cockpit", t.dataset.id);
+    if(act==="close"){ const s=getSession(t.dataset.id); if(s){ closeSession(s,"CLIENT"); toast("info","Session closed","Browser released · permit freed"); renderView(); } return; }
+    if(act==="tab"){ state.cockpitTab=t.dataset.tab; document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x.dataset.tab===state.cockpitTab)); renderConsole(); return; }
+    if(act==="fill-url"){ const i=$("#nav-url"); if(i) i.value=t.dataset.url; return; }
+
+    if(act==="ns-set"){ nsState[t.dataset.key]= t.dataset.key==="idleTtl"?+t.dataset.val:t.dataset.val; openNewSession(); return; }
+    if(act==="ns-create"){
+      if(activeSessions().length>=CFG.maxConcurrent){ toast("err","Session cap reached","","429 session_cap_exceeded"); return; }
+      const s=makeSession(nsState.browserType, nsState.environment, nsState.idleTtl);
+      s.viewport = BROWSERS[nsState.browserType].mobile ? {width:390,height:844} : {width:1280,height:720};
+      state.sessions.push(s); closeModal();
+      toast("ok","Session created",`${BROWSERS[s.browserType].label} · ${s.sessionId}`);
+      go("cockpit", s.sessionId); return;
+    }
+
+    if(act==="cap-set"){ capState[t.dataset.key]=t.dataset.val; renderView(); return; }
+    if(act==="run-capture"){
+      capState.url = $("#cap-url").value.trim() || capState.url;
+      capState.xpath = $("#cap-xpath").value.trim();
+      capState.includeSource = $("#cap-src").checked;
+      if(!/^https?:\/\//.test(capState.url)){ toast("err","Invalid URL","URL must be absolute http(s)","validation_failed"); return; }
+      runCapture(); return;
+    }
+
+    const s = getSession(state.activeSessionId);
+    if(!s) return;
+    if(act==="navigate") return doNavigate(s, $("#nav-url").value.trim());
+    if(act==="find") return doFind(s, $("#find-xpath").value.trim());
+    if(act==="element-action") return doElementAction(s, $("#act-handle").value.trim(), $("#act-kind").value, $("#act-input").value);
+    if(act==="touch") return doTouch(s, $("#act-handle").value.trim(), $("#touch-kind").value);
+    if(act==="screenshot") return doScreenshot(s, $("#shot-strat").value);
+    if(act==="scroll") return doScroll(s, $("#scroll-mode").value);
+    if(act==="dom-remove") return doDomRemove(s, $("#dom-preset").value);
+    if(act==="alert-state") return doAlertState(s);
+    if(act==="alert-respond") return doAlertRespond(s, t.dataset.choice);
+    if(act==="execute") return doExecute(s, $("#exec-src").value);
+    if(act==="get-source") return doGetSource(s);
+  });
+  // capture live scroll offset from the viewport itself
+  document.addEventListener("scroll", e => {
+    if(state.view!=="cockpit") return;
+    const vp=e.target; if(vp && vp.id==="viewport"){ const s=getSession(state.activeSessionId); if(s){ s.scrollOffset.y=Math.round(vp.scrollTop); updateVpMeta(s); } }
+  }, true);
+  document.addEventListener("keydown", e => { if(e.key==="Escape") closeModal(); });
+
+  // ---------- clocks ----------
+  setInterval(() => {
+    // reap expired
+    for(const s of activeSessions()){
+      if(remainingMs(s)<=0){
+        const reason = (now() >= s.createdAt + s.absoluteTtlSeconds*1000) ? "REAPED_ABSOLUTE" : "REAPED_IDLE";
+        toast("info","Session reaped",`${s.sessionId} · ${REAP_LABEL[reason]||reason}`);
+        closeSession(s, reason);
+      }
+    }
+    // live TTL updates without full re-render
+    if(state.view==="dashboard"){
+      document.querySelectorAll("[data-id]").forEach(()=>{});
+      renderTopbar(); renderNav();
+      // refresh rings cheaply by re-rendering the table body only
+      const tb = document.querySelector("table.tbl tbody");
+      if(tb && state.view==="dashboard") renderView();
+    } else if(state.view==="cockpit"){
+      const s=getSession(state.activeSessionId);
+      if(s){ const r=$("#cp-rem"); if(r) r.textContent=fmtDur(remainingMs(s)/1000); }
+      renderTopbar();
+    }
+  }, 1000);
+
+  // occasional ambient console.log events on the active cockpit session
+  setInterval(() => {
+    if(state.view!=="cockpit") return;
+    const s=getSession(state.activeSessionId);
+    if(s && s.currentUrl){
+      const msgs=["[network] xhr 200 /api/session/ping","[perf] first-contentful-paint 412ms","[log] hydration complete","[network] fetch 200 /assets/app.js"];
+      pushEvent(s,"console.log",msgs[Math.floor(Math.random()*msgs.length)]);
+    }
+  }, 7000);
+
+  // ---------- boot ----------
+  paintThemeToggle();
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", paintThemeToggle);
+  seed();
+  renderView();
+})();
+</script>
