@@ -505,7 +505,10 @@
   const KNOWN_URLS = Object.keys(PAGES);
   const genericPage = url => ({ title:url.replace(/^https?:\/\//,""), viewport:{width:1280,height:720}, source:"<html><body>…</body></html>", elements:{},
     body:`<div class="pg"><h1>${esc(url.replace(/^https?:\/\//,"").split("/")[0])}</h1><p>A live browser session is pinned to this page. Use <b>Find element</b> with an XPath to resolve nodes, or <b>Execute JS</b> to run script in the page.</p><p class="muted">${esc(url)}</p></div>` });
-  const pageFor = url => PAGES[url] || (KNOWN_URLS.includes(url) ? PAGES[url] : genericPage(url));
+  // A session with no navigation yet sits on about:blank; keep ops (find/execute/source/dom) safe there.
+  const BLANK_PAGE = { title:"about:blank", viewport:{width:1280,height:720}, source:"<html><head></head><body></body></html>", elements:{},
+    body:`<div class="pg"><p class="muted">Blank session — navigate to a URL to load a page.</p></div>` };
+  const pageFor = url => url ? (PAGES[url] || genericPage(url)) : BLANK_PAGE;
 
   // ---------- state ----------
   const CFG = { maxConcurrent:10, idleTtlDefault:300, absoluteTtl:1800 };
