@@ -53,7 +53,6 @@ class BrowserSessionRepositoryIT {
             found -> {
               assertThat(found.getStatus()).isEqualTo(Status.ACTIVE);
               assertThat(found.getBrowserType()).isEqualTo("CHROME");
-              assertThat(found.getEnvironment()).isEqualTo("TEST");
               assertThat(found.isMobile()).isFalse();
               assertThat(found.getIdleTtlSecs()).isEqualTo(300);
               assertThat(found.getAbsoluteTtlSecs()).isEqualTo(1800);

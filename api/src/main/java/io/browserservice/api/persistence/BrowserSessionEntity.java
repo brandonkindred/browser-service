@@ -21,9 +21,6 @@ public class BrowserSessionEntity extends PanacheEntityBase {
   @Column(name = "browser_type", nullable = false, length = 32)
   private String browserType;
 
-  @Column(name = "environment", nullable = false, length = 32)
-  private String environment;
-
   @Enumerated(EnumType.STRING)
   @Column(name = "status", nullable = false, length = 16)
   private Status status;
@@ -58,7 +55,6 @@ public class BrowserSessionEntity extends PanacheEntityBase {
   public BrowserSessionEntity(
       UUID id,
       String browserType,
-      String environment,
       Status status,
       boolean mobile,
       Instant createdAt,
@@ -68,7 +64,6 @@ public class BrowserSessionEntity extends PanacheEntityBase {
       int absoluteTtlSecs) {
     this.id = id;
     this.browserType = browserType;
-    this.environment = environment;
     this.status = status;
     this.mobile = mobile;
     this.createdAt = createdAt;
@@ -84,10 +79,6 @@ public class BrowserSessionEntity extends PanacheEntityBase {
 
   public String getBrowserType() {
     return browserType;
-  }
-
-  public String getEnvironment() {
-    return environment;
   }
 
   public Status getStatus() {

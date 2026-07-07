@@ -713,12 +713,10 @@ components:
     # ----- Session lifecycle -----
     CreateSessionRequest:
       type: object
-      required: [browser, environment]
+      required: [browser]
       properties:
         browser:
           $ref: "#/components/schemas/BrowserType"
-        environment:
-          $ref: "#/components/schemas/BrowserEnvironment"
         viewport:
           $ref: "#/components/schemas/Viewport"
         user_agent:
@@ -735,14 +733,13 @@ components:
 
     Session:
       type: object
-      required: [session_id, owner_id, browser, environment, created_at, expires_at]
+      required: [session_id, owner_id, browser, created_at, expires_at]
       properties:
         session_id: { type: string }
         owner_id:
           type: string
           description: Caller that owns the session — the `X-Caller-Id` of the creator.
         browser: { $ref: "#/components/schemas/BrowserType" }
-        environment: { $ref: "#/components/schemas/BrowserEnvironment" }
         created_at: { type: string, format: date-time }
         expires_at: { type: string, format: date-time }
 
@@ -779,11 +776,6 @@ components:
       type: string
       description: Mirrors engine enum `com.looksee.browser.enums.BrowserType`.
       enum: [chrome, firefox, safari, ie, android, ios]
-
-    BrowserEnvironment:
-      type: string
-      description: Mirrors engine enum `com.looksee.browser.enums.BrowserEnvironment`.
-      enum: [test, discovery]
 
     ElementAction:
       type: string
@@ -1026,8 +1018,6 @@ components:
       properties:
         url: { type: string, format: uri }
         browser: { $ref: "#/components/schemas/BrowserType" }
-        environment:
-          $ref: "#/components/schemas/BrowserEnvironment"
         viewport: { $ref: "#/components/schemas/Viewport" }
         screenshot:
           type: object

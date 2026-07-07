@@ -2,7 +2,6 @@ package io.browserservice.api.service;
 
 import com.looksee.browser.Browser;
 import com.looksee.browser.MobileDevice;
-import com.looksee.browser.enums.BrowserEnvironment;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.dto.CaptureRequest;
 import io.browserservice.api.dto.CaptureResponse;
@@ -63,8 +62,6 @@ public class CaptureService {
 
   public CaptureResponse capture(CaptureRequest req, CallerId caller) {
     urlValidator.validate(req.url());
-    BrowserEnvironment env =
-        req.environment() == null ? BrowserEnvironment.TEST : req.environment();
     ScreenshotStrategy strategy =
         req.strategy() == null ? ScreenshotStrategy.VIEWPORT : req.strategy();
     PngEncoding encoding = req.encoding() == null ? PngEncoding.BINARY : req.encoding();
@@ -75,12 +72,11 @@ public class CaptureService {
     SessionHandle handle = null;
     try {
       if (req.browserType().isMobile()) {
-        MobileDevice device = drivers.createMobile(req.browserType(), env);
-        handle = SessionHandle.mobile(device, caller, req.browserType(), env, idleTtl, absoluteTtl);
+        MobileDevice device = drivers.createMobile(req.browserType());
+        handle = SessionHandle.mobile(device, caller, req.browserType(), idleTtl, absoluteTtl);
       } else {
-        Browser browser = drivers.createDesktop(req.browserType(), env);
-        handle =
-            SessionHandle.desktop(browser, caller, req.browserType(), env, idleTtl, absoluteTtl);
+        Browser browser = drivers.createDesktop(req.browserType());
+        handle = SessionHandle.desktop(browser, caller, req.browserType(), idleTtl, absoluteTtl);
       }
       registry.register(handle);
 

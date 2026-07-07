@@ -19,7 +19,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.looksee.browser.enums.Action;
 import com.looksee.browser.enums.AlertChoice;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import com.looksee.browser.enums.MobileAction;
 import io.browserservice.api.dto.AlertRespondRequest;
@@ -160,21 +159,14 @@ class ControllerHttpTest {
     when(sessionService.create(any(), any()))
         .thenReturn(
             new SessionResponse(
-                id,
-                "alice",
-                BrowserType.CHROME,
-                BrowserEnvironment.TEST,
-                Instant.now(),
-                Instant.now().plusSeconds(60)));
+                id, "alice", BrowserType.CHROME, Instant.now(), Instant.now().plusSeconds(60)));
 
     mvc.perform(
             post("/v1/sessions")
                 .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
-                    json.writeValueAsString(
-                        new CreateSessionRequest(
-                            BrowserType.CHROME, BrowserEnvironment.TEST, null))))
+                    json.writeValueAsString(new CreateSessionRequest(BrowserType.CHROME, null))))
         .andExpect(status().isCreated())
         .andExpect(jsonPath("$.session_id").value(id.toString()))
         .andExpect(jsonPath("$.owner_id").value("alice"));
@@ -200,9 +192,7 @@ class ControllerHttpTest {
                 .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
-                    json.writeValueAsString(
-                        new CreateSessionRequest(
-                            BrowserType.CHROME, BrowserEnvironment.TEST, null))))
+                    json.writeValueAsString(new CreateSessionRequest(BrowserType.CHROME, null))))
         .andExpect(status().isTooManyRequests())
         .andExpect(jsonPath("$.error.code").value("session_cap_exceeded"));
   }
@@ -216,9 +206,7 @@ class ControllerHttpTest {
                 .header("X-Caller-Id", "alice")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
-                    json.writeValueAsString(
-                        new CreateSessionRequest(
-                            BrowserType.CHROME, BrowserEnvironment.TEST, null))))
+                    json.writeValueAsString(new CreateSessionRequest(BrowserType.CHROME, null))))
         .andExpect(status().isBadGateway())
         .andExpect(jsonPath("$.error.code").value("upstream_unavailable"));
   }
@@ -240,7 +228,6 @@ class ControllerHttpTest {
                 id,
                 "alice",
                 BrowserType.CHROME,
-                BrowserEnvironment.TEST,
                 Instant.now(),
                 Instant.now(),
                 300L,
@@ -321,7 +308,6 @@ class ControllerHttpTest {
                             aliceSession,
                             "alice",
                             BrowserType.CHROME,
-                            BrowserEnvironment.TEST,
                             Instant.now(),
                             Instant.now().plusSeconds(60))));
               }
@@ -682,7 +668,7 @@ class ControllerHttpTest {
                 .content(
                     json.writeValueAsString(
                         new CaptureRequest(
-                            "https://x", BrowserType.CHROME, null, null, null, null, null))))
+                            "https://x", BrowserType.CHROME, null, null, null, null))))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.capture_id").value(capId.toString()));
   }

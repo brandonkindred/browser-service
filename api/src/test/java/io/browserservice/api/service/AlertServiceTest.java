@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 
 import com.looksee.browser.Browser;
 import com.looksee.browser.enums.AlertChoice;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.dto.AlertRespondRequest;
@@ -196,12 +195,7 @@ class AlertServiceTest {
   private UUID register(Browser browser) {
     SessionHandle handle =
         SessionHandle.desktop(
-            browser,
-            ALICE,
-            BrowserType.CHROME,
-            BrowserEnvironment.TEST,
-            Duration.ofSeconds(30),
-            Duration.ofSeconds(60));
+            browser, ALICE, BrowserType.CHROME, Duration.ofSeconds(30), Duration.ofSeconds(60));
     registry.acquirePermit();
     registry.register(handle);
     return handle.id();

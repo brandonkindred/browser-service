@@ -70,7 +70,7 @@ sequenceDiagram
     participant browser-service
     participant Browser as 🧭 Browser instance
 
-    Caller->>browser-service: POST /v1/sessions { browser, environment }
+    Caller->>browser-service: POST /v1/sessions { browser }
     browser-service->>Browser: allocate & pin
     browser-service-->>Caller: { session_id, owner_id, expires_at }
 
@@ -98,7 +98,7 @@ The HTTP surface below is the asynchronous side of the API. The real-time socket
 curl -X POST http://browser-service/v1/sessions \
   -H "Authorization: Bearer $TOKEN" \
   -H 'Content-Type: application/json' \
-  -d '{"browser_type": "chrome", "environment": "discovery"}'
+  -d '{"browser_type": "chrome"}'
 # -> {"session_id": "abc123", "owner_id": "alice", "expires_at": "2026-04-22T18:35:00Z", ...}
 
 # 2. Navigate.

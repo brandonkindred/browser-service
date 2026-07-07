@@ -2,7 +2,6 @@ package io.browserservice.api.session;
 
 import com.looksee.browser.Browser;
 import com.looksee.browser.MobileDevice;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import com.looksee.browser.helpers.BrowserConnectionHelper;
 import io.browserservice.api.error.UpstreamUnavailableException;
@@ -12,9 +11,9 @@ import org.springframework.stereotype.Component;
 public class BrowserConnectionHelperDriverFactory implements DriverFactory {
 
   @Override
-  public Browser createDesktop(BrowserType type, BrowserEnvironment env) {
+  public Browser createDesktop(BrowserType type) {
     try {
-      return BrowserConnectionHelper.getConnection(type, env);
+      return BrowserConnectionHelper.getConnection(type);
     } catch (Throwable e) {
       throw new UpstreamUnavailableException(
           "could not allocate desktop session: " + e.getMessage(), e);
@@ -22,9 +21,9 @@ public class BrowserConnectionHelperDriverFactory implements DriverFactory {
   }
 
   @Override
-  public MobileDevice createMobile(BrowserType type, BrowserEnvironment env) {
+  public MobileDevice createMobile(BrowserType type) {
     try {
-      return BrowserConnectionHelper.getMobileConnection(type, env);
+      return BrowserConnectionHelper.getMobileConnection(type);
     } catch (Throwable e) {
       throw new UpstreamUnavailableException(
           "could not allocate mobile session: " + e.getMessage(), e);
