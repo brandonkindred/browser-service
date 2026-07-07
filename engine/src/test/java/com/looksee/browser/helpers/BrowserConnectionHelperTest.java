@@ -3,7 +3,6 @@ package com.looksee.browser.helpers;
 import static org.junit.jupiter.api.Assertions.*;
 
 import com.looksee.browser.config.BrowserStackProperties;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,9 +43,7 @@ public class BrowserConnectionHelperTest {
 
     assertThrows(
         IllegalStateException.class,
-        () ->
-            BrowserConnectionHelper.getMobileConnection(
-                BrowserType.ANDROID, BrowserEnvironment.DISCOVERY));
+        () -> BrowserConnectionHelper.getMobileConnection(BrowserType.ANDROID));
   }
 
   @Test
@@ -55,9 +52,7 @@ public class BrowserConnectionHelperTest {
 
     assertThrows(
         IllegalStateException.class,
-        () ->
-            BrowserConnectionHelper.getMobileConnection(
-                BrowserType.IOS, BrowserEnvironment.DISCOVERY));
+        () -> BrowserConnectionHelper.getMobileConnection(BrowserType.IOS));
   }
 
   @Test
@@ -93,9 +88,7 @@ public class BrowserConnectionHelperTest {
 
     assertThrows(
         IllegalStateException.class,
-        () ->
-            BrowserConnectionHelper.getMobileConnection(
-                BrowserType.ANDROID, BrowserEnvironment.DISCOVERY));
+        () -> BrowserConnectionHelper.getMobileConnection(BrowserType.ANDROID));
   }
 
   @Test
@@ -104,53 +97,42 @@ public class BrowserConnectionHelperTest {
     BrowserConnectionHelper.setConfiguredAppiumUrls(new String[] {});
     assertThrows(
         IllegalStateException.class,
-        () ->
-            BrowserConnectionHelper.getMobileConnection(BrowserType.IOS, BrowserEnvironment.TEST));
+        () -> BrowserConnectionHelper.getMobileConnection(BrowserType.IOS));
   }
 
   @Test
-  public void testGetConnectionWithDiscoveryEnvironmentChrome() {
+  public void testGetConnectionChrome() {
     // Use a guaranteed-unreachable loopback port (1) rather than 4444 — the repo's
     // docker-compose.yml runs a real Selenium Chrome grid on localhost:4444, so a session
     // would actually be created there and the expected connection failure would not occur.
     BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[] {"http://localhost:1/wd/hub"});
     // Will fail when trying to connect to hub, but exercises the round-robin path
-    assertThrows(
-        Exception.class,
-        () ->
-            BrowserConnectionHelper.getConnection(
-                BrowserType.CHROME, BrowserEnvironment.DISCOVERY));
+    assertThrows(Exception.class, () -> BrowserConnectionHelper.getConnection(BrowserType.CHROME));
   }
 
   @Test
-  public void testGetConnectionWithDiscoveryEnvironmentFirefox() {
-    // See testGetConnectionWithDiscoveryEnvironmentChrome for why this avoids localhost:4444.
+  public void testGetConnectionFirefox() {
+    // See testGetConnectionChrome for why this avoids localhost:4444.
     BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[] {"http://localhost:1/wd/hub"});
-    assertThrows(
-        Exception.class,
-        () ->
-            BrowserConnectionHelper.getConnection(
-                BrowserType.FIREFOX, BrowserEnvironment.DISCOVERY));
+    assertThrows(Exception.class, () -> BrowserConnectionHelper.getConnection(BrowserType.FIREFOX));
   }
 
   @Test
-  public void testGetConnectionWithTestEnvironmentChromeUsesConfiguredUrl() {
-    // Regression for #43: TEST environment must honor configured hub URLs (previously the
-    // helper short-circuited to a null server_url for non-DISCOVERY env, causing an NPE in
-    // RemoteWebDriver.<init>). The connect attempt itself will still fail since nothing is
-    // listening — but the exception must come from the network layer, not a NullPointerException.
+  public void testGetConnectionChromeUsesConfiguredUrl() {
+    // Regression for #43: getConnection must honor configured hub URLs (previously the helper
+    // could short-circuit to a null server_url, causing an NPE in RemoteWebDriver.<init>). The
+    // connect attempt itself will still fail since nothing is listening — but the exception must
+    // come from the network layer, not a NullPointerException.
     // Use a guaranteed-unreachable loopback port (1) rather than 4444 — the repo's
     // docker-compose.yml runs a real Selenium Chrome grid on localhost:4444, so a session
     // would actually be created there and the expected connection failure would not occur.
     BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[] {"http://localhost:1/wd/hub"});
     Exception ex =
         assertThrows(
-            Exception.class,
-            () ->
-                BrowserConnectionHelper.getConnection(BrowserType.CHROME, BrowserEnvironment.TEST));
+            Exception.class, () -> BrowserConnectionHelper.getConnection(BrowserType.CHROME));
     assertFalse(
         ex instanceof NullPointerException,
-        "TEST environment should not fall through to a null server URL: " + ex);
+        "getConnection should not fall through to a null server URL: " + ex);
   }
 
   @Test
@@ -158,7 +140,7 @@ public class BrowserConnectionHelperTest {
     BrowserConnectionHelper.setConfiguredSeleniumUrls(new String[] {});
     assertThrows(
         IllegalStateException.class,
-        () -> BrowserConnectionHelper.getConnection(BrowserType.CHROME, BrowserEnvironment.TEST));
+        () -> BrowserConnectionHelper.getConnection(BrowserType.CHROME));
   }
 
   @Test
@@ -174,11 +156,7 @@ public class BrowserConnectionHelperTest {
     BrowserConnectionHelper.setBrowserStackConfig(
         "https://hub-cloud.browserstack.com/wd/hub", props);
     // Will fail to connect to BrowserStack, but exercises the BrowserStack code path
-    assertThrows(
-        Exception.class,
-        () ->
-            BrowserConnectionHelper.getConnection(
-                BrowserType.CHROME, BrowserEnvironment.DISCOVERY));
+    assertThrows(Exception.class, () -> BrowserConnectionHelper.getConnection(BrowserType.CHROME));
   }
 
   @Test
@@ -192,10 +170,7 @@ public class BrowserConnectionHelperTest {
     BrowserConnectionHelper.setBrowserStackConfig(
         "https://hub-cloud.browserstack.com/wd/hub", props);
     assertThrows(
-        Exception.class,
-        () ->
-            BrowserConnectionHelper.getMobileConnection(
-                BrowserType.ANDROID, BrowserEnvironment.DISCOVERY));
+        Exception.class, () -> BrowserConnectionHelper.getMobileConnection(BrowserType.ANDROID));
   }
 
   @Test

@@ -35,7 +35,6 @@ public class BrowserSessionTracker {
         new BrowserSessionEntity(
             handle.id(),
             handle.browserType().name(),
-            handle.environment().name(),
             Status.ACTIVE,
             handle.isMobile(),
             handle.createdAt(),

@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 
 import com.looksee.browser.Browser;
 import com.looksee.browser.MobileDevice;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.dto.CaptureRequest;
@@ -74,14 +73,13 @@ class CaptureServiceTest {
     when(driver.getCurrentUrl()).thenReturn("https://example.com");
     when(browser.getViewportScreenshot())
         .thenReturn(new BufferedImage(4, 2, BufferedImage.TYPE_INT_RGB));
-    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    when(drivers.createDesktop(BrowserType.CHROME)).thenReturn(browser);
 
     CaptureResponse resp =
         service.capture(
             new CaptureRequest(
                 "https://example.com",
                 BrowserType.CHROME,
-                null,
                 ScreenshotStrategy.VIEWPORT,
                 PngEncoding.BASE64,
                 null,
@@ -102,12 +100,11 @@ class CaptureServiceTest {
     when(driver.getCurrentUrl()).thenReturn("https://example.com");
     when(browser.getViewportScreenshot())
         .thenReturn(new BufferedImage(4, 2, BufferedImage.TYPE_INT_RGB));
-    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    when(drivers.createDesktop(BrowserType.CHROME)).thenReturn(browser);
 
     CaptureResponse resp =
         service.capture(
-            new CaptureRequest(
-                "https://example.com", BrowserType.CHROME, null, null, null, null, null),
+            new CaptureRequest("https://example.com", BrowserType.CHROME, null, null, null, null),
             ALICE);
 
     assertThat(resp.screenshot().href()).startsWith("/v1/capture/");
@@ -123,18 +120,12 @@ class CaptureServiceTest {
     when(browser.getViewportScreenshot())
         .thenReturn(new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB));
     when(browser.getSource()).thenReturn("<html>hi</html>");
-    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    when(drivers.createDesktop(BrowserType.CHROME)).thenReturn(browser);
 
     CaptureResponse resp =
         service.capture(
             new CaptureRequest(
-                "https://example.com",
-                BrowserType.CHROME,
-                null,
-                null,
-                PngEncoding.BASE64,
-                null,
-                true),
+                "https://example.com", BrowserType.CHROME, null, PngEncoding.BASE64, null, true),
             ALICE);
 
     assertThat(resp.source()).isEqualTo("<html>hi</html>");
@@ -153,18 +144,12 @@ class CaptureServiceTest {
     when(browser.extractAttributes(element)).thenReturn(Map.of("id", "x"));
     when(element.isDisplayed()).thenReturn(true);
     when(element.getRect()).thenReturn(new Rectangle(1, 2, 3, 4));
-    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    when(drivers.createDesktop(BrowserType.CHROME)).thenReturn(browser);
 
     CaptureResponse resp =
         service.capture(
             new CaptureRequest(
-                "https://example.com",
-                BrowserType.CHROME,
-                null,
-                null,
-                PngEncoding.BASE64,
-                "//h1",
-                null),
+                "https://example.com", BrowserType.CHROME, null, PngEncoding.BASE64, "//h1", null),
             ALICE);
 
     assertThat(resp.element()).isNotNull();
@@ -181,14 +166,13 @@ class CaptureServiceTest {
     when(browser.getViewportScreenshot())
         .thenReturn(new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB));
     when(browser.findElement("//missing")).thenThrow(new NoSuchElementException("nope"));
-    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    when(drivers.createDesktop(BrowserType.CHROME)).thenReturn(browser);
 
     CaptureResponse resp =
         service.capture(
             new CaptureRequest(
                 "https://example.com",
                 BrowserType.CHROME,
-                null,
                 null,
                 PngEncoding.BASE64,
                 "//missing",
@@ -206,18 +190,12 @@ class CaptureServiceTest {
     when(driver.getCurrentUrl()).thenReturn("https://example.com");
     when(device.getViewportScreenshot())
         .thenReturn(new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB));
-    when(drivers.createMobile(BrowserType.ANDROID, BrowserEnvironment.TEST)).thenReturn(device);
+    when(drivers.createMobile(BrowserType.ANDROID)).thenReturn(device);
 
     CaptureResponse resp =
         service.capture(
             new CaptureRequest(
-                "https://example.com",
-                BrowserType.ANDROID,
-                null,
-                null,
-                PngEncoding.BASE64,
-                null,
-                null),
+                "https://example.com", BrowserType.ANDROID, null, PngEncoding.BASE64, null, null),
             ALICE);
     assertThat(resp).isNotNull();
     verify(device).navigateTo("https://example.com");
@@ -233,13 +211,7 @@ class CaptureServiceTest {
             () ->
                 guarded.capture(
                     new CaptureRequest(
-                        "http://internal.example",
-                        BrowserType.CHROME,
-                        null,
-                        null,
-                        null,
-                        null,
-                        null),
+                        "http://internal.example", BrowserType.CHROME, null, null, null, null),
                     ALICE))
         .isInstanceOf(SsrfBlockedException.class);
     assertThat(registry.availablePermits()).isEqualTo(5);
@@ -248,14 +220,14 @@ class CaptureServiceTest {
 
   @Test
   void captureDriverFailureReleasesPermit() {
-    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST))
+    when(drivers.createDesktop(BrowserType.CHROME))
         .thenThrow(new UpstreamUnavailableException("nope"));
 
     assertThatThrownBy(
             () ->
                 service.capture(
                     new CaptureRequest(
-                        "https://example.com", BrowserType.CHROME, null, null, null, null, null),
+                        "https://example.com", BrowserType.CHROME, null, null, null, null),
                     ALICE))
         .isInstanceOf(UpstreamUnavailableException.class);
     assertThat(registry.availablePermits()).isEqualTo(5);
@@ -269,12 +241,11 @@ class CaptureServiceTest {
     when(driver.getCurrentUrl()).thenReturn("https://example.com");
     when(browser.getViewportScreenshot())
         .thenReturn(new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB));
-    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    when(drivers.createDesktop(BrowserType.CHROME)).thenReturn(browser);
 
     CaptureResponse resp =
         service.capture(
-            new CaptureRequest(
-                "https://example.com", BrowserType.CHROME, null, null, null, null, null),
+            new CaptureRequest("https://example.com", BrowserType.CHROME, null, null, null, null),
             ALICE);
     java.util.UUID id =
         java.util.UUID.fromString(

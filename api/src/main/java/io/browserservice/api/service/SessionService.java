@@ -59,23 +59,15 @@ public class SessionService {
       Duration idleTtl =
           req.idleTtlSeconds() == null ? defaultIdleTtl : Duration.ofSeconds(req.idleTtlSeconds());
       if (req.browserType().isMobile()) {
-        MobileDevice device = drivers.createMobile(req.browserType(), req.environment());
-        handle =
-            SessionHandle.mobile(
-                device, caller, req.browserType(), req.environment(), idleTtl, absoluteTtl);
+        MobileDevice device = drivers.createMobile(req.browserType());
+        handle = SessionHandle.mobile(device, caller, req.browserType(), idleTtl, absoluteTtl);
       } else {
-        Browser browser = drivers.createDesktop(req.browserType(), req.environment());
-        handle =
-            SessionHandle.desktop(
-                browser, caller, req.browserType(), req.environment(), idleTtl, absoluteTtl);
+        Browser browser = drivers.createDesktop(req.browserType());
+        handle = SessionHandle.desktop(browser, caller, req.browserType(), idleTtl, absoluteTtl);
       }
       tracker.recordCreate(handle);
       registry.register(handle);
-      log.info(
-          "created session id={} browserType={} environment={}",
-          handle.id(),
-          handle.browserType(),
-          handle.environment());
+      log.info("created session id={} browserType={}", handle.id(), handle.browserType());
       return toSummary(handle);
     } catch (RuntimeException e) {
       if (handle != null) {
@@ -129,7 +121,6 @@ public class SessionService {
         handle.id(),
         handle.owner().value(),
         handle.browserType(),
-        handle.environment(),
         handle.createdAt(),
         handle.lastUsedAt(),
         handle.idleTtl().toSeconds(),
@@ -145,7 +136,6 @@ public class SessionService {
         handle.id(),
         handle.owner().value(),
         handle.browserType(),
-        handle.environment(),
         handle.createdAt(),
         handle.expiresAt());
   }

@@ -5,7 +5,6 @@ import com.looksee.browser.BrowserFactory;
 import com.looksee.browser.MobileDevice;
 import com.looksee.browser.MobileFactory;
 import com.looksee.browser.config.BrowserStackProperties;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import java.net.MalformedURLException;
 import java.net.URL;
@@ -103,20 +102,16 @@ public class BrowserConnectionHelper {
    *
    * <p>For chrome/firefox the configured hub URLs (see {@link #setConfiguredSeleniumUrls}) are
    * round-robined and used verbatim — entries are expected to be fully qualified, e.g. {@code
-   * http://host:4444/wd/hub}. The {@code environment} parameter is currently unused for URL
-   * selection and is reserved for future per-environment routing.
+   * http://host:4444/wd/hub}.
    *
    * @param browser the browser to connect to
-   * @param environment the environment to connect to
    * @return the browser connection
-   *     <p>precondition: browser != null precondition: environment != null
+   *     <p>precondition: browser != null
    * @throws MalformedURLException if the url is malformed
    * @throws IllegalStateException if no Selenium hub URLs are configured for chrome/firefox
    */
-  public static Browser getConnection(BrowserType browser, BrowserEnvironment environment)
-      throws MalformedURLException {
+  public static Browser getConnection(BrowserType browser) throws MalformedURLException {
     assert browser != null;
-    assert environment != null;
 
     if (browserStackEnabled) {
       URL server_url = new URL(browserStackHubUrl);
@@ -144,18 +139,14 @@ public class BrowserConnectionHelper {
    * Creates a {@link MobileDevice} connection via Appium
    *
    * @param browser the mobile browser type (ANDROID, IOS)
-   * @param environment the environment to connect to
    * @return the mobile device connection
-   *     <p>precondition: browser != null precondition: browser.isMobile() precondition: environment
-   *     != null
+   *     <p>precondition: browser != null precondition: browser.isMobile()
    * @throws MalformedURLException if the url is malformed
    * @throws IllegalStateException if Appium URLs are not configured
    */
-  public static MobileDevice getMobileConnection(
-      BrowserType browser, BrowserEnvironment environment) throws MalformedURLException {
+  public static MobileDevice getMobileConnection(BrowserType browser) throws MalformedURLException {
     assert browser != null;
     assert browser.isMobile();
-    assert environment != null;
 
     if (browserStackEnabled) {
       URL server_url = new URL(browserStackHubUrl);

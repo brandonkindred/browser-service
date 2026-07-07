@@ -1,6 +1,5 @@
 package io.browserservice.api.dto;
 
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -10,8 +9,6 @@ import org.eclipse.microprofile.openapi.annotations.media.Schema;
 public record CaptureRequest(
     @NotBlank @Schema(description = "Target URL") String url,
     @NotNull @Schema(description = "Browser type") BrowserType browserType,
-    @Schema(description = "Environment (defaults to TEST)", nullable = true)
-        BrowserEnvironment environment,
     @Schema(description = "Screenshot strategy (defaults to VIEWPORT)", nullable = true)
         ScreenshotStrategy strategy,
     @Schema(

@@ -10,7 +10,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.looksee.browser.Browser;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.session.CallerId;
@@ -59,7 +58,6 @@ class NavigationWatcherTest {
             browser,
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
             Duration.ofSeconds(60));
     sessionId = handle.id();

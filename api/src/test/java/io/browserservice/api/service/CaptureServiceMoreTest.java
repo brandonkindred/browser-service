@@ -7,7 +7,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import com.looksee.browser.Browser;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.dto.CaptureRequest;
@@ -59,13 +58,13 @@ class CaptureServiceMoreTest {
     WebDriver driver = mock(WebDriver.class);
     when(browser.getDriver()).thenReturn(driver);
     doThrow(new RuntimeException("boom")).when(browser).navigateTo("https://example.com");
-    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    when(drivers.createDesktop(BrowserType.CHROME)).thenReturn(browser);
 
     assertThatThrownBy(
             () ->
                 service.capture(
                     new CaptureRequest(
-                        "https://example.com", BrowserType.CHROME, null, null, null, null, null),
+                        "https://example.com", BrowserType.CHROME, null, null, null, null),
                     ALICE))
         .isInstanceOf(RuntimeException.class);
 
@@ -81,7 +80,7 @@ class CaptureServiceMoreTest {
     when(browser.getDriver()).thenReturn(driver);
     when(driver.getCurrentUrl()).thenReturn("https://example.com");
     when(browser.getViewportScreenshot()).thenThrow(new java.io.IOException("disk"));
-    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    when(drivers.createDesktop(BrowserType.CHROME)).thenReturn(browser);
 
     assertThatThrownBy(
             () ->
@@ -89,7 +88,6 @@ class CaptureServiceMoreTest {
                     new CaptureRequest(
                         "https://example.com",
                         BrowserType.CHROME,
-                        null,
                         null,
                         PngEncoding.BASE64,
                         null,
@@ -107,18 +105,12 @@ class CaptureServiceMoreTest {
     when(driver.getCurrentUrl()).thenReturn("https://example.com");
     when(browser.getViewportScreenshot())
         .thenReturn(new BufferedImage(1, 1, BufferedImage.TYPE_INT_RGB));
-    when(drivers.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST)).thenReturn(browser);
+    when(drivers.createDesktop(BrowserType.CHROME)).thenReturn(browser);
 
     var resp =
         service.capture(
             new CaptureRequest(
-                "https://example.com",
-                BrowserType.CHROME,
-                null,
-                null,
-                PngEncoding.BASE64,
-                "",
-                null),
+                "https://example.com", BrowserType.CHROME, null, PngEncoding.BASE64, "", null),
             ALICE);
     assertThat(resp.element()).isNull();
   }

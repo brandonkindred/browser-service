@@ -3,7 +3,6 @@ package io.browserservice.api.session;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.looksee.browser.Browser;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import io.browserservice.api.config.EngineProperties;
 import java.time.Duration;
@@ -36,7 +35,6 @@ class SessionLocksTryDoWithLockTest {
             Mockito.mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
             Duration.ofSeconds(60));
   }

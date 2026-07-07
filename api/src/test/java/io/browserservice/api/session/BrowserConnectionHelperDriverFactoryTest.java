@@ -4,7 +4,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.looksee.browser.config.BrowserStackProperties;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import com.looksee.browser.helpers.BrowserConnectionHelper;
 import io.browserservice.api.error.UpstreamUnavailableException;
@@ -24,7 +23,7 @@ class BrowserConnectionHelperDriverFactoryTest {
   void desktopWithNoConfigurationWrapsFailureAsUpstreamUnavailable() {
     BrowserConnectionHelperDriverFactory factory = new BrowserConnectionHelperDriverFactory();
 
-    assertThatThrownBy(() -> factory.createDesktop(BrowserType.CHROME, BrowserEnvironment.TEST))
+    assertThatThrownBy(() -> factory.createDesktop(BrowserType.CHROME))
         .isInstanceOf(UpstreamUnavailableException.class);
   }
 
@@ -32,7 +31,7 @@ class BrowserConnectionHelperDriverFactoryTest {
   void mobileWithNoConfigurationWrapsFailureAsUpstreamUnavailable() {
     BrowserConnectionHelperDriverFactory factory = new BrowserConnectionHelperDriverFactory();
 
-    assertThatThrownBy(() -> factory.createMobile(BrowserType.ANDROID, BrowserEnvironment.TEST))
+    assertThatThrownBy(() -> factory.createMobile(BrowserType.ANDROID))
         .isInstanceOf(UpstreamUnavailableException.class);
   }
 

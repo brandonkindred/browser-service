@@ -61,10 +61,7 @@ class SeleniumGridIT {
   @Test
   void createNavigateScreenshotDeleteSmokeTest() throws Exception {
     CreateSessionRequest createReq =
-        new CreateSessionRequest(
-            com.looksee.browser.enums.BrowserType.CHROME,
-            com.looksee.browser.enums.BrowserEnvironment.TEST,
-            null);
+        new CreateSessionRequest(com.looksee.browser.enums.BrowserType.CHROME, null);
 
     String createResponse =
         mvc.perform(

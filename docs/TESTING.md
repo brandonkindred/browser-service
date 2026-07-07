@@ -41,7 +41,6 @@ src/test/java/com/looksee/
 │   ├── enums/
 │   │   ├── ActionTest.java              — Action enum: creation, short names, invalid values
 │   │   ├── AlertChoiceTest.java         — AlertChoice enum: creation, toString, invalid values
-│   │   ├── BrowserEnvironmentTest.java  — BrowserEnvironment enum: creation, invalid values
 │   │   ├── BrowserTypeTest.java         — BrowserType enum: creation, isMobile(), invalid values
 │   │   └── MobileActionTest.java        — MobileAction enum: creation, all 13 values, invalid
 │   ├── helpers/
@@ -95,7 +94,7 @@ src/test/java/com/looksee/
 - **MobileActionFactory** — Constructor validation (non-Appium driver rejection), SEND_KEYS delegation, SwipeDirection enum coverage.
 
 ### Connection Helpers
-- **BrowserConnectionHelper** — Selenium URL configuration, Appium URL configuration, BrowserStack setup/clear lifecycle, round-robin hub selection (Chrome/Firefox DISCOVERY), TEST environment path, BrowserStack connection paths (desktop/mobile), empty Appium URL validation.
+- **BrowserConnectionHelper** — Selenium URL configuration, Appium URL configuration, BrowserStack setup/clear lifecycle, round-robin hub selection (Chrome/Firefox), configured-URL usage (no null fall-through), BrowserStack connection paths (desktop/mobile), empty Appium URL validation.
 
 ### Configuration Properties
 - **SeleniumProperties** — Full constructor, null defaults, URL array parsing (multi/single/null/empty).
