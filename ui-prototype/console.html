@@ -518,11 +518,11 @@
     reaped:0, wsConnected:true,
   };
 
-  function makeSession(browserType, environment, idleTtl, seed) {
+  function makeSession(browserType, idleTtl, seed) {
     const t = now();
     const created = seed ? t - (seed.ageMs||0) : t;
     const s = {
-      sessionId: uid("s_"), ownerId:"acme:alice", browserType, environment,
+      sessionId: uid("s_"), ownerId:"acme:alice", browserType,
       createdAt: created, lastUsedAt: seed ? t - (seed.idleMs||0) : t,
       idleTtlSeconds: idleTtl, absoluteTtlSeconds: CFG.absoluteTtl,
       currentUrl: seed?.url || null, pageKey: seed?.url || null,
@@ -540,18 +540,18 @@
 
   // seed a couple sessions so the console isn't empty
   function seed(){
-    const a = makeSession("chrome","test",300,{url:"https://shop.demo/checkout", ageMs:214000, idleMs:40000});
+    const a = makeSession("chrome",300,{url:"https://shop.demo/checkout", ageMs:214000, idleMs:40000});
     a.viewport = pageFor(a.currentUrl).viewport;
     logOp(a,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url:a.currentUrl},{currentUrl:a.currentUrl,status:"LOADED"},"ok",true);
-    const b = makeSession("android","discovery",300,{url:"https://news.demo", ageMs:70000, idleMs:275000}); // near idle-expiry
+    const b = makeSession("android",300,{url:"https://news.demo", ageMs:70000, idleMs:275000}); // near idle-expiry
     b.viewport = {width:390,height:844};
     logOp(b,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url:b.currentUrl},{currentUrl:b.currentUrl,status:"LOADED"},"ok",true);
     state.sessions.push(a,b);
     // some history
     state.history.push(
-      { sessionId:uid("s_"), browserType:"firefox", environment:"test", createdAt:now()-3.2e6, closedAt:now()-3.0e6, closedReason:"CLIENT" },
-      { sessionId:uid("s_"), browserType:"chrome", environment:"discovery", createdAt:now()-2.1e6, closedAt:now()-1.6e6, closedReason:"REAPED_ABSOLUTE" },
-      { sessionId:uid("s_"), browserType:"ios", environment:"test", createdAt:now()-9e5, closedAt:now()-6e5, closedReason:"REAPED_IDLE" },
+      { sessionId:uid("s_"), browserType:"firefox", createdAt:now()-3.2e6, closedAt:now()-3.0e6, closedReason:"CLIENT" },
+      { sessionId:uid("s_"), browserType:"chrome", createdAt:now()-2.1e6, closedAt:now()-1.6e6, closedReason:"REAPED_ABSOLUTE" },
+      { sessionId:uid("s_"), browserType:"ios", createdAt:now()-9e5, closedAt:now()-6e5, closedReason:"REAPED_IDLE" },
     );
   }
 
@@ -574,7 +574,7 @@
   function closeSession(s, reason){
     if(s.status!=="ACTIVE") return;
     s.status = (reason==="CLIENT") ? "CLOSED" : "EXPIRED";
-    state.history.unshift({ sessionId:s.sessionId, browserType:s.browserType, environment:s.environment, createdAt:s.createdAt, closedAt:now(), closedReason:reason });
+    state.history.unshift({ sessionId:s.sessionId, browserType:s.browserType, createdAt:s.createdAt, closedAt:now(), closedReason:reason });
     state.sessions = state.sessions.filter(x => x.sessionId!==s.sessionId);
     if(reason!=="CLIENT") state.reaped++;
     if(state.view==="cockpit" && state.activeSessionId===s.sessionId){ go("dashboard"); }
@@ -675,14 +675,13 @@
       <tr class="row-click" data-act="open" data-id="${s.sessionId}">
         <td><span class="mono" style="color:var(--accent)">${s.sessionId}</span></td>
         <td>${brBadge(s.browserType)}</td>
-        <td><span class="chip neutral">${s.environment}</span></td>
         <td><span class="mono url-cell" title="${s.currentUrl?esc(s.currentUrl):""}">${s.currentUrl?esc(s.currentUrl):"—"}</span></td>
         <td class="num">${fmtAge(now()-s.createdAt)}</td>
         <td>${ttlRing(s)}</td>
         <td><span class="chip active"><span class="d"></span>ACTIVE</span></td>
         <td style="text-align:right"><button class="btn sm icon ghost" data-act="close" data-id="${s.sessionId}" title="Close session">${svg(I.x)}</button></td>
       </tr>`).join("")
-      : `<tr><td colspan="8"><div class="empty">${svg(I.inbox)}<div>No open sessions. Create one to pin a dedicated browser.</div></div></td></tr>`;
+      : `<tr><td colspan="7"><div class="empty">${svg(I.inbox)}<div>No open sessions. Create one to pin a dedicated browser.</div></div></td></tr>`;
 
     const health = h => `<div class="hrow"><span class="dot ${h.reachable?"good":"crit"}"></span><span class="url">${esc(h.url)}</span><span class="tag" style="color:${h.reachable?"var(--good)":"var(--crit)"}">${h.reachable?"reachable":"unreachable"}</span></div>`;
     const active = sessions.length;
@@ -702,7 +701,7 @@
             <button class="btn sm primary" data-act="new-session">${svg(I.plus)} New session</button>
           </div>
           <div class="tbl-wrap"><table class="tbl">
-            <thead><tr><th>Session</th><th>Browser</th><th>Env</th><th>Current URL</th><th>Age</th><th>Reaps in</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Session</th><th>Browser</th><th>Current URL</th><th>Age</th><th>Reaps in</th><th>Status</th><th></th></tr></thead>
             <tbody>${rows}</tbody></table></div>
         </div>
         <div class="card">
@@ -757,7 +756,6 @@
           <div class="vp-meta">
             <span><b>viewport</b> ${s.viewport.width}×${s.viewport.height}</span>
             <span><b>scroll</b> x:<span id="sx">${s.scrollOffset.x}</span> y:<span id="sy">${s.scrollOffset.y}</span></span>
-            <span><b>env</b> ${s.environment}</span>
             <span><b>reaps in</b> <span id="cp-rem">${fmtDur(rem)}</span></span>
           </div>
         </div>
@@ -853,7 +851,7 @@
   function renderConsole(){ const p=$("#logpane"); if(!p) return; const s=getSession(state.activeSessionId); if(!s) return; p.innerHTML = state.cockpitTab==="console"?consoleHtml(s):eventsHtml(s); }
 
   // ------ capture view ------
-  const capState = { browserType:"chrome", environment:"test", strategy:"FULL_PAGE_SHUTTERBUG", encoding:"BINARY", includeSource:false, url:"https://example.com", xpath:"", result:null };
+  const capState = { browserType:"chrome", strategy:"FULL_PAGE_SHUTTERBUG", encoding:"BINARY", includeSource:false, url:"https://example.com", xpath:"", result:null };
   function viewCapture(){
     const seg = (key, arr) => arr.map(o=>`<button class="${capState[key]===o.v?"on":""}" data-act="cap-set" data-key="${key}" data-val="${o.v}">${o.i?svg(o.i):""}${o.l}</button>`).join("");
     const res = capState.result;
@@ -863,7 +861,6 @@
         <div class="card" style="padding:18px;display:flex;flex-direction:column;gap:16px">
           <label class="f"><span class="lt">Target URL</span><input class="t" id="cap-url" value="${esc(capState.url)}"></label>
           <div><div class="lt" style="margin-bottom:6px;color:var(--muted);font-size:10px;letter-spacing:.04em;text-transform:uppercase">Browser</div><div class="seg">${seg("browserType",[{v:"chrome",l:"Chrome"},{v:"firefox",l:"Firefox"},{v:"android",l:"Android",i:I.phone},{v:"ios",l:"iOS",i:I.phone}])}</div></div>
-          <div><div class="lt" style="margin-bottom:6px;color:var(--muted);font-size:10px;letter-spacing:.04em;text-transform:uppercase">Environment</div><div class="seg">${seg("environment",[{v:"test",l:"test"},{v:"discovery",l:"discovery"}])}</div></div>
           <div><div class="lt" style="margin-bottom:6px;color:var(--muted);font-size:10px;letter-spacing:.04em;text-transform:uppercase">Strategy</div><div class="seg">${seg("strategy",[{v:"VIEWPORT",l:"Viewport"},{v:"FULL_PAGE_SHUTTERBUG",l:"Full page"}])}</div></div>
           <div><div class="lt" style="margin-bottom:6px;color:var(--muted);font-size:10px;letter-spacing:.04em;text-transform:uppercase">Encoding</div><div class="seg">${seg("encoding",[{v:"BINARY",l:"PNG bytes"},{v:"BASE64",l:"base64 JSON"}])}</div></div>
           <label class="f" style="flex-direction:row;align-items:center;gap:9px"><input type="checkbox" id="cap-src" ${capState.includeSource?"checked":""}><span class="lt" style="text-transform:none;font-size:12px">Include page source</span></label>
@@ -896,29 +893,27 @@
       return `<tr>
         <td><span class="mono" style="color:var(--text-dim)">${h.sessionId}</span></td>
         <td>${brBadge(h.browserType)}</td>
-        <td><span class="chip neutral">${h.environment}</span></td>
         <td class="num">${fmtAge(h.closedAt-h.createdAt)}</td>
         <td><span class="mono" style="font-size:11.5px;color:var(--muted)">${h.closedReason}</span></td>
         <td><span class="chip ${cls}"><span class="d"></span>${lbl}</span></td>
         <td class="num" style="color:var(--muted)">${clock(h.closedAt)}</td>
       </tr>`;
-    }).join("") : `<tr><td colspan="7"><div class="empty">${svg(I.history)}<div>No closed sessions yet.</div></div></td></tr>`;
+    }).join("") : `<tr><td colspan="6"><div class="empty">${svg(I.history)}<div>No closed sessions yet.</div></div></td></tr>`;
     return `
       <div class="page-head"><h1>Session history</h1><p>The audit trail from the <span class="mono">browser_sessions</span> table — every session that closed, and why it closed.</p></div>
       <div class="card"><div class="tbl-wrap"><table class="tbl">
-        <thead><tr><th>Session</th><th>Browser</th><th>Env</th><th>Lifetime</th><th>Closed reason</th><th>Outcome</th><th>Closed at</th></tr></thead>
+        <thead><tr><th>Session</th><th>Browser</th><th>Lifetime</th><th>Closed reason</th><th>Outcome</th><th>Closed at</th></tr></thead>
         <tbody>${rows}</tbody></table></div></div>`;
   }
 
   // ---------- modal ----------
-  const nsState = { browserType:"chrome", environment:"test", idleTtl:300 };
+  const nsState = { browserType:"chrome", idleTtl:300 };
   function openNewSession(){
     if(activeSessions().length>=CFG.maxConcurrent){
       toast("err","Session cap reached","Close a session before opening another.","429 session_cap_exceeded");
       return;
     }
     const bseg = Object.entries(BROWSERS).map(([k,b])=>`<button class="${nsState.browserType===k?"on":""}" data-act="ns-set" data-key="browserType" data-val="${k}">${svg(b.ico)}${b.label}</button>`).join("");
-    const eseg = ["test","discovery"].map(e=>`<button class="${nsState.environment===e?"on":""}" data-act="ns-set" data-key="environment" data-val="${e}">${e}</button>`).join("");
     const tseg = [{v:60,l:"60s"},{v:300,l:"5 min"},{v:900,l:"15 min"}].map(t=>`<button class="${nsState.idleTtl===t.v?"on":""}" data-act="ns-set" data-key="idleTtl" data-val="${t.v}">${t.l}</button>`).join("");
     $("#modal-root").innerHTML = `
       <div class="scrim">
@@ -926,7 +921,6 @@
           <div class="modal-h"><h3>New browser session</h3><p>Pin a dedicated browser. Counts against your ${CFG.maxConcurrent}-session cap.</p></div>
           <div class="modal-b">
             <div><div class="lt" style="margin-bottom:7px;color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase">Browser type</div><div class="seg">${bseg}</div></div>
-            <div><div class="lt" style="margin-bottom:7px;color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase">Environment</div><div class="seg">${eseg}</div></div>
             <div><div class="lt" style="margin-bottom:7px;color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase">Idle TTL <span style="text-transform:none;letter-spacing:0">(absolute stays 30 min)</span></div><div class="seg">${tseg}</div></div>
           </div>
           <div class="modal-f"><button class="btn ghost" data-act="close-modal">Cancel</button><button class="btn primary" data-act="ns-create">${svg(I.plus)} Create session</button></div>
@@ -1095,7 +1089,7 @@
     if(act==="ns-set"){ nsState[t.dataset.key]= t.dataset.key==="idleTtl"?+t.dataset.val:t.dataset.val; openNewSession(); return; }
     if(act==="ns-create"){
       if(activeSessions().length>=CFG.maxConcurrent){ toast("err","Session cap reached","","429 session_cap_exceeded"); return; }
-      const s=makeSession(nsState.browserType, nsState.environment, nsState.idleTtl);
+      const s=makeSession(nsState.browserType, nsState.idleTtl);
       s.viewport = BROWSERS[nsState.browserType].mobile ? {width:390,height:844} : {width:1280,height:720};
       state.sessions.push(s); closeModal();
       toast("ok","Session created",`${BROWSERS[s.browserType].label} · ${s.sessionId}`);
