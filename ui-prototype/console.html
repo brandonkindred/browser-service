@@ -801,7 +801,10 @@
     } else {
       html += op("Touch gesture", I.hand, "touch", `
         <label class="f"><span class="lt">element handle</span><input class="t" id="act-handle" placeholder="el_1 (from Find)"></label>
-        <label class="f"><span class="lt">gesture</span><select class="t" id="touch-kind">${opts(["tap","doubleTap","longPress","swipeUp","swipeDown","swipeLeft","swipeRight","scrollUp","scrollDown","pinch","zoom","sendKeys"])}</select></label>
+        <div class="op-body row" style="padding:0">
+          <label class="f"><span class="lt">gesture</span><select class="t" id="touch-kind">${opts(["tap","doubleTap","longPress","swipeUp","swipeDown","swipeLeft","swipeRight","scrollUp","scrollDown","pinch","zoom","sendKeys"])}</select></label>
+          <label class="f"><span class="lt">input (sendKeys)</span><input class="t" id="touch-input" placeholder="text…"></label>
+        </div>
         <button class="btn" data-act="touch">Perform gesture</button>`);
     }
 
@@ -810,11 +813,16 @@
       <button class="btn" data-act="screenshot">${svg(I.camera)} Capture</button>`);
 
     html += op("Scroll", I.scroll, "scroll", `
-      <label class="f"><span class="lt">mode</span><select class="t" id="scroll-mode">${opts(["TO_TOP","TO_BOTTOM","DOWN_FULL","DOWN_PERCENT","TO_ELEMENT"])}</select></label>
+      <label class="f"><span class="lt">mode</span><select class="t" id="scroll-mode">${opts(["TO_TOP","TO_BOTTOM","DOWN_FULL","DOWN_PERCENT","TO_ELEMENT","TO_ELEMENT_CENTERED"])}</select></label>
+      <div class="op-body row" style="padding:0">
+        <label class="f"><span class="lt">percent · DOWN_PERCENT</span><input class="t" id="scroll-percent" placeholder="0.5"></label>
+        <label class="f"><span class="lt">handle · TO_ELEMENT*</span><input class="t" id="scroll-handle" placeholder="el_1"></label>
+      </div>
       <button class="btn" data-act="scroll">Scroll viewport</button>`);
 
     html += op("Remove overlay", I.scissors, "dom", `
       <label class="f"><span class="lt">preset</span><select class="t" id="dom-preset">${opts(["GDPR_MODAL","GDPR","DRIFT_CHAT","BY_CLASS"])}</select></label>
+      <label class="f"><span class="lt">class name · BY_CLASS</span><input class="t" id="dom-value" placeholder="cookie-banner"></label>
       <button class="btn" data-act="dom-remove">Strip from DOM</button>`);
 
     html += op("Alert", I.bell, "alert", `
@@ -939,6 +947,9 @@
     if(!/^https?:\/\//.test(url)){ logOp(s,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url},{error:{code:"validation_failed",message:"url must be absolute http(s)",requestId:uid("req_")}},"err"); toast("err","Navigation rejected","URL must start with http:// or https://","validation_failed"); return; }
     touch(s);
     s.currentUrl=url; s.pageKey=url; s.scrollOffset={x:0,y:0}; s.gdprShown=true; s.driftShown=true;
+    // Real WebDriver element handles are page-bound and go stale on navigation — drop them.
+    s.elements={}; s.elementSeq=0;
+    const fo=$("#find-out"); if(fo) fo.innerHTML="";
     const p=pageFor(url); s.viewport = BROWSERS[s.browserType].mobile ? {width:390,height:844} : p.viewport;
     logOp(s,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url},{currentUrl:url,status:"LOADED"},"ok");
     pushEvent(s,"navigation.changed",`→ ${url}`);
@@ -984,11 +995,11 @@
       toast("ok","Action performed",`${kind} · ${handle}`);
     }
   }
-  function doTouch(s, handle, kind){
+  function doTouch(s, handle, kind, input){
     if(!handle || !s.elements[handle]){ toast("err","Unknown handle","Run Find element first to get a handle.","validation_failed"); return; }
     touch(s);
-    logOp(s,"touch.tap","POST /v1/sessions/{id}/element/touch",{elementHandle:handle,action:kind},{status:204},"ok");
-    pushEvent(s,"console.log",`[touch] ${kind} on ${s.elements[handle]}`);
+    logOp(s,"touch.tap","POST /v1/sessions/{id}/element/touch",{elementHandle:handle,action:kind,input:input||null},{status:204},"ok");
+    pushEvent(s,"console.log",`[touch] ${kind}${kind==="sendKeys"&&input?` "${input}"`:""} on ${s.elements[handle]}`);
     toast("ok","Gesture performed",`${kind} · ${handle}`);
   }
   function doScreenshot(s, strat){
@@ -999,27 +1010,46 @@
     const f=$("#flash"); if(f){ f.classList.remove("go"); void f.offsetWidth; f.classList.add("go"); }
     toast("ok","Screenshot captured",`${strat} · ${dims.width}×${dims.height}`);
   }
-  function doScroll(s, mode){
+  function doScroll(s, mode, percent, handle){
+    // Mirror ScrollRequest validation: DOWN_PERCENT needs percent (0-1); TO_ELEMENT[_CENTERED] needs a handle.
+    const req={ mode };
+    if(mode==="DOWN_PERCENT"){
+      const pct=parseFloat(percent);
+      if(!(pct>0 && pct<=1)){ logOp(s,"scroll.to","POST /v1/sessions/{id}/scroll",{mode},{error:{code:"validation_failed",message:"percent (0-1) is required for DOWN_PERCENT",requestId:uid("req_")}},"err"); toast("err","Scroll rejected","DOWN_PERCENT needs a percent between 0 and 1.","validation_failed"); return; }
+      req.percent=pct;
+    }
+    if(mode==="TO_ELEMENT"||mode==="TO_ELEMENT_CENTERED"){
+      if(!handle || !s.elements[handle]){ logOp(s,"scroll.to","POST /v1/sessions/{id}/scroll",{mode,elementHandle:handle||null},{error:{code:"validation_failed",message:mode+" requires a valid elementHandle",requestId:uid("req_")}},"err"); toast("err","Scroll rejected",`${mode} needs an element handle (run Find element first).`,"validation_failed"); return; }
+      req.elementHandle=handle;
+    }
     touch(s);
     const vp=$("#viewport"); const max = vp ? vp.scrollHeight-vp.clientHeight : 800;
     let y=s.scrollOffset.y;
     if(mode==="TO_TOP") y=0;
     else if(mode==="TO_BOTTOM"||mode==="DOWN_FULL") y=max;
-    else if(mode==="DOWN_PERCENT") y=Math.min(max,y+ (vp?vp.clientHeight*0.5:300));
-    else if(mode==="TO_ELEMENT") y=Math.min(max, 160);
+    else if(mode==="DOWN_PERCENT") y=Math.min(max, y + (vp?vp.clientHeight:600)*req.percent);
+    else if(mode==="TO_ELEMENT"||mode==="TO_ELEMENT_CENTERED") y=Math.min(max, 160);
     s.scrollOffset.y=Math.round(y);
     if(vp) vp.scrollTop=y;
-    logOp(s,"scroll.to","POST /v1/sessions/{id}/scroll",{mode},{x:0,y:s.scrollOffset.y},"ok");
+    logOp(s,"scroll.to","POST /v1/sessions/{id}/scroll",req,{x:0,y:s.scrollOffset.y},"ok");
     updateVpMeta(s);
     toast("ok","Scrolled",`${mode} · y=${s.scrollOffset.y}`);
   }
-  function doDomRemove(s, preset){
+  function doDomRemove(s, preset, value){
+    // Mirror DomRemoveRequest: BY_CLASS requires a class name in `value`.
+    if(preset==="BY_CLASS" && !value){ logOp(s,"dom.remove","POST /v1/sessions/{id}/dom/remove",{preset},{error:{code:"validation_failed",message:"value (class name) is required for BY_CLASS",requestId:uid("req_")}},"err"); toast("err","Removal rejected","BY_CLASS needs a class name.","validation_failed"); return; }
     touch(s); const p=pageFor(s.currentUrl); let removed=false;
     if((preset==="GDPR_MODAL"||preset==="GDPR") && p.gdpr && s.gdprShown){ s.gdprShown=false; removed=true; }
     if(preset==="DRIFT_CHAT" && p.drift && s.driftShown){ s.driftShown=false; removed=true; }
-    logOp(s,"dom.remove","POST /v1/sessions/{id}/dom/remove",{preset},{status:204,removed},"ok");
-    const pb=$("#pagebody"); if(pb) pb.innerHTML=renderPageInto(s);
-    toast(removed?"ok":"info", removed?"Overlay stripped":"Nothing to strip", removed?`${preset} removed from DOM`:`No ${preset} overlay on this page`);
+    if(preset==="BY_CLASS"){
+      const pb=$("#pagebody");
+      if(pb){ const esc2 = window.CSS && CSS.escape ? CSS.escape(value) : value.replace(/[^\w-]/g,""); const hits=pb.querySelectorAll("."+esc2); hits.forEach(n=>n.remove()); removed=hits.length>0; }
+    }
+    const req = preset==="BY_CLASS" ? {preset, value} : {preset};
+    logOp(s,"dom.remove","POST /v1/sessions/{id}/dom/remove",req,{status:204,removed},"ok");
+    if(preset!=="BY_CLASS"){ const pb=$("#pagebody"); if(pb) pb.innerHTML=renderPageInto(s); }
+    const label = preset==="BY_CLASS" ? `.${value}` : preset;
+    toast(removed?"ok":"info", removed?"Overlay stripped":"Nothing to strip", removed?`${label} removed from DOM`:`No ${label} match on this page`);
   }
   function doAlertState(s){
     touch(s);
@@ -1063,9 +1093,10 @@
     const p=pageFor(capState.url);
     const dims = capState.strategy==="VIEWPORT" ? {width:1280,height:720} : {width:1280,height:1840};
     const el = capState.xpath && p.elements[capState.xpath];
+    const capId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : uid("cap_");
     capState.result = {
-      captureId: uid("cap_"), currentUrl: capState.url,
-      screenshot: { width:dims.width, height:dims.height, href:`/v1/capture/{captureId}/screenshot` },
+      captureId: capId, currentUrl: capState.url,
+      screenshot: { width:dims.width, height:dims.height, href:`/v1/capture/${capId}/screenshot` },
       element: el ? { tag:el.tag, displayed:el.displayed, elementHandle:"el_1" } : null,
       source: capState.includeSource ? p.source : null,
       render: `<div style="transform-origin:top left">${p.body}</div>`,
@@ -1099,7 +1130,12 @@
       go("cockpit", s.sessionId); return;
     }
 
-    if(act==="cap-set"){ capState[t.dataset.key]=t.dataset.val; renderView(); return; }
+    if(act==="cap-set"){
+      // Preserve in-progress text/checkbox edits before the re-render repaints the form.
+      const u=$("#cap-url"), x=$("#cap-xpath"), sc=$("#cap-src");
+      if(u) capState.url=u.value; if(x) capState.xpath=x.value; if(sc) capState.includeSource=sc.checked;
+      capState[t.dataset.key]=t.dataset.val; renderView(); return;
+    }
     if(act==="run-capture"){
       capState.url = $("#cap-url").value.trim() || capState.url;
       capState.xpath = $("#cap-xpath").value.trim();
@@ -1113,10 +1149,10 @@
     if(act==="navigate") return doNavigate(s, $("#nav-url").value.trim());
     if(act==="find") return doFind(s, $("#find-xpath").value.trim());
     if(act==="element-action") return doElementAction(s, $("#act-handle").value.trim(), $("#act-kind").value, $("#act-input").value);
-    if(act==="touch") return doTouch(s, $("#act-handle").value.trim(), $("#touch-kind").value);
+    if(act==="touch") return doTouch(s, $("#act-handle").value.trim(), $("#touch-kind").value, ($("#touch-input")||{}).value);
     if(act==="screenshot") return doScreenshot(s, $("#shot-strat").value);
-    if(act==="scroll") return doScroll(s, $("#scroll-mode").value);
-    if(act==="dom-remove") return doDomRemove(s, $("#dom-preset").value);
+    if(act==="scroll") return doScroll(s, $("#scroll-mode").value, ($("#scroll-percent")||{}).value, (($("#scroll-handle")||{}).value||"").trim());
+    if(act==="dom-remove") return doDomRemove(s, $("#dom-preset").value, (($("#dom-value")||{}).value||"").trim());
     if(act==="alert-state") return doAlertState(s);
     if(act==="alert-respond") return doAlertRespond(s, t.dataset.choice);
     if(act==="execute") return doExecute(s, $("#exec-src").value);
