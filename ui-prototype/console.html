@@ -383,9 +383,35 @@
   @media (prefers-reduced-motion: reduce) { * { animation:none !important; transition:none !important; scroll-behavior:auto !important; } }
   @media (max-width:720px){
     .app { grid-template-columns:1fr; }
-    .rail { position:static; height:auto; flex-direction:row; flex-wrap:wrap; align-items:center; }
+    /* Rail collapses to a sticky top header: brand on top, nav becomes a horizontal tab bar. */
+    .rail {
+      position:sticky; top:0; z-index:30; height:auto; gap:10px;
+      flex-direction:column; align-items:stretch;
+      border-right:0; border-bottom:1px solid var(--border);
+      padding:12px 14px 0;
+    }
     .rail .nav-label, .rail-foot { display:none; }
-    .nav-item { width:auto; }
+    .brand { padding:0; }
+    #nav {
+      display:flex; align-items:stretch; gap:4px;
+      margin:0 -14px -1px; padding:0 8px;
+    }
+    #nav .nav-item {
+      flex:1 1 0; min-width:0; width:auto;
+      flex-direction:column; align-items:center; justify-content:flex-end; gap:5px;
+      padding:8px 4px 10px; border-radius:0;
+      border-bottom:2px solid transparent;
+      font-size:11.5px; color:var(--text-dim);
+    }
+    #nav .nav-item:hover { background:transparent; color:var(--text); }
+    #nav .nav-item svg { width:19px; height:19px; color:var(--muted); }
+    #nav .nav-item span { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:100%; }
+    #nav .nav-item .count { display:none; }
+    #nav .nav-item.on {
+      background:transparent; color:var(--accent); font-weight:600;
+      border-bottom-color:var(--accent);
+    }
+    #nav .nav-item.on svg { color:var(--accent); }
   }
 </style>
 
