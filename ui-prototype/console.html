@@ -413,6 +413,72 @@
     }
     #nav .nav-item.on svg { color:var(--accent); }
   }
+
+  /* ---------- #4 micro-interactions ---------- */
+  .skeleton {
+    position:absolute; inset:0; z-index:8; pointer-events:none; opacity:0;
+    background:linear-gradient(100deg,#f2f3f7 30%,#e7e9f0 50%,#f2f3f7 70%);
+    background-size:200% 100%;
+  }
+  .skeleton.go { opacity:1; animation:shimmer 1s linear, skfade .5s ease .45s forwards; }
+  @keyframes shimmer { from{background-position:200% 0} to{background-position:-200% 0} }
+  @keyframes skfade { to{opacity:0} }
+  .ttl.warn svg { animation:ttlpulse 1.1s ease-in-out infinite; }
+  @keyframes ttlpulse { 0%,100%{opacity:1} 50%{opacity:.45} }
+  .view.fade { animation:viewIn .2s cubic-bezier(.2,.7,.2,1); }
+  @keyframes viewIn { from{opacity:0; transform:translateY(5px)} to{opacity:1; transform:none} }
+  .expiring {
+    display:none; align-items:center; gap:10px; margin-bottom:10px; padding:9px 13px; border-radius:11px; font-size:12.5px;
+    background:color-mix(in srgb,var(--crit) 12%,transparent); border:1px solid color-mix(in srgb,var(--crit) 34%,transparent); color:var(--text);
+  }
+  .expiring.show { display:flex; }
+  .expiring svg { width:16px; height:16px; color:var(--crit); flex:none; }
+  .expiring .btn { margin-left:auto; }
+
+  /* ---------- #2 starter hint ---------- */
+  .hint {
+    display:flex; align-items:flex-start; gap:10px; margin-bottom:10px; padding:11px 13px; border-radius:11px; font-size:12.5px;
+    background:var(--accent-dim); border:1px solid color-mix(in srgb,var(--accent) 26%,transparent); color:var(--text-dim);
+  }
+  .hint svg { width:16px; height:16px; color:var(--accent); flex:none; margin-top:1px; }
+  .hint b { color:var(--text); }
+  .hint kbd { font-family:var(--mono); font-size:11px; background:var(--surface); border:1px solid var(--border); border-bottom-width:2px; border-radius:5px; padding:0 5px; color:var(--text); }
+  .hint .x { margin-left:auto; background:none; border:0; color:var(--muted); cursor:pointer; padding:2px; flex:none; }
+  .hint .x:hover { color:var(--text); }
+
+  /* ---------- #3 console copy + json tokens ---------- */
+  .logline { position:relative; }
+  .logline .copybar { position:absolute; top:6px; right:0; display:flex; gap:4px; opacity:0; transition:opacity .12s; }
+  .logline:hover .copybar, .logline:focus-within .copybar { opacity:1; }
+  .copybar .cbtn {
+    font-family:var(--sans); font-size:10.5px; padding:2px 8px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--border); background:var(--surface); color:var(--text-dim);
+  }
+  .copybar .cbtn:hover { background:var(--surface-3); color:var(--text); border-color:var(--accent); }
+  .j-key { color:var(--accent-strong); } .j-str { color:var(--good); } .j-num { color:var(--live); }
+  .j-bool { color:#d07bff; } .j-null { color:var(--muted); }
+  :root[data-theme="light"] .j-bool { color:#8b3ff0; }
+  .skeleton { background:linear-gradient(100deg,#f2f3f7 30%,#e7e9f0 50%,#f2f3f7 70%); }
+
+  /* ---------- #1 command palette ---------- */
+  .pal-scrim { position:fixed; inset:0; background:rgba(8,10,18,.5); backdrop-filter:blur(3px); z-index:70; display:flex; justify-content:center; align-items:flex-start; padding:14vh 20px 20px; animation:fade .12s; }
+  .pal { width:100%; max-width:560px; background:var(--surface); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow); overflow:hidden; animation:pop .16s cubic-bezier(.2,.8,.2,1); }
+  .pal-in { display:flex; align-items:center; gap:10px; padding:13px 16px; border-bottom:1px solid var(--border); }
+  .pal-in svg { width:17px; height:17px; color:var(--muted); flex:none; }
+  .pal-in input { flex:1; border:0; background:none; outline:none; color:var(--text); font-size:15px; font-family:var(--sans); }
+  .pal-in kbd { font-family:var(--mono); font-size:10.5px; color:var(--muted); border:1px solid var(--border); border-radius:5px; padding:1px 6px; }
+  .pal-list { max-height:52vh; overflow-y:auto; padding:6px; }
+  .pal-item { display:flex; align-items:center; gap:11px; padding:9px 11px; border-radius:9px; cursor:pointer; font-size:13.5px; color:var(--text); }
+  .pal-item svg { width:16px; height:16px; color:var(--muted); flex:none; }
+  .pal-item .grp { margin-left:auto; font-size:10.5px; color:var(--muted); font-family:var(--mono); text-transform:uppercase; letter-spacing:.05em; }
+  .pal-item.sel { background:var(--accent-dim); }
+  .pal-item.sel svg { color:var(--accent); }
+  .pal-item.sel .grp { color:var(--accent); }
+  .pal-empty { padding:24px; text-align:center; color:var(--muted); font-size:13px; }
+  .pal-foot { display:flex; gap:14px; padding:9px 14px; border-top:1px solid var(--border); font-size:11px; color:var(--muted); }
+  .pal-foot kbd { font-family:var(--mono); border:1px solid var(--border); border-radius:4px; padding:0 5px; }
+
+  .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 </style>
 
 <div class="app">
@@ -441,8 +507,9 @@
   </div>
 </div>
 
-<div id="toasts"></div>
+<div id="toasts" aria-live="polite" aria-atomic="false"></div>
 <div id="modal-root"></div>
+<div id="palette-root"></div>
 
 <script>
 (() => {
@@ -455,6 +522,16 @@
   const clock = ts => { const d = new Date(ts); return pad(d.getHours())+":"+pad(d.getMinutes())+":"+pad(d.getSeconds()); };
   const fmtDur = s => { s = Math.max(0, Math.round(s)); return Math.floor(s/60)+":"+pad(s%60); };
   const fmtAge = ms => { const s=Math.round(ms/1000); if(s<60) return s+"s"; if(s<3600) return Math.floor(s/60)+"m "+(s%60)+"s"; return Math.floor(s/3600)+"h "+Math.floor((s%3600)/60)+"m"; };
+  // sandbox-safe persistence (localStorage may be blocked under a strict CSP → fall back to memory)
+  const _mem = {};
+  const LS = {
+    get(k,d){ try{ const v=localStorage.getItem("bsvc."+k); return v==null?(_mem[k]??d):JSON.parse(v); }catch{ return _mem[k]??d; } },
+    set(k,v){ _mem[k]=v; try{ localStorage.setItem("bsvc."+k, JSON.stringify(v)); }catch{} },
+  };
+  async function copyText(text){
+    try{ await navigator.clipboard.writeText(text); return true; }
+    catch{ try{ const ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); const ok=document.execCommand("copy"); ta.remove(); return ok; }catch{ return false; } }
+  }
 
   // ---------- icons ----------
   const I = {
@@ -644,7 +721,7 @@
     const col = frac>0.5 ? "var(--accent)" : frac>0.2 ? "var(--live)" : "var(--crit)";
     const C = 2*Math.PI*9;
     const off = C*(1-frac);
-    return `<span class="ttl" title="Reaps at ${clock(expiresAt(s))} · idle ${s.idleTtlSeconds}s / absolute ${s.absoluteTtlSeconds}s">
+    return `<span class="ttl${rem<=30?" warn":""}" title="Reaps at ${clock(expiresAt(s))} · idle ${s.idleTtlSeconds}s / absolute ${s.absoluteTtlSeconds}s">
       <svg viewBox="0 0 26 26"><circle class="track" cx="13" cy="13" r="9" fill="none" stroke-width="3"/>
       <circle cx="13" cy="13" r="9" fill="none" stroke="${col}" stroke-width="3" stroke-linecap="round" stroke-dasharray="${C.toFixed(1)}" stroke-dashoffset="${off.toFixed(1)}"/></svg>
       <span class="val" style="color:${col}">${fmtDur(rem)}</span></span>`;
@@ -657,9 +734,10 @@
       {id:"capture", label:"Quick capture", ico:I.camera},
       {id:"history", label:"History", ico:I.history, count:state.history.length},
     ];
-    $("#nav").innerHTML = items.map(it =>
-      `<button class="nav-item ${state.view===it.id||(it.id==="dashboard"&&state.view==="cockpit")?"on":""}" data-act="go" data-view="${it.id}">
-        ${svg(it.ico)}<span>${it.label}</span>${it.count!=null?`<span class="count">${it.count}</span>`:""}</button>`).join("");
+    $("#nav").innerHTML = items.map(it => {
+      const on = state.view===it.id||(it.id==="dashboard"&&state.view==="cockpit");
+      return `<button class="nav-item ${on?"on":""}" data-act="go" data-view="${it.id}" ${on?'aria-current="page"':""}>
+        ${svg(it.ico)}<span>${it.label}</span>${it.count!=null?`<span class="count" aria-hidden="true">${it.count}</span>`:""}</button>`; }).join("");
   }
 
   // ---------- topbar ----------
@@ -685,7 +763,8 @@
   }
 
   // ---------- views ----------
-  function renderView(){
+  const reduceMotion = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function renderView(animate){
     renderNav(); renderTopbar();
     const v = $("#view");
     if(state.view==="dashboard") v.innerHTML = viewDashboard();
@@ -693,6 +772,7 @@
     else if(state.view==="capture") v.innerHTML = viewCapture();
     else if(state.view==="history") v.innerHTML = viewHistory();
     if(state.view==="cockpit"){ restoreViewportScroll(); }
+    if(animate && !reduceMotion()){ v.classList.remove("fade"); void v.offsetWidth; v.classList.add("fade"); }
   }
 
   function brBadge(bt){ const b=BROWSERS[bt]; return `<span class="badge-br">${svg(b.ico,"ico")}${b.label}</span>`; }
@@ -710,7 +790,7 @@
         <td><span class="chip active"><span class="d"></span>ACTIVE</span></td>
         <td style="text-align:right"><button class="btn sm icon ghost" data-act="close" data-id="${s.sessionId}" title="Close session">${svg(I.x)}</button></td>
       </tr>`).join("")
-      : `<tr><td colspan="7"><div class="empty">${svg(I.inbox)}<div>No open sessions. Create one to pin a dedicated browser.</div></div></td></tr>`;
+      : `<tr><td colspan="7"><div class="empty" style="padding:38px 24px">${svg(I.inbox)}<div style="font-size:14px;color:var(--text);margin-bottom:3px">No browsers running yet</div><div style="margin-bottom:14px">Open a session to pin a dedicated browser and drive it live.</div><button class="btn primary sm" data-act="new-session">${svg(I.plus)} Open your first browser</button></div></td></tr>`;
 
     const health = h => `<div class="hrow"><span class="dot ${h.reachable?"good":"crit"}"></span><span class="url">${esc(h.url)}</span><span class="tag" style="color:${h.reachable?"var(--good)":"var(--crit)"}">${h.reachable?"reachable":"unreachable"}</span></div>`;
     const active = sessions.length;
@@ -780,6 +860,7 @@
           </div>
           <div class="viewport" id="viewport" style="${b.mobile?"max-width:412px;margin:0 auto;border-left:1px solid var(--border);border-right:1px solid var(--border)":""}">
             <div class="flash" id="flash"></div>
+            <div class="skeleton" id="skel"></div>
             <div id="pagebody">${s.currentUrl?renderPageInto(s):`<div class="pg"><p class="muted">Blank session. Navigate to a URL to load a page.</p></div>`}</div>
           </div>
           <div class="vp-meta">
@@ -788,19 +869,29 @@
             <span><b>reaps in</b> <span id="cp-rem">${fmtDur(rem)}</span></span>
           </div>
         </div>
-        <div class="deck">${deckHtml(s)}</div>
+        <div class="deck">
+          <div class="expiring" id="expiring" role="status">${svg(I.history)}<span>Session is about to reap on idle. Any operation resets the clock.</span><button class="btn sm" data-act="keep-alive">Keep alive</button></div>
+          ${LS.get("hintDismissed")?"":`<div class="hint">${svg(I.info)}<div><b>New here?</b> Try <b>Navigate</b> → <b>Screenshot</b> → <b>Find element</b>. Every op is labelled with the endpoint it maps to. Press <kbd>⌘K</kbd> for the command palette.</div><button class="x" data-act="dismiss-hint" aria-label="Dismiss hint">${svg(I.x)}</button></div>`}
+          ${deckHtml(s)}
+        </div>
       </div>
       <div class="card console" style="margin-top:16px">
-        <div class="tabs">
-          <button class="tab ${state.cockpitTab==="console"?"on":""}" data-act="tab" data-tab="console">Console<span class="b">${s.log.length}</span></button>
-          <button class="tab ${state.cockpitTab==="events"?"on":""}" data-act="tab" data-tab="events">Event feed<span class="b" id="tab-events-b">${s.events.length}</span></button>
+        <div class="tabs" role="tablist" aria-label="Session output">
+          <button class="tab ${state.cockpitTab==="console"?"on":""}" role="tab" aria-selected="${state.cockpitTab==="console"}" tabindex="${state.cockpitTab==="console"?0:-1}" data-act="tab" data-tab="console">Console<span class="b">${s.log.length}</span></button>
+          <button class="tab ${state.cockpitTab==="events"?"on":""}" role="tab" aria-selected="${state.cockpitTab==="events"}" tabindex="${state.cockpitTab==="events"?0:-1}" data-act="tab" data-tab="events">Event feed<span class="b" id="tab-events-b">${s.events.length}</span></button>
         </div>
-        <div class="logpane" id="logpane">${state.cockpitTab==="console"?consoleHtml(s):eventsHtml(s)}</div>
+        <div class="logpane" id="logpane" role="tabpanel" aria-live="${state.cockpitTab==="events"?"polite":"off"}">${state.cockpitTab==="console"?consoleHtml(s):eventsHtml(s)}</div>
       </div>`;
   }
 
   function op(title, ico, id, bodyHtml, open){
-    return `<details class="op" ${open?"open":""}><summary>${svg(ico,"opico")}${title}${svg(I.chevron,"caret")}</summary><div class="op-body">${bodyHtml}</div></details>`;
+    return `<details class="op" id="op-${id}" ${open?"open":""}><summary>${svg(ico,"opico")}${title}${svg(I.chevron,"caret")}</summary><div class="op-body">${bodyHtml}</div></details>`;
+  }
+  // open an op accordion and focus its first field — used by auto-advance + the command palette
+  function openOp(id, focus){
+    const d = document.getElementById("op-"+id); if(!d) return;
+    d.open = true;
+    if(focus){ const f = d.querySelector("input,textarea,select,button.btn"); if(f) f.focus(); d.scrollIntoView({block:"nearest"}); }
   }
   function deckHtml(s){
     const b = BROWSERS[s.browserType];
@@ -870,12 +961,36 @@
     return html;
   }
 
+  function hlJson(obj){
+    let j = JSON.stringify(obj, null, 2).replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));
+    return j.replace(/("(?:\\.|[^"\\])*"(\s*:)?|\b(?:true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, m => {
+      let cls = "j-num";
+      if(/^"/.test(m)) cls = /:$/.test(m) ? "j-key" : "j-str";
+      else if(/true|false/.test(m)) cls = "j-bool";
+      else if(/null/.test(m)) cls = "j-null";
+      return `<span class="${cls}">${m}</span>`;
+    });
+  }
+  function logBody(l){ return l.level==="err" ? l.res : {request:l.req, response:l.res}; }
+  function curlFor(s, l){
+    const sp = l.http.split(" "); const method = sp[0];
+    const path = sp.slice(1).join(" ").replace("{id}", s.sessionId).replace("{captureId}", "<captureId>");
+    let c = `curl -X ${method} https://browser-service${path} \\\n  -H "Authorization: Bearer $TOKEN"`;
+    if(method!=="GET" && l.req && Object.keys(l.req).length){
+      c += ` \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(l.req)}'`;
+    }
+    return c;
+  }
   function consoleHtml(s){
     if(!s.log.length) return `<div class="empty" style="padding:30px">${svg(I.code)}<div>No operations yet. Drive the session from the command deck.</div></div>`;
-    return s.log.map(l => `<div class="logline">
+    return s.log.map((l,i) => `<div class="logline">
+      <div class="copybar">
+        <button class="cbtn" data-act="copy-json" data-i="${i}" title="Copy the request/response JSON">Copy JSON</button>
+        <button class="cbtn" data-act="copy-curl" data-i="${i}" title="Copy an equivalent curl command">Copy cURL</button>
+      </div>
       <span class="ts">${clock(l.ts)}</span> <span class="meth">${esc(l.http.split(" ")[0])}</span> <span class="op-tag">${esc(l.op)}</span>
       ${l.level==="err"?`<span class="err"> · error</span>`:`<span class="ok"> · 2xx</span>`}
-      <pre>${esc(JSON.stringify(l.level==="err"?l.res:{request:l.req,response:l.res}, null, 2))}</pre>
+      <pre>${hlJson(logBody(l))}</pre>
     </div>`).join("");
   }
   function eventsHtml(s){
@@ -945,16 +1060,18 @@
 
   // ---------- modal ----------
   const nsState = { browserType:"chrome", idleTtl:300 };
-  function openNewSession(){
+  function openNewSession(refocus){
     if(activeSessions().length>=CFG.maxConcurrent){
       toast("err","Session cap reached","Close a session before opening another.","429 session_cap_exceeded");
       return;
     }
+    const fresh = !$("#modal-root").firstElementChild;
+    if(fresh) _lastFocus=document.activeElement;
     const bseg = Object.entries(BROWSERS).map(([k,b])=>`<button class="${nsState.browserType===k?"on":""}" data-act="ns-set" data-key="browserType" data-val="${k}">${svg(b.ico)}${b.label}</button>`).join("");
     const tseg = [{v:60,l:"60s"},{v:300,l:"5 min"},{v:900,l:"15 min"}].map(t=>`<button class="${nsState.idleTtl===t.v?"on":""}" data-act="ns-set" data-key="idleTtl" data-val="${t.v}">${t.l}</button>`).join("");
     $("#modal-root").innerHTML = `
       <div class="scrim">
-        <div class="card modal">
+        <div class="card modal" role="dialog" aria-modal="true" aria-label="New browser session">
           <div class="modal-h"><h3>New browser session</h3><p>Pin a dedicated browser. Counts against your ${CFG.maxConcurrent}-session cap.</p></div>
           <div class="modal-b">
             <div><div class="lt" style="margin-bottom:7px;color:var(--muted);font-size:10px;letter-spacing:.06em;text-transform:uppercase">Browser type</div><div class="seg">${bseg}</div></div>
@@ -963,11 +1080,12 @@
           <div class="modal-f"><button class="btn ghost" data-act="close-modal">Cancel</button><button class="btn primary" data-act="ns-create">${svg(I.plus)} Create session</button></div>
         </div>
       </div>`;
+    if(fresh || refocus){ const f=focusables($("#modal-root"))[0]; if(f) f.focus(); }
   }
-  function closeModal(){ $("#modal-root").innerHTML=""; }
+  function closeModal(){ const had=$("#modal-root").firstElementChild; $("#modal-root").innerHTML=""; if(had && _lastFocus && _lastFocus.focus) _lastFocus.focus(); }
 
   // ---------- actions ----------
-  function go(view, id){ state.view=view; if(id) state.activeSessionId=id; renderView(); }
+  function go(view, id){ state.view=view; if(id) state.activeSessionId=id; renderView(true); }
 
   function doNavigate(s, url){
     if(!/^https?:\/\//.test(url)){ logOp(s,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url},{error:{code:"validation_failed",message:"url must be absolute http(s)",requestId:uid("req_")}},"err"); toast("err","Navigation rejected","URL must start with http:// or https://","validation_failed"); return; }
@@ -983,7 +1101,10 @@
     const pb=$("#pagebody"); if(pb) pb.innerHTML=renderPageInto(s);
     const ad=$("#addr"); if(ad) ad.textContent=url;
     const vp=$("#viewport"); if(vp) vp.scrollTop=0;
+    // brief skeleton shimmer to sell the "page loading" moment
+    if(!reduceMotion()){ const sk=$("#skel"); if(sk){ sk.classList.remove("go"); void sk.offsetWidth; sk.classList.add("go"); } }
     updateVpMeta(s);
+    openOp("shot"); // nudge the likely next step
   }
   function doFind(s, xpath){
     touch(s);
@@ -998,6 +1119,7 @@
       const node = document.querySelector(`#pagebody [data-x='${xpath.replace(/'/g,"\\'")}']`);
       if(node){ node.classList.add("hl"); setTimeout(()=>node.classList.remove("hl"),1600); }
       toast("ok","Element resolved",`${handle} · ${found.tag}`);
+      openOp(BROWSERS[s.browserType].mobile ? "touch" : "action"); // reveal what to do with the handle
     } else {
       res={ found:false, displayed:false };
       out=`<div class="result-box">found: false — no node matches this XPath on the current page.</div>`;
@@ -1133,17 +1255,25 @@
 
   // ---------- event delegation ----------
   document.addEventListener("click", e => {
+    if(e.target.classList && e.target.classList.contains("pal-scrim")){ closePalette(); return; }
     if(e.target.classList && e.target.classList.contains("scrim")){ closeModal(); return; }
     const t = e.target.closest("[data-act]");
     if(!t) return;
     const act = t.dataset.act;
     if(act==="toggle-theme") return toggleTheme();
+    if(act==="pal-run"){ return runPaletteIndex(+t.dataset.i); }
+    if(act==="dismiss-hint"){ LS.set("hintDismissed",true); const h=t.closest(".hint"); if(h) h.remove(); return; }
     if(act==="go") return go(t.dataset.view);
-    if(act==="new-session") return openNewSession();
+    if(act==="new-session") return openNewSession(true);
     if(act==="close-modal") return closeModal();
     if(act==="open") return go("cockpit", t.dataset.id);
     if(act==="close"){ const s=getSession(t.dataset.id); if(s){ closeSession(s,"CLIENT"); toast("info","Session closed","Browser released · permit freed"); renderView(); } return; }
-    if(act==="tab"){ state.cockpitTab=t.dataset.tab; document.querySelectorAll(".tab").forEach(x=>x.classList.toggle("on",x.dataset.tab===state.cockpitTab)); renderConsole(); return; }
+    if(act==="tab"){
+      state.cockpitTab=t.dataset.tab;
+      document.querySelectorAll(".tabs .tab").forEach(x=>{ const on=x.dataset.tab===state.cockpitTab; x.classList.toggle("on",on); x.setAttribute("aria-selected",on); x.tabIndex=on?0:-1; });
+      const lp=$("#logpane"); if(lp) lp.setAttribute("aria-live", state.cockpitTab==="events"?"polite":"off");
+      renderConsole(); return;
+    }
     if(act==="fill-url"){ const i=$("#nav-url"); if(i) i.value=t.dataset.url; return; }
 
     if(act==="ns-set"){ nsState[t.dataset.key]= t.dataset.key==="idleTtl"?+t.dataset.val:t.dataset.val; openNewSession(); return; }
@@ -1172,6 +1302,13 @@
 
     const s = getSession(state.activeSessionId);
     if(!s) return;
+    if(act==="copy-json"||act==="copy-curl"){
+      const l=s.log[+t.dataset.i]; if(!l) return;
+      const txt = act==="copy-curl" ? curlFor(s,l) : JSON.stringify(logBody(l),null,2);
+      copyText(txt).then(ok=>toast(ok?"ok":"err", ok?"Copied to clipboard":"Copy blocked", act==="copy-curl"?"curl command":"request / response JSON"));
+      return;
+    }
+    if(act==="keep-alive"){ touch(s); const exp=$("#expiring"); if(exp) exp.classList.remove("show"); toast("ok","Session kept alive","Idle clock reset by activity"); return; }
     if(act==="navigate") return doNavigate(s, $("#nav-url").value.trim());
     if(act==="find") return doFind(s, $("#find-xpath").value.trim());
     if(act==="element-action") return doElementAction(s, $("#act-handle").value.trim(), $("#act-kind").value, $("#act-input").value);
@@ -1189,7 +1326,115 @@
     if(state.view!=="cockpit") return;
     const vp=e.target; if(vp && vp.id==="viewport"){ const s=getSession(state.activeSessionId); if(s){ s.scrollOffset.y=Math.round(vp.scrollTop); updateVpMeta(s); } }
   }, true);
-  document.addEventListener("keydown", e => { if(e.key==="Escape") closeModal(); });
+  // ---------- #1 command palette + keyboard ----------
+  let _lastFocus=null, _palOpener=null, _gPending=false;
+  const focusables = c => [...c.querySelectorAll('button,[href],input,select,textarea,[tabindex]:not([tabindex="-1"])')].filter(el=>!el.disabled && el.offsetParent!==null);
+  function trapTab(e, container){
+    const f=focusables(container); if(!f.length) return;
+    const first=f[0], last=f[f.length-1];
+    if(e.shiftKey && document.activeElement===first){ e.preventDefault(); last.focus(); }
+    else if(!e.shiftKey && document.activeElement===last){ e.preventDefault(); first.focus(); }
+  }
+  const pal = { open:false, items:[], sel:0, filter:"" };
+  function commandList(){
+    const dark = currentTheme()==="dark";
+    const cmds = [
+      {grp:"Go", label:"Dashboard", ico:I.grid, run:()=>go("dashboard")},
+      {grp:"Go", label:"Quick capture", ico:I.camera, run:()=>go("capture")},
+      {grp:"Go", label:"History", ico:I.history, run:()=>go("history")},
+      {grp:"Action", label:"New session", ico:I.plus, run:()=>openNewSession(true)},
+      {grp:"View", label:dark?"Switch to light mode":"Switch to dark mode", ico:dark?I.sun:I.moon, run:()=>toggleTheme()},
+    ];
+    const s = state.view==="cockpit" && getSession(state.activeSessionId);
+    if(s){
+      cmds.push(
+        {grp:"Op", label:"Navigate…", ico:I.nav, run:()=>openOp("nav",true)},
+        {grp:"Op", label:"Find element…", ico:I.search, run:()=>openOp("find",true)},
+        {grp:"Op", label:"Take screenshot", ico:I.camera, run:()=>{ openOp("shot"); doScreenshot(s, ($("#shot-strat")||{}).value||"VIEWPORT"); }},
+        {grp:"Op", label:"Scroll…", ico:I.scroll, run:()=>openOp("scroll",true)},
+        {grp:"Op", label:"Execute JS…", ico:I.code, run:()=>openOp("exec",true)},
+        {grp:"Op", label:"Get page source", ico:I.doc, run:()=>{ openOp("source"); doGetSource(s); }},
+        {grp:"Op", label:"Detect alert", ico:I.bell, run:()=>{ openOp("alert"); doAlertState(s); }},
+        {grp:"Session", label:"Close session", ico:I.x, run:()=>{ closeSession(s,"CLIENT"); toast("info","Session closed","Browser released · permit freed"); renderView(); }},
+      );
+    }
+    return cmds;
+  }
+  const filteredCommands = () => { const all=commandList(); const f=pal.filter.trim().toLowerCase(); return f? all.filter(c=>c.label.toLowerCase().includes(f)||c.grp.toLowerCase().includes(f)) : all; };
+  function renderPaletteList(){
+    const items=filteredCommands(); pal.items=items;
+    if(pal.sel>=items.length) pal.sel=Math.max(0,items.length-1);
+    const list=$(".pal-list"); if(!list) return;
+    list.innerHTML = items.length
+      ? items.map((c,i)=>`<div class="pal-item ${i===pal.sel?"sel":""}" data-act="pal-run" data-i="${i}" role="option" aria-selected="${i===pal.sel}">${svg(c.ico||I.chevron)}<span>${esc(c.label)}</span><span class="grp">${esc(c.grp)}</span></div>`).join("")
+      : `<div class="pal-empty">No commands match “${esc(pal.filter)}”</div>`;
+    const sel=list.querySelector(".pal-item.sel"); if(sel) sel.scrollIntoView({block:"nearest"});
+  }
+  function openPalette(){
+    if(pal.open){ return closePalette(); }
+    pal.open=true; pal.filter=""; pal.sel=0; _palOpener=document.activeElement;
+    $("#palette-root").innerHTML = `<div class="pal-scrim"><div class="pal" role="dialog" aria-modal="true" aria-label="Command palette">
+      <div class="pal-in">${svg(I.search)}<input type="text" placeholder="Type a command — views, session ops…" aria-label="Command palette search" autocomplete="off" spellcheck="false"/><kbd>esc</kbd></div>
+      <div class="pal-list" role="listbox" aria-label="Commands"></div>
+      <div class="pal-foot"><span><kbd>↑</kbd><kbd>↓</kbd> navigate</span><span><kbd>↵</kbd> run</span><span><kbd>esc</kbd> close</span></div>
+    </div></div>`;
+    renderPaletteList();
+    const inp=$(".pal-in input");
+    inp.addEventListener("input", ()=>{ pal.filter=inp.value; pal.sel=0; renderPaletteList(); });
+    inp.focus();
+  }
+  function closePalette(){ pal.open=false; $("#palette-root").innerHTML=""; if(_palOpener && _palOpener.focus) _palOpener.focus(); }
+  function runPaletteIndex(i){ const c=pal.items[i]; closePalette(); if(c) c.run(); }
+
+  document.addEventListener("keydown", e => {
+    if((e.metaKey||e.ctrlKey) && (e.key==="k"||e.key==="K")){ e.preventDefault(); openPalette(); return; }
+    if(pal.open){
+      if(e.key==="Escape"){ e.preventDefault(); closePalette(); }
+      else if(e.key==="ArrowDown"){ e.preventDefault(); pal.sel=Math.min(pal.items.length-1,pal.sel+1); renderPaletteList(); }
+      else if(e.key==="ArrowUp"){ e.preventDefault(); pal.sel=Math.max(0,pal.sel-1); renderPaletteList(); }
+      else if(e.key==="Enter"){ e.preventDefault(); runPaletteIndex(pal.sel); }
+      else if(e.key==="Tab"){ trapTab(e, $("#palette-root")); }
+      return;
+    }
+    const modalOpen = !!$("#modal-root").firstElementChild;
+    if(e.key==="Escape"){ if(modalOpen) closeModal(); return; }
+    if(modalOpen && e.key==="Tab"){ trapTab(e, $("#modal-root")); return; }
+
+    const el=document.activeElement;
+    const typing = el && (el.tagName==="INPUT"||el.tagName==="TEXTAREA"||el.tagName==="SELECT"||el.isContentEditable);
+
+    if(e.key==="Enter" && typing){
+      const s=getSession(state.activeSessionId);
+      if(el.id==="nav-url" && s){ e.preventDefault(); return doNavigate(s, el.value.trim()); }
+      if(el.id==="find-xpath" && s){ e.preventDefault(); return doFind(s, el.value.trim()); }
+      if(el.id==="cap-url" || el.id==="cap-xpath"){
+        e.preventDefault();
+        const u=$("#cap-url"), x=$("#cap-xpath"), sc=$("#cap-src");
+        if(u) capState.url=u.value.trim(); if(x) capState.xpath=x.value.trim(); if(sc) capState.includeSource=sc.checked;
+        if(/^https?:\/\//.test(capState.url)) runCapture(); else toast("err","Invalid URL","URL must be absolute http(s)","validation_failed");
+        return;
+      }
+    }
+    if(e.key==="Enter" && (e.metaKey||e.ctrlKey) && el && el.id==="exec-src"){ const s=getSession(state.activeSessionId); if(s){ e.preventDefault(); return doExecute(s, el.value); } }
+
+    // roving arrow keys across the console tabs
+    if((e.key==="ArrowLeft"||e.key==="ArrowRight") && el && el.classList.contains("tab")){
+      const tabs=[...document.querySelectorAll(".tabs .tab")]; const idx=tabs.indexOf(el);
+      const next=tabs[(idx + (e.key==="ArrowRight"?1:tabs.length-1)) % tabs.length];
+      if(next){ e.preventDefault(); next.click(); next.focus(); }
+      return;
+    }
+
+    if(typing) return;
+    if(e.key==="/"){ const u=$("#nav-url"); if(u){ e.preventDefault(); openOp("nav",true); } return; }
+    if(e.key==="g"){ _gPending=true; setTimeout(()=>{ _gPending=false; }, 900); return; }
+    if(_gPending){
+      _gPending=false;
+      if(e.key==="d") go("dashboard");
+      else if(e.key==="c") go("capture");
+      else if(e.key==="h") go("history");
+    }
+  });
 
   // ---------- clocks ----------
   setInterval(() => {
@@ -1210,7 +1455,12 @@
       if(tb && state.view==="dashboard") renderView();
     } else if(state.view==="cockpit"){
       const s=getSession(state.activeSessionId);
-      if(s){ const r=$("#cp-rem"); if(r) r.textContent=fmtDur(remainingMs(s)/1000); }
+      if(s){
+        const remS=remainingMs(s)/1000;
+        const r=$("#cp-rem"); if(r){ r.textContent=fmtDur(remS); r.style.color = remS<=30?"var(--crit)":""; }
+        const exp=$("#expiring"); if(exp) exp.classList.toggle("show", remS<=30 && remS>0);
+        const ring=document.querySelector(".page-head .ttl"); if(ring) ring.classList.toggle("warn", remS<=30);
+      }
       renderTopbar();
     }
   }, 1000);
