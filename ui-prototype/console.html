@@ -140,6 +140,10 @@
   .cap-bar { width:120px; height:7px; border-radius:20px; background:var(--surface-3); overflow:hidden; border:1px solid var(--border-soft); }
   .cap-fill { height:100%; border-radius:20px; transition:width .4s cubic-bezier(.2,.7,.2,1),background .3s; }
   .topbar .grow { margin-left:auto; }
+  /* the rail holds the theme toggle on desktop; on mobile the rail-foot is hidden, so a
+     compact toggle rides in the always-visible topbar instead (see the ≤720px block). */
+  .topbar .topbar-theme { display:none; } /* out-specifies .btn's inline-flex; shown on mobile below */
+  .topbar-theme svg { width:16px; height:16px; }
 
   .view { padding:26px; max-width:1320px; width:100%; }
   .page-head { margin-bottom:20px; }
@@ -392,6 +396,7 @@
       padding:12px 14px 0;
     }
     .rail .nav-label, .rail-foot { display:none; }
+    .topbar .topbar-theme { display:inline-flex; }
     .brand { padding:0; }
     #nav {
       display:flex; align-items:stretch; gap:4px;
@@ -648,7 +653,7 @@
   const state = {
     view:"dashboard", activeSessionId:null, cockpitTab:"console",
     sessions:[], history:[],
-    readiness:{ status:"ready",
+    readiness:{
       seleniumHubs:[{url:"http://selenium-01:4444/wd/hub",reachable:true},{url:"http://selenium-02:4444/wd/hub",reachable:true}],
       appiumServers:[{url:"http://appium-01:4723",reachable:true},{url:"http://appium-02:4723",reachable:false}] },
     reaped:0, wsConnected:true,
@@ -673,6 +678,8 @@
   function touch(s){ s.lastUsedAt = now(); }
   const activeSessions = () => state.sessions.filter(s => s.status==="ACTIVE");
   const getSession = id => state.sessions.find(s => s.sessionId===id);
+  // Derived, not stored: every upstream reachable → ready, else degraded.
+  const readinessStatus = () => state.readiness.appiumServers.concat(state.readiness.seleniumHubs).every(h=>h.reachable) ? "ready" : "degraded";
 
   // seed a couple sessions so the console isn't empty
   function seed(){
@@ -736,6 +743,7 @@
     const dark = currentTheme()==="dark";
     $("#theme-ico").innerHTML = dark ? I.sun : I.moon;
     $("#theme-label").textContent = dark ? "Light mode" : "Dark mode";
+    const tb = $("#topbar-theme-ico"); if(tb) tb.innerHTML = dark ? I.sun : I.moon; // mobile toggle in the topbar
   }
   function toggleTheme(){
     const next = currentTheme()==="dark" ? "light" : "dark";
@@ -773,15 +781,15 @@
   // ---------- topbar ----------
   function renderTopbar(){
     const r = state.readiness;
-    const ready = r.appiumServers.concat(r.seleniumHubs).every(h=>h.reachable);
-    r.status = ready ? "ready" : "degraded";
+    const status = readinessStatus();
+    const ready = status==="ready";
     const active = activeSessions().length;
     const frac = active/CFG.maxConcurrent;
     const capCol = frac>=1?"var(--crit)":frac>=0.7?"var(--live)":"var(--accent)";
     $("#topbar").innerHTML = `
       <div class="stat"><span class="dot ${state.wsConnected?"good live":"crit"}"></span><span class="k">WS ${state.wsConnected?"connected":"down"}</span></div>
       <div class="sep"></div>
-      <div class="stat"><span class="dot ${ready?"good":"warn"}"></span><span class="k">Readiness · ${r.status}</span></div>
+      <div class="stat"><span class="dot ${ready?"good":"warn"}"></span><span class="k">Readiness · ${status}</span></div>
       <div class="sep"></div>
       <div class="cap-meter">
         <span class="k">Capacity</span>
@@ -789,6 +797,7 @@
         <span class="mono" style="font-size:12px; color:var(--text-dim)">${active}/${CFG.maxConcurrent}</span>
       </div>
       <div class="grow"></div>
+      <button class="btn icon sm topbar-theme" data-act="toggle-theme" aria-label="Toggle light/dark theme" title="Toggle theme"><svg id="topbar-theme-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${currentTheme()==="dark"?I.sun:I.moon}</svg></button>
       <button class="btn primary sm" data-act="new-session">${svg(I.plus)} New session</button>`;
   }
 
@@ -810,6 +819,7 @@
   function viewDashboard(){
     const sessions = activeSessions();
     const r = state.readiness;
+    const rstatus = readinessStatus();
     const rows = sessions.length ? sessions.map(s => `
       <tr class="row-click" data-act="open" data-id="${s.sessionId}">
         <td><span class="mono" style="color:var(--accent)">${s.sessionId}</span></td>
@@ -831,7 +841,7 @@
       <div class="grid cols-3" style="margin-bottom:16px">
         <div class="card kpi"><div class="lbl">Open sessions</div><div class="big">${active}<span style="font-size:16px;color:var(--muted)"> / ${CFG.maxConcurrent}</span></div><div class="sub">${CFG.maxConcurrent-active} permits free · concurrency cap</div></div>
         <div class="card kpi"><div class="lbl">Reaped this session</div><div class="big">${state.reaped}</div><div class="sub">idle + absolute TTL expirations</div></div>
-        <div class="card kpi"><div class="lbl">Upstream readiness</div><div class="big" style="color:${r.status==="ready"?"var(--good)":"var(--warn)"};font-size:24px;text-transform:uppercase">${r.status}</div><div class="sub">${r.seleniumHubs.length} Selenium · ${r.appiumServers.length} Appium hubs</div></div>
+        <div class="card kpi"><div class="lbl">Upstream readiness</div><div class="big" style="color:${rstatus==="ready"?"var(--good)":"var(--warn)"};font-size:24px;text-transform:uppercase">${rstatus}</div><div class="sub">${r.seleniumHubs.length} Selenium · ${r.appiumServers.length} Appium hubs</div></div>
       </div>
       <div class="dash-grid">
         <div class="card">
@@ -1270,11 +1280,13 @@
   }
   function doExecute(s, src){
     touch(s);
+    // Match real global expressions (word-boundaried) rather than any substring, so scripts like
+    // `return buildUrl()` or `return el.scrollWidth` don't spoof a canned title/url/width.
     let result;
-    if(/document\.title/.test(src)) result=pageFor(s.currentUrl).title||"";
-    else if(/location|href|url/i.test(src)) result=s.currentUrl;
-    else if(/innerWidth|viewport|width/i.test(src)) result=s.viewport.width;
-    else if(/scrollY|pageYOffset/i.test(src)) result=s.scrollOffset.y;
+    if(/\bdocument\.title\b/.test(src)) result=pageFor(s.currentUrl).title||"";
+    else if(/\b(?:document\.URL|window\.location|location\.href|location\.assign)\b/.test(src)) result=s.currentUrl;
+    else if(/\b(?:window\.innerWidth|document\.documentElement\.clientWidth|innerWidth)\b/.test(src)) result=s.viewport.width;
+    else if(/\b(?:window\.scrollY|scrollY|window\.pageYOffset|pageYOffset)\b/.test(src)) result=s.scrollOffset.y;
     else result="undefined";
     logOp(s,"script.execute","POST /v1/sessions/{id}/execute",{script:src},{result},"ok");
     const o=$("#exec-out"); if(o) o.innerHTML=`<div class="result-box">result: ${esc(JSON.stringify(result))}</div>`;
@@ -1429,16 +1441,18 @@
     if(pal.sel>=items.length) pal.sel=Math.max(0,items.length-1);
     const list=$(".pal-list"); if(!list) return;
     list.innerHTML = items.length
-      ? items.map((c,i)=>`<div class="pal-item ${i===pal.sel?"sel":""}" data-act="pal-run" data-i="${i}" role="option" aria-selected="${i===pal.sel}">${svg(c.ico||I.chevron)}<span>${esc(c.label)}</span><span class="grp">${esc(c.grp)}</span></div>`).join("")
+      ? items.map((c,i)=>`<div class="pal-item ${i===pal.sel?"sel":""}" id="pal-opt-${i}" data-act="pal-run" data-i="${i}" role="option" aria-selected="${i===pal.sel}">${svg(c.ico||I.chevron)}<span>${esc(c.label)}</span><span class="grp">${esc(c.grp)}</span></div>`).join("")
       : `<div class="pal-empty">No commands match “${esc(pal.filter)}”</div>`;
     const sel=list.querySelector(".pal-item.sel"); if(sel) sel.scrollIntoView({block:"nearest"});
+    // point the combobox at the active option so screen readers announce the highlighted command
+    const inp=$(".pal-in input"); if(inp){ if(items.length) inp.setAttribute("aria-activedescendant","pal-opt-"+pal.sel); else inp.removeAttribute("aria-activedescendant"); }
   }
   function openPalette(){
     if(pal.open){ return closePalette(); }
     pal.open=true; pal.filter=""; pal.sel=0; _palOpener=document.activeElement;
     $("#palette-root").innerHTML = `<div class="pal-scrim"><div class="pal" role="dialog" aria-modal="true" aria-label="Command palette">
-      <div class="pal-in">${svg(I.search)}<input type="text" placeholder="Type a command — views, session ops…" aria-label="Command palette search" autocomplete="off" spellcheck="false"/><kbd>esc</kbd></div>
-      <div class="pal-list" role="listbox" aria-label="Commands"></div>
+      <div class="pal-in">${svg(I.search)}<input type="text" placeholder="Type a command — views, session ops…" aria-label="Command palette search" role="combobox" aria-expanded="true" aria-controls="pal-listbox" aria-autocomplete="list" autocomplete="off" spellcheck="false"/><kbd>esc</kbd></div>
+      <div class="pal-list" id="pal-listbox" role="listbox" aria-label="Commands"></div>
       <div class="pal-foot"><span><kbd>↑</kbd><kbd>↓</kbd> navigate</span><span><kbd>↵</kbd> run</span><span><kbd>esc</kbd> close</span></div>
     </div></div>`;
     renderPaletteList();
@@ -1526,9 +1540,10 @@
         closeSession(s, reason);
       }
     }
+    const reaped = activeSessions().length!==n0;
     if(state.view==="dashboard"){
       // structure changed (a reap) → full render; otherwise refresh cells in place to preserve focus
-      if(activeSessions().length!==n0) renderView(); else refreshDashboardLive();
+      if(reaped) renderView(); else refreshDashboardLive();
     } else if(state.view==="cockpit"){
       const s=getSession(state.activeSessionId);
       if(s){
@@ -1538,6 +1553,10 @@
         const ring=document.querySelector(".page-head .ttl"); if(ring) ring.classList.toggle("warn", remS<=30);
       }
       renderTopbar();
+    } else if(reaped){
+      // On History / Quick capture a background reap still mutates the audit trail and the
+      // fleet/history counts — re-render so the table and nav badges reflect it live.
+      renderView();
     }
   }, 1000);
 
