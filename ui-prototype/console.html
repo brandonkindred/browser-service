@@ -714,13 +714,18 @@
   }
 
   const REAP_LABEL = { REAPED_IDLE:"idle TTL", REAPED_ABSOLUTE:"absolute TTL" };
-  function closeSession(s, reason){
+  function closeSession(s, reason, defer){
     if(s.status!=="ACTIVE") return;
     s.status = (reason==="CLIENT") ? "CLOSED" : "EXPIRED";
     state.history.unshift({ sessionId:s.sessionId, browserType:s.browserType, createdAt:s.createdAt, closedAt:now(), closedReason:reason });
     state.sessions = state.sessions.filter(x => x.sessionId!==s.sessionId);
     if(reason!=="CLIENT") state.reaped++;
-    if(state.view==="cockpit" && state.activeSessionId===s.sessionId){ go("dashboard"); }
+    if(state.view==="cockpit" && state.activeSessionId===s.sessionId){
+      // The viewed session vanished → fall back to the fleet. The reap loop passes defer=true and
+      // renders once after the loop (so a session reaped later in the same loop is never shown as
+      // live); every interactive caller renders immediately.
+      if(defer){ state.view="dashboard"; state.activeSessionId=null; } else go("dashboard");
+    }
   }
 
   // ---------- toasts ----------
@@ -893,7 +898,7 @@
           <div><h1 style="font-size:18px">${b.label} session</h1><div class="mono" style="font-size:12px;color:var(--accent)">${s.sessionId}</div></div>
         </div>
         <div style="display:flex;align-items:center;gap:14px">
-          ${ttlRing(s)}
+          <span id="cp-ring" style="display:contents">${ttlRing(s)}</span>
           <button class="btn sm" data-act="close" data-id="${s.sessionId}">${svg(I.x)} Close session</button>
         </div>
       </div>
@@ -1062,6 +1067,16 @@
 
   // ------ capture view ------
   const capState = { browserType:"chrome", strategy:"FULL_PAGE_SHUTTERBUG", encoding:"BINARY", includeSource:false, url:"https://example.com", xpath:"", result:null };
+  // Snapshot the capture form's live inputs into capState before any interactive re-render (the 1s
+  // tick deliberately does NOT re-render the capture view; these handlers do). Single source of truth
+  // so a new form field is wired in exactly one place. URL keeps its prior value if the field is
+  // blank; xpath is optional so an empty value is a real clear.
+  function syncCapForm(){
+    const u=$("#cap-url"), x=$("#cap-xpath"), sc=$("#cap-src");
+    if(u) capState.url = u.value.trim() || capState.url;
+    if(x) capState.xpath = x.value.trim();
+    if(sc) capState.includeSource = sc.checked;
+  }
   function viewCapture(){
     const seg = (key, arr) => arr.map(o=>`<button class="${capState[key]===o.v?"on":""}" data-act="cap-set" data-key="${key}" data-val="${o.v}">${o.i?svg(o.i):""}${o.l}</button>`).join("");
     const res = capState.result;
@@ -1363,14 +1378,11 @@
 
     if(act==="cap-set"){
       // Preserve in-progress text/checkbox edits before the re-render repaints the form.
-      const u=$("#cap-url"), x=$("#cap-xpath"), sc=$("#cap-src");
-      if(u) capState.url=u.value; if(x) capState.xpath=x.value; if(sc) capState.includeSource=sc.checked;
+      syncCapForm();
       capState[t.dataset.key]=t.dataset.val; renderView(); return;
     }
     if(act==="run-capture"){
-      capState.url = $("#cap-url").value.trim() || capState.url;
-      capState.xpath = $("#cap-xpath").value.trim();
-      capState.includeSource = $("#cap-src").checked;
+      syncCapForm();
       if(!/^https?:\/\//.test(capState.url)){ toast("err","Invalid URL","URL must be absolute http(s)","validation_failed"); return; }
       runCapture(); return;
     }
@@ -1486,8 +1498,7 @@
       if(el.id==="find-xpath" && s){ e.preventDefault(); return doFind(s, el.value.trim()); }
       if(el.id==="cap-url" || el.id==="cap-xpath"){
         e.preventDefault();
-        const u=$("#cap-url"), x=$("#cap-xpath"), sc=$("#cap-src");
-        if(u) capState.url=u.value.trim(); if(x) capState.xpath=x.value.trim(); if(sc) capState.includeSource=sc.checked;
+        syncCapForm();
         if(/^https?:\/\//.test(capState.url)) runCapture(); else toast("err","Invalid URL","URL must be absolute http(s)","validation_failed");
         return;
       }
@@ -1514,52 +1525,61 @@
   });
 
   // ---------- clocks ----------
-  // Update the dashboard's live cells (rings/age/capacity) in place, without replacing #view,
-  // so a keyboard user's focus on a row or the Close button survives each tick.
+  // Refresh the always-present chrome (rail nav badges + topbar capacity meter) in place — no
+  // innerHTML rebuild of #nav/#topbar, so keyboard focus on those controls survives. A background
+  // reap is the only tick event that changes these, and every view shares this one refresh path,
+  // so the fleet/history counts stay consistent regardless of which view is open.
+  function refreshChrome(){
+    const active=activeSessions().length; const frac=active/CFG.maxConcurrent;
+    const fill=document.querySelector(".cap-fill");
+    if(fill){ fill.style.width=Math.min(100,frac*100)+"%"; fill.style.background=frac>=1?"var(--crit)":frac>=0.7?"var(--live)":"var(--accent)"; }
+    const capNum=document.querySelector(".cap-meter .mono"); if(capNum) capNum.textContent=`${active}/${CFG.maxConcurrent}`;
+    const dCount=document.querySelector('.nav-item[data-view="dashboard"] .count'); if(dCount) dCount.textContent=active;
+    const hCount=document.querySelector('.nav-item[data-view="history"] .count'); if(hCount) hCount.textContent=state.history.length;
+  }
+  // Update the dashboard's live cells (rings/age/kpi) in place, without replacing #view, so a
+  // keyboard user's focus on a row or the Close button survives each tick.
   function refreshDashboardLive(){
+    refreshChrome();
     for(const s of activeSessions()){
       const ring=document.querySelector(`[data-ring="${s.sessionId}"]`); if(ring) ring.innerHTML=ttlRing(s);
       const age=document.querySelector(`[data-age="${s.sessionId}"]`); if(age) age.textContent=fmtAge(now()-s.createdAt);
     }
-    const active=activeSessions().length;
     const kpi=document.querySelectorAll(".kpi .big");
-    if(kpi[0]) kpi[0].innerHTML=`${active}<span style="font-size:16px;color:var(--muted)"> / ${CFG.maxConcurrent}</span>`;
+    if(kpi[0]) kpi[0].innerHTML=`${activeSessions().length}<span style="font-size:16px;color:var(--muted)"> / ${CFG.maxConcurrent}</span>`;
     if(kpi[1]) kpi[1].textContent=state.reaped;
-    const fill=document.querySelector(".cap-fill"); const frac=active/CFG.maxConcurrent;
-    if(fill){ fill.style.width=Math.min(100,frac*100)+"%"; fill.style.background=frac>=1?"var(--crit)":frac>=0.7?"var(--live)":"var(--accent)"; }
-    const capNum=document.querySelector(".cap-meter .mono"); if(capNum) capNum.textContent=`${active}/${CFG.maxConcurrent}`;
-    const navCount=document.querySelector('.nav-item[data-view="dashboard"] .count'); if(navCount) navCount.textContent=active;
   }
   setInterval(() => {
     const n0 = activeSessions().length;
-    // reap expired
+    // reap expired (defer the viewed-session fallback render; we render once, authoritatively, below)
     for(const s of activeSessions()){
       if(remainingMs(s)<=0){
         const reason = (now() >= s.createdAt + s.absoluteTtlSeconds*1000) ? "REAPED_ABSOLUTE" : "REAPED_IDLE";
         toast("info","Session reaped",`${s.sessionId} · ${REAP_LABEL[reason]||reason}`);
-        closeSession(s, reason);
+        closeSession(s, reason, true);
       }
     }
     const reaped = activeSessions().length!==n0;
-    if(state.view==="dashboard"){
-      // structure changed (a reap) → full render; otherwise refresh cells in place to preserve focus
-      if(reaped) renderView(); else refreshDashboardLive();
-    } else if(state.view==="cockpit"){
+    if(reaped){
+      // A reap changes the fleet/history counts + capacity (all live in the rail/topbar chrome).
+      // Views whose #view body depends on the session/history set get a full render; the rest only
+      // refresh the chrome in place, so focus on chrome controls and any in-progress form survive.
+      // (If the viewed session itself reaped, closeSession already switched us to the dashboard,
+      // which this same branch renders — so there is no second render.)
+      if(state.view==="dashboard" || state.view==="history") renderView();
+      else refreshChrome();
+    } else if(state.view==="dashboard"){
+      refreshDashboardLive();
+    }
+    if(state.view==="cockpit"){
       const s=getSession(state.activeSessionId);
       if(s){
         const remS=remainingMs(s)/1000;
         const r=$("#cp-rem"); if(r){ r.textContent=fmtDur(remS); r.style.color = remS<=30?"var(--crit)":""; }
         const exp=$("#expiring"); if(exp) exp.classList.toggle("show", remS<=30 && remS>0);
-        const ring=document.querySelector(".page-head .ttl"); if(ring) ring.classList.toggle("warn", remS<=30);
+        // Keep the page-head ring live like the dashboard's rings (arc + countdown + warn state).
+        const ring=$("#cp-ring"); if(ring) ring.innerHTML=ttlRing(s);
       }
-      // Only rebuild the topbar when the fleet count actually changed (a reap); doing it every
-      // second would drop keyboard focus from the topbar controls (theme toggle, New session).
-      if(reaped) renderTopbar();
-    } else if(reaped){
-      // A background reap changes the fleet/history counts + capacity and adds a History row.
-      // Refresh the rail badges and topbar (both outside #view) so an in-progress form isn't
-      // disturbed; only re-render #view for History, whose table shows the newly-closed row.
-      if(state.view==="history") renderView(); else { renderNav(); renderTopbar(); }
     }
   }, 1000);
 
