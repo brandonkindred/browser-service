@@ -80,3 +80,7 @@ flowchart LR
   `data-theme` override the in-page toggle stamps on `:root`.
 - Simulated clock drives the TTL countdowns and idle/absolute reaping; new sessions can be
   opened with a short 60s idle TTL to watch a reap happen quickly.
+- Accessibility: skip link + `<main>` landmark, decorative icons hidden from the a11y tree,
+  a polite screen-reader status region for op results, dismissible toasts (errors persist),
+  a `role="meter"` capacity gauge, and AA-contrast labels. Press <kbd>?</kbd> for the full
+  keyboard-shortcut map (also in the ⌘K palette).
