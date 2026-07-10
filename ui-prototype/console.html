@@ -613,6 +613,20 @@
     body:`<div class="pg"><p class="muted">Blank session — navigate to a URL to load a page.</p></div>` };
   const pageFor = url => url ? (PAGES[url] || genericPage(url)) : BLANK_PAGE;
 
+  // Mirror the backend UrlSafetyValidator (SSRF egress guard): reject loopback, link-local
+  // (incl. the 169.254.169.254 cloud metadata endpoint), and private-range hosts.
+  function urlSafe(url){
+    let host;
+    try{ host = new URL(url).hostname.replace(/^\[|\]$/g,"").toLowerCase(); }
+    catch{ return {ok:false, code:"validation_failed", message:"URL is malformed"}; }
+    const blocked = h => ({ok:false, code:"ssrf_blocked", message:`host ${h} is blocked by the SSRF egress guard`});
+    if(host==="localhost" || host.endsWith(".localhost") || host==="0.0.0.0" || host==="::1" || host==="ip6-localhost") return blocked(host);
+    const m = host.match(/^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/);
+    if(m){ const a=+m[1], b=+m[2];
+      if(a===0||a===127||a===10||(a===172&&b>=16&&b<=31)||(a===192&&b===168)||(a===169&&b===254)) return blocked(host); }
+    return {ok:true};
+  }
+
   // ---------- state ----------
   const CFG = { maxConcurrent:10, idleTtlDefault:300, absoluteTtl:1800 };
   const state = {
@@ -634,7 +648,7 @@
       currentUrl: seed?.url || null, pageKey: seed?.url || null,
       viewport:{width:1280,height:720}, scrollOffset:{x:0,y:0},
       status:"ACTIVE", elements:{}, elementSeq:0, log:[], events:[],
-      gdprShown: true, driftShown: true, pendingAlert:null,
+      gdprShown: true, driftShown: true, pendingAlert:null, removedClasses:[],
     };
     return s;
   }
@@ -771,7 +785,7 @@
     else if(state.view==="cockpit") v.innerHTML = viewCockpit();
     else if(state.view==="capture") v.innerHTML = viewCapture();
     else if(state.view==="history") v.innerHTML = viewHistory();
-    if(state.view==="cockpit"){ restoreViewportScroll(); }
+    if(state.view==="cockpit"){ restoreViewportScroll(); const s=getSession(state.activeSessionId); if(s) applyRemovals(s); }
     if(animate && !reduceMotion()){ v.classList.remove("fade"); void v.offsetWidth; v.classList.add("fade"); }
   }
 
@@ -785,8 +799,8 @@
         <td><span class="mono" style="color:var(--accent)">${s.sessionId}</span></td>
         <td>${brBadge(s.browserType)}</td>
         <td><span class="mono url-cell" title="${s.currentUrl?esc(s.currentUrl):""}">${s.currentUrl?esc(s.currentUrl):"—"}</span></td>
-        <td class="num">${fmtAge(now()-s.createdAt)}</td>
-        <td>${ttlRing(s)}</td>
+        <td class="num" data-age="${s.sessionId}">${fmtAge(now()-s.createdAt)}</td>
+        <td data-ring="${s.sessionId}">${ttlRing(s)}</td>
         <td><span class="chip active"><span class="d"></span>ACTIVE</span></td>
         <td style="text-align:right"><button class="btn sm icon ghost" data-act="close" data-id="${s.sessionId}" title="Close session">${svg(I.x)}</button></td>
       </tr>`).join("")
@@ -831,6 +845,12 @@
     if(p.drift && s.driftShown) html += `<div class="drift">${svg(I.bell)}</div>`;
     return html;
   }
+  // re-apply any BY_CLASS removals to the freshly-rendered page so they behave like persistent DOM mutations
+  function applyRemovals(s){
+    const pb=$("#pagebody"); if(!pb || !s.removedClasses || !s.removedClasses.length) return;
+    s.removedClasses.forEach(cls=>{ const esc2=window.CSS&&CSS.escape?CSS.escape(cls):cls.replace(/[^\w-]/g,""); pb.querySelectorAll("."+esc2).forEach(n=>n.remove()); });
+  }
+  function paintPage(s){ const pb=$("#pagebody"); if(pb) pb.innerHTML=renderPageInto(s); applyRemovals(s); }
   let _pendingScroll = 0;
   function restoreViewportScroll(){ const vp=$("#viewport"); if(vp){ vp.scrollTop=_pendingScroll; } }
 
@@ -977,7 +997,10 @@
     const path = sp.slice(1).join(" ").replace("{id}", s.sessionId).replace("{captureId}", "<captureId>");
     let c = `curl -X ${method} https://browser-service${path} \\\n  -H "Authorization: Bearer $TOKEN"`;
     if(method!=="GET" && l.req && Object.keys(l.req).length){
-      c += ` \\\n  -H "Content-Type: application/json" \\\n  -d '${JSON.stringify(l.req)}'`;
+      // single-quote the body and escape any embedded ' via the '\'' idiom so arbitrary
+      // payloads (e.g. Execute JS containing an apostrophe) stay valid shell.
+      const body = JSON.stringify(l.req).replace(/'/g, `'\\''`);
+      c += ` \\\n  -H "Content-Type: application/json" \\\n  -d '${body}'`;
     }
     return c;
   }
@@ -1029,7 +1052,7 @@
               <dl class="kv">
                 <dt>currentUrl</dt><dd>${esc(res.currentUrl)}</dd>
                 <dt>screenshot</dt><dd>${capState.encoding==="BINARY"?esc(res.screenshot.href):"imageBase64 (data:image/png;base64, iVBORw0KGgo…)"}</dd>
-                ${res.element?`<dt>element</dt><dd>${esc(res.element.tag)} · displayed=${res.element.displayed} · handle=${esc(res.element.elementHandle)}</dd>`:""}
+                ${res.element?`<dt>element</dt><dd>${res.element.found?`${esc(res.element.tag)} · displayed=${res.element.displayed} · handle=${esc(res.element.elementHandle)}`:`found=false — no node matched ${esc(capState.xpath)}`}</dd>`:""}
                 ${res.source?`<dt>source</dt><dd>${esc(res.source.slice(0,60))}…</dd>`:""}
               </dl>
             </div>` : `<div class="card"><div class="empty" style="padding:70px 30px">${svg(I.camera)}<div>Run a capture to preview the screenshot and <span class="mono">CaptureResponse</span> here.</div></div></div>`}
@@ -1089,16 +1112,19 @@
 
   function doNavigate(s, url){
     if(!/^https?:\/\//.test(url)){ logOp(s,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url},{error:{code:"validation_failed",message:"url must be absolute http(s)",requestId:uid("req_")}},"err"); toast("err","Navigation rejected","URL must start with http:// or https://","validation_failed"); return; }
+    const safe=urlSafe(url);
+    if(!safe.ok){ logOp(s,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url},{error:{code:safe.code,message:safe.message,requestId:uid("req_")}},"err"); toast("err","Navigation blocked",safe.message,safe.code); return; }
     touch(s);
     s.currentUrl=url; s.pageKey=url; s.scrollOffset={x:0,y:0}; s.gdprShown=true; s.driftShown=true;
-    // Real WebDriver element handles are page-bound and go stale on navigation — drop them.
-    s.elements={}; s.elementSeq=0;
+    // Real WebDriver element handles are page-bound and go stale on navigation — drop them,
+    // and a fresh page load clears any prior in-page DOM removals.
+    s.elements={}; s.elementSeq=0; s.removedClasses=[];
     const fo=$("#find-out"); if(fo) fo.innerHTML="";
     const p=pageFor(url); s.viewport = BROWSERS[s.browserType].mobile ? {width:390,height:844} : p.viewport;
     logOp(s,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url},{currentUrl:url,status:"LOADED"},"ok");
     pushEvent(s,"navigation.changed",`→ ${url}`);
     toast("ok","Navigated",p.title||url);
-    const pb=$("#pagebody"); if(pb) pb.innerHTML=renderPageInto(s);
+    paintPage(s);
     const ad=$("#addr"); if(ad) ad.textContent=url;
     const vp=$("#viewport"); if(vp) vp.scrollTop=0;
     // brief skeleton shimmer to sell the "page loading" moment
@@ -1192,10 +1218,12 @@
     if(preset==="BY_CLASS"){
       const pb=$("#pagebody");
       if(pb){ const esc2 = window.CSS && CSS.escape ? CSS.escape(value) : value.replace(/[^\w-]/g,""); const hits=pb.querySelectorAll("."+esc2); hits.forEach(n=>n.remove()); removed=hits.length>0; }
+      // record it so the removal persists across later re-renders of the same page (like a real DOM mutation)
+      if(!s.removedClasses.includes(value)) s.removedClasses.push(value);
     }
     const req = preset==="BY_CLASS" ? {preset, value} : {preset};
     logOp(s,"dom.remove","POST /v1/sessions/{id}/dom/remove",req,{status:204,removed},"ok");
-    if(preset!=="BY_CLASS"){ const pb=$("#pagebody"); if(pb) pb.innerHTML=renderPageInto(s); }
+    if(preset!=="BY_CLASS") paintPage(s);
     const label = preset==="BY_CLASS" ? `.${value}` : preset;
     toast(removed?"ok":"info", removed?"Overlay stripped":"Nothing to strip", removed?`${label} removed from DOM`:`No ${label} match on this page`);
   }
@@ -1238,16 +1266,26 @@
   }
 
   function runCapture(){
+    const safe=urlSafe(capState.url);
+    if(!safe.ok){ toast("err","Capture blocked",safe.message,safe.code); return; }
     const p=pageFor(capState.url);
-    const dims = capState.strategy==="VIEWPORT" ? {width:1280,height:720} : {width:1280,height:1840};
-    const el = capState.xpath && p.elements[capState.xpath];
+    // honour the selected browser type — mobile renders a phone-sized viewport
+    const mobile = !!(BROWSERS[capState.browserType] && BROWSERS[capState.browserType].mobile);
+    const vw = mobile ? 390 : 1280;
+    const dims = capState.strategy==="VIEWPORT" ? {width:vw, height: mobile?844:720} : {width:vw, height: mobile?2200:1840};
+    // distinguish "no xpath requested" (null) from "xpath requested but not found" (found:false)
+    let element = null;
+    if(capState.xpath){
+      const found = p.elements[capState.xpath];
+      element = found ? { found:true, tag:found.tag, displayed:found.displayed, elementHandle:"el_1", rect:found.rect } : { found:false, displayed:false };
+    }
     const capId = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : uid("cap_");
     capState.result = {
       captureId: capId, currentUrl: capState.url,
       screenshot: { width:dims.width, height:dims.height, href:`/v1/capture/${capId}/screenshot` },
-      element: el ? { tag:el.tag, displayed:el.displayed, elementHandle:"el_1" } : null,
+      element,
       source: capState.includeSource ? p.source : null,
-      render: `<div style="transform-origin:top left">${p.body}</div>`,
+      render: `<div style="transform-origin:top left${mobile?";max-width:390px;margin:0 auto":""}">${p.body}</div>`,
     };
     toast("ok","Capture complete",`${p.title} · ${dims.width}×${dims.height}`);
     renderView();
@@ -1437,7 +1475,24 @@
   });
 
   // ---------- clocks ----------
+  // Update the dashboard's live cells (rings/age/capacity) in place, without replacing #view,
+  // so a keyboard user's focus on a row or the Close button survives each tick.
+  function refreshDashboardLive(){
+    for(const s of activeSessions()){
+      const ring=document.querySelector(`[data-ring="${s.sessionId}"]`); if(ring) ring.innerHTML=ttlRing(s);
+      const age=document.querySelector(`[data-age="${s.sessionId}"]`); if(age) age.textContent=fmtAge(now()-s.createdAt);
+    }
+    const active=activeSessions().length;
+    const kpi=document.querySelectorAll(".kpi .big");
+    if(kpi[0]) kpi[0].innerHTML=`${active}<span style="font-size:16px;color:var(--muted)"> / ${CFG.maxConcurrent}</span>`;
+    if(kpi[1]) kpi[1].textContent=state.reaped;
+    const fill=document.querySelector(".cap-fill"); const frac=active/CFG.maxConcurrent;
+    if(fill){ fill.style.width=Math.min(100,frac*100)+"%"; fill.style.background=frac>=1?"var(--crit)":frac>=0.7?"var(--live)":"var(--accent)"; }
+    const capNum=document.querySelector(".cap-meter .mono"); if(capNum) capNum.textContent=`${active}/${CFG.maxConcurrent}`;
+    const navCount=document.querySelector('.nav-item[data-view="dashboard"] .count'); if(navCount) navCount.textContent=active;
+  }
   setInterval(() => {
+    const n0 = activeSessions().length;
     // reap expired
     for(const s of activeSessions()){
       if(remainingMs(s)<=0){
@@ -1446,13 +1501,9 @@
         closeSession(s, reason);
       }
     }
-    // live TTL updates without full re-render
     if(state.view==="dashboard"){
-      document.querySelectorAll("[data-id]").forEach(()=>{});
-      renderTopbar(); renderNav();
-      // refresh rings cheaply by re-rendering the table body only
-      const tb = document.querySelector("table.tbl tbody");
-      if(tb && state.view==="dashboard") renderView();
+      // structure changed (a reap) → full render; otherwise refresh cells in place to preserve focus
+      if(activeSessions().length!==n0) renderView(); else refreshDashboardLive();
     } else if(state.view==="cockpit"){
       const s=getSession(state.activeSessionId);
       if(s){
