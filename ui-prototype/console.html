@@ -503,14 +503,13 @@
   .keyrow dd { margin:0; color:var(--text-dim); font-size:12.5px; }
   .keyrow kbd { font-family:var(--mono); font-size:11px; background:var(--surface-2); border:1px solid var(--border); border-bottom-width:2px; border-radius:5px; padding:2px 6px; color:var(--text); white-space:nowrap; }
   .card-title { font-size:13.5px; font-weight:600; margin:0; }
-  .field-err { color:var(--crit); font-size:11px; margin-top:5px; }          /* validation error, tied to its field */
-  #view h1:focus { outline:none; }                                          /* h1 is a programmatic focus target on view change */
+  .field-err { color:var(--crit); font-size:11px; margin-top:5px; flex-basis:100%; }  /* error lives after the <label>, full-width in row op-bodies */
   .copybar .cbtn { min-height:24px; }                                       /* WCAG 2.5.8 — 24px minimum hit target */
   .toast .tclose { min-width:24px; min-height:24px; display:inline-flex; align-items:center; justify-content:center; }
-  /* Windows High Contrast / forced-colors: restore separators that box-shadow/color-mix drop, and
-     keep the meaningful fills (capacity gauge, status dots, TTL ring) from collapsing to one color. */
+  /* Windows High Contrast / forced-colors: the surfaces above already declare borders that
+     forced-colors recolors on its own; we only need to stop the meaningful fills (capacity gauge,
+     status dots, TTL ring) from collapsing to a single system color. */
   @media (forced-colors: active){
-    .card, .op, .toast, .modal, .pal, .banner, .hint, .btn, .seg button, input.t, select.t, textarea.t, .cap-bar, .chip { border:1px solid; }
     .cap-fill, .dot, .chip .d, .ttl svg circle { forced-color-adjust:none; }
   }
 </style>
@@ -792,7 +791,12 @@
     const el=$("#"+id); if(!el) return;
     el.setAttribute("aria-invalid","true"); el.setAttribute("aria-describedby", id+"-err");
     let e=document.getElementById(id+"-err");
-    if(!e){ e=document.createElement("div"); e.id=id+"-err"; e.className="field-err"; el.insertAdjacentElement("afterend", e); }
+    if(!e){
+      e=document.createElement("div"); e.id=id+"-err"; e.className="field-err";
+      // Insert AFTER the enclosing <label>, not the input — otherwise the message becomes part of
+      // the field's accessible name (and gets read twice, alongside aria-describedby).
+      (el.closest("label")||el).insertAdjacentElement("afterend", e);
+    }
     e.textContent=msg;
   }
   function clearFieldError(id){
@@ -878,7 +882,7 @@
     else if(state.view==="cockpit") v.innerHTML = viewCockpit();
     else if(state.view==="capture") v.innerHTML = viewCapture();
     else if(state.view==="history") v.innerHTML = viewHistory();
-    if(state.view==="cockpit"){ restoreViewportScroll(); const s=getSession(state.activeSessionId); if(s) applyRemovals(s); }
+    if(state.view==="cockpit"){ restoreViewportScroll(); const s=getSession(state.activeSessionId); if(s) applyRemovals(s); demoteMockHeadings(); }
     if(animate && !reduceMotion()){ v.classList.remove("fade"); void v.offsetWidth; v.classList.add("fade"); }
   }
 
@@ -944,7 +948,10 @@
     const pb=$("#pagebody"); if(!pb || !s.removedClasses || !s.removedClasses.length) return;
     s.removedClasses.forEach(cls=>{ const esc2=window.CSS&&CSS.escape?CSS.escape(cls):cls.replace(/[^\w-]/g,""); pb.querySelectorAll("."+esc2).forEach(n=>n.remove()); });
   }
-  function paintPage(s){ const pb=$("#pagebody"); if(pb) pb.innerHTML=renderPageInto(s); applyRemovals(s); }
+  // The simulated page render isn't real console structure — strip heading semantics from its nodes
+  // so screen-reader heading navigation stays within the console's own <h1>/<h2> outline.
+  function demoteMockHeadings(){ const pb=$("#pagebody"); if(pb) pb.querySelectorAll("h1,h2,h3,h4,h5,h6").forEach(h=>h.setAttribute("role","presentation")); }
+  function paintPage(s){ const pb=$("#pagebody"); if(pb) pb.innerHTML=renderPageInto(s); applyRemovals(s); demoteMockHeadings(); }
   let _pendingScroll = 0;
   function restoreViewportScroll(){ const vp=$("#viewport"); if(vp){ vp.scrollTop=_pendingScroll; } }
 
@@ -1425,6 +1432,26 @@
     renderView();
   }
 
+  // Single dispatch for the command-deck ops, shared by the click handler and Enter-to-submit so the
+  // field wiring lives in one place. Returns true if it handled `act`.
+  function runOp(act, s){
+    switch(act){
+      case "navigate": doNavigate(s, $("#nav-url").value.trim()); return true;
+      case "find": doFind(s, $("#find-xpath").value.trim()); return true;
+      case "element-action": doElementAction(s, $("#act-handle").value.trim(), $("#act-kind").value, ($("#act-input")||{}).value); return true;
+      case "touch": doTouch(s, $("#act-handle").value.trim(), $("#touch-kind").value, ($("#touch-input")||{}).value); return true;
+      case "screenshot": doScreenshot(s, $("#shot-strat").value); return true;
+      case "scroll": doScroll(s, $("#scroll-mode").value, ($("#scroll-percent")||{}).value, (($("#scroll-handle")||{}).value||"").trim()); return true;
+      case "dom-remove": doDomRemove(s, $("#dom-preset").value, (($("#dom-value")||{}).value||"").trim()); return true;
+      case "alert-state": doAlertState(s); return true;
+      case "execute": doExecute(s, $("#exec-src").value); return true;
+      case "get-source": doGetSource(s); return true;
+    }
+    return false;
+  }
+  // Which op each op's primary text input submits on Enter (act-handle/act-input flip to touch on mobile).
+  const OP_FOR_INPUT = { "nav-url":"navigate", "find-xpath":"find", "act-handle":"element-action", "act-input":"element-action", "touch-input":"touch", "scroll-percent":"scroll", "scroll-handle":"scroll", "dom-value":"dom-remove" };
+
   // ---------- event delegation ----------
   document.addEventListener("click", e => {
     if(e.target.classList && e.target.classList.contains("pal-scrim")){ closePalette(); return; }
@@ -1440,7 +1467,16 @@
     if(act==="new-session") return openNewSession(true);
     if(act==="close-modal") return closeModal();
     if(act==="open") return go("cockpit", t.dataset.id);
-    if(act==="close"){ const s=getSession(t.dataset.id); if(s){ closeSession(s,"CLIENT"); toast("info","Session closed","Browser released · permit freed"); renderView(); } return; }
+    if(act==="close"){
+      const s=getSession(t.dataset.id);
+      if(s){
+        const wasViewed = state.view==="cockpit" && state.activeSessionId===s.sessionId;
+        closeSession(s,"CLIENT");        // if it was the viewed session, this navigates to the fleet (and focuses its h1)
+        toast("info","Session closed","Browser released · permit freed");
+        if(!wasViewed) renderView();     // a dashboard-row close needs the refresh; the cockpit close already rendered via go()
+      }
+      return;
+    }
     if(act==="tab"){
       state.cockpitTab=t.dataset.tab;
       document.querySelectorAll(".tabs .tab").forEach(x=>{ const on=x.dataset.tab===state.cockpitTab; x.classList.toggle("on",on); x.setAttribute("aria-selected",on); x.tabIndex=on?0:-1; });
@@ -1479,17 +1515,8 @@
       return;
     }
     if(act==="keep-alive"){ touch(s); const exp=$("#expiring"); if(exp) exp.classList.remove("show"); toast("ok","Session kept alive","Idle clock reset by activity"); return; }
-    if(act==="navigate") return doNavigate(s, $("#nav-url").value.trim());
-    if(act==="find") return doFind(s, $("#find-xpath").value.trim());
-    if(act==="element-action") return doElementAction(s, $("#act-handle").value.trim(), $("#act-kind").value, $("#act-input").value);
-    if(act==="touch") return doTouch(s, $("#act-handle").value.trim(), $("#touch-kind").value, ($("#touch-input")||{}).value);
-    if(act==="screenshot") return doScreenshot(s, $("#shot-strat").value);
-    if(act==="scroll") return doScroll(s, $("#scroll-mode").value, ($("#scroll-percent")||{}).value, (($("#scroll-handle")||{}).value||"").trim());
-    if(act==="dom-remove") return doDomRemove(s, $("#dom-preset").value, (($("#dom-value")||{}).value||"").trim());
-    if(act==="alert-state") return doAlertState(s);
     if(act==="alert-respond") return doAlertRespond(s, t.dataset.choice);
-    if(act==="execute") return doExecute(s, $("#exec-src").value);
-    if(act==="get-source") return doGetSource(s);
+    if(runOp(act, s)) return;
   });
   // capture live scroll offset from the viewport itself
   document.addEventListener("scroll", e => {
@@ -1602,17 +1629,13 @@
 
     if(e.key==="Enter" && typing){
       const s=getSession(state.activeSessionId);
-      if(el.id==="nav-url" && s){ e.preventDefault(); return doNavigate(s, el.value.trim()); }
-      if(el.id==="find-xpath" && s){ e.preventDefault(); return doFind(s, el.value.trim()); }
-      // Every op's primary text input submits its own op on Enter, so the interaction is uniform.
-      if(s && (el.id==="act-handle"||el.id==="act-input"||el.id==="touch-input")){
+      // Every op's primary text input submits its op on Enter, via the shared dispatcher.
+      if(s && OP_FOR_INPUT[el.id]){
         e.preventDefault();
-        return BROWSERS[s.browserType].mobile
-          ? doTouch(s, $("#act-handle").value.trim(), $("#touch-kind").value, ($("#touch-input")||{}).value)
-          : doElementAction(s, $("#act-handle").value.trim(), $("#act-kind").value, ($("#act-input")||{}).value);
+        let act=OP_FOR_INPUT[el.id];
+        if((el.id==="act-handle"||el.id==="act-input") && BROWSERS[s.browserType].mobile) act="touch";
+        return runOp(act, s);
       }
-      if(s && (el.id==="scroll-percent"||el.id==="scroll-handle")){ e.preventDefault(); return doScroll(s, $("#scroll-mode").value, ($("#scroll-percent")||{}).value, (($("#scroll-handle")||{}).value||"").trim()); }
-      if(s && el.id==="dom-value"){ e.preventDefault(); return doDomRemove(s, $("#dom-preset").value, (($("#dom-value")||{}).value||"").trim()); }
       if(el.id==="cap-url" || el.id==="cap-xpath"){
         e.preventDefault();
         syncCapForm();
