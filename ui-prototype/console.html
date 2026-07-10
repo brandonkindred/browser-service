@@ -1285,8 +1285,8 @@
     let result;
     if(/\bdocument\.title\b/.test(src)) result=pageFor(s.currentUrl).title||"";
     else if(/\b(?:document\.URL|window\.location|location\.href|location\.assign)\b/.test(src)) result=s.currentUrl;
-    else if(/\b(?:window\.innerWidth|document\.documentElement\.clientWidth|innerWidth)\b/.test(src)) result=s.viewport.width;
-    else if(/\b(?:window\.scrollY|scrollY|window\.pageYOffset|pageYOffset)\b/.test(src)) result=s.scrollOffset.y;
+    else if(/\b(?:document\.documentElement\.clientWidth|innerWidth)\b/.test(src)) result=s.viewport.width;
+    else if(/\b(?:scrollY|pageYOffset)\b/.test(src)) result=s.scrollOffset.y;
     else result="undefined";
     logOp(s,"script.execute","POST /v1/sessions/{id}/execute",{script:src},{result},"ok");
     const o=$("#exec-out"); if(o) o.innerHTML=`<div class="result-box">result: ${esc(JSON.stringify(result))}</div>`;
@@ -1552,11 +1552,14 @@
         const exp=$("#expiring"); if(exp) exp.classList.toggle("show", remS<=30 && remS>0);
         const ring=document.querySelector(".page-head .ttl"); if(ring) ring.classList.toggle("warn", remS<=30);
       }
-      renderTopbar();
+      // Only rebuild the topbar when the fleet count actually changed (a reap); doing it every
+      // second would drop keyboard focus from the topbar controls (theme toggle, New session).
+      if(reaped) renderTopbar();
     } else if(reaped){
-      // On History / Quick capture a background reap still mutates the audit trail and the
-      // fleet/history counts — re-render so the table and nav badges reflect it live.
-      renderView();
+      // A background reap changes the fleet/history counts + capacity and adds a History row.
+      // Refresh the rail badges and topbar (both outside #view) so an in-progress form isn't
+      // disturbed; only re-render #view for History, whose table shows the newly-closed row.
+      if(state.view==="history") renderView(); else { renderNav(); renderTopbar(); }
     }
   }, 1000);
 
