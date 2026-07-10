@@ -80,7 +80,10 @@ flowchart LR
   `data-theme` override the in-page toggle stamps on `:root`.
 - Simulated clock drives the TTL countdowns and idle/absolute reaping; new sessions can be
   opened with a short 60s idle TTL to watch a reap happen quickly.
-- Accessibility: skip link + `<main>` landmark, decorative icons hidden from the a11y tree,
-  a polite screen-reader status region for op results, dismissible toasts (errors persist),
-  a `role="meter"` capacity gauge, and AA-contrast labels. Press <kbd>?</kbd> for the full
-  keyboard-shortcut map (also in the ⌘K palette).
+- Accessibility: `lang` set, skip link + `<main>`/heading landmarks, `scope`d table headers,
+  focus moved to the view heading on navigation, decorative icons hidden from the a11y tree, a
+  polite screen-reader status region for op results, validation errors tied to their field
+  (`aria-invalid` + `aria-describedby`), dismissible toasts (errors persist), a `role="meter"`
+  capacity gauge, AA-contrast labels, ≥24px hit targets, and a `forced-colors` pass for Windows
+  High Contrast. Every op input submits on Enter; press <kbd>?</kbd> for the keyboard-shortcut
+  map (also in the ⌘K palette).

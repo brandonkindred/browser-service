@@ -494,7 +494,7 @@
   .toast .tclose { flex:none; align-self:flex-start; background:none; border:0; color:var(--muted); cursor:pointer; padding:2px; margin:-3px -5px 0 0; border-radius:6px; }
   .toast .tclose:hover { color:var(--text); background:var(--surface-2); }
   .toast .tclose svg { width:14px; height:14px; }
-  .deck-grp { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:600; padding:10px 4px 3px; }
+  .deck-grp { font-size:10px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:600; padding:10px 4px 3px; margin:0; }
   .deck-grp:first-child { padding-top:2px; }
   .keys { display:flex; flex-direction:column; gap:2px; margin:0; }
   .keyrow { display:flex; align-items:baseline; gap:14px; padding:8px 0; border-bottom:1px solid var(--border-soft); }
@@ -502,6 +502,17 @@
   .keyrow dt { flex:none; min-width:150px; }
   .keyrow dd { margin:0; color:var(--text-dim); font-size:12.5px; }
   .keyrow kbd { font-family:var(--mono); font-size:11px; background:var(--surface-2); border:1px solid var(--border); border-bottom-width:2px; border-radius:5px; padding:2px 6px; color:var(--text); white-space:nowrap; }
+  .card-title { font-size:13.5px; font-weight:600; margin:0; }
+  .field-err { color:var(--crit); font-size:11px; margin-top:5px; }          /* validation error, tied to its field */
+  #view h1:focus { outline:none; }                                          /* h1 is a programmatic focus target on view change */
+  .copybar .cbtn { min-height:24px; }                                       /* WCAG 2.5.8 — 24px minimum hit target */
+  .toast .tclose { min-width:24px; min-height:24px; display:inline-flex; align-items:center; justify-content:center; }
+  /* Windows High Contrast / forced-colors: restore separators that box-shadow/color-mix drop, and
+     keep the meaningful fills (capacity gauge, status dots, TTL ring) from collapsing to one color. */
+  @media (forced-colors: active){
+    .card, .op, .toast, .modal, .pal, .banner, .hint, .btn, .seg button, input.t, select.t, textarea.t, .cap-bar, .chip { border:1px solid; }
+    .cap-fill, .dot, .chip .d, .ttl svg circle { forced-color-adjust:none; }
+  }
 </style>
 
 <a class="skip" href="#view">Skip to content</a>
@@ -773,6 +784,23 @@
     }
   }
 
+  // Tie a validation error to its field: mark it aria-invalid and point aria-describedby at an
+  // inline message, so a screen reader hears the reason on the field (the toast + #sr-status give
+  // the immediate announcement; this is the persistent association — WCAG 3.3.1). No role=alert
+  // here on purpose, to avoid double-announcing with the toast.
+  function fieldError(id, msg){
+    const el=$("#"+id); if(!el) return;
+    el.setAttribute("aria-invalid","true"); el.setAttribute("aria-describedby", id+"-err");
+    let e=document.getElementById(id+"-err");
+    if(!e){ e=document.createElement("div"); e.id=id+"-err"; e.className="field-err"; el.insertAdjacentElement("afterend", e); }
+    e.textContent=msg;
+  }
+  function clearFieldError(id){
+    const el=$("#"+id); if(!el) return;
+    el.removeAttribute("aria-invalid"); el.removeAttribute("aria-describedby");
+    const e=document.getElementById(id+"-err"); if(e) e.remove();
+  }
+
   // ---------- theme ----------
   function currentTheme(){
     const set = document.documentElement.getAttribute("data-theme");
@@ -886,15 +914,15 @@
       <div class="dash-grid">
         <div class="card">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border)">
-            <div><b style="font-size:13.5px">Active sessions</b><div style="font-size:11px;color:var(--muted);margin-top:2px">The <b style="color:var(--text-dim)">Reaps in</b> ring counts down to the idle reap; the 30-min absolute cap always wins.</div></div>
+            <div><h2 class="card-title">Active sessions</h2><div style="font-size:11px;color:var(--muted);margin-top:2px">The <b style="color:var(--text-dim)">Reaps in</b> ring counts down to the idle reap; the 30-min absolute cap always wins.</div></div>
             <button class="btn sm primary" data-act="new-session">${svg(I.plus)} New session</button>
           </div>
           <div class="tbl-wrap"><table class="tbl">
-            <thead><tr><th>Session</th><th>Browser</th><th>Current URL</th><th>Age</th><th>Reaps in</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th scope="col">Session</th><th scope="col">Browser</th><th scope="col">Current URL</th><th scope="col">Age</th><th scope="col">Reaps in</th><th scope="col">Status</th><th scope="col"><span class="sr-only">Actions</span></th></tr></thead>
             <tbody>${rows}</tbody></table></div>
         </div>
         <div class="card">
-          <div style="padding:14px 16px;border-bottom:1px solid var(--border)"><b style="font-size:13.5px">Infrastructure</b><div style="font-size:11.5px;color:var(--muted);margin-top:2px;font-family:var(--mono)">GET /readyz</div></div>
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border)"><h2 class="card-title">Infrastructure</h2><div style="font-size:11.5px;color:var(--muted);margin-top:2px;font-family:var(--mono)">GET /readyz</div></div>
           <div class="hstrip">
             ${r.seleniumHubs.map(health).join("")}
             ${r.appiumServers.map(health).join("")}
@@ -944,7 +972,7 @@
             <div class="omni">${svg(I.lock)}<span class="addr" id="addr">${s.currentUrl?esc(s.currentUrl):"about:blank"}</span></div>
             <span class="chip active"><span class="d"></span>LIVE</span>
           </div>
-          <div class="viewport" id="viewport" style="${b.mobile?"max-width:412px;margin:0 auto;border-left:1px solid var(--border);border-right:1px solid var(--border)":""}">
+          <div class="viewport" id="viewport" role="group" aria-roledescription="Simulated page render" aria-label="Session viewport — mock render of the pinned browser page" style="${b.mobile?"max-width:412px;margin:0 auto;border-left:1px solid var(--border);border-right:1px solid var(--border)":""}">
             <div class="flash" id="flash"></div>
             <div class="skeleton" id="skel"></div>
             <div id="pagebody">${s.currentUrl?renderPageInto(s):`<div class="pg"><p class="muted">Blank session. Navigate to a URL to load a page.</p></div>`}</div>
@@ -983,19 +1011,19 @@
     const b = BROWSERS[s.browserType];
     const opts = (arr,val) => arr.map(o=>`<option value="${o}" ${o===val?"selected":""}>${o}</option>`).join("");
     let html = "";
-    html += `<div class="deck-grp">Navigate</div>`;
+    html += `<h2 class="deck-grp">Navigate</h2>`;
     html += op("Navigate", I.nav, "nav", `
       <label class="f"><span class="lt">url</span><input class="t" id="nav-url" value="https://example.com" placeholder="https://…"></label>
       <div style="display:flex;gap:6px;flex-wrap:wrap">${KNOWN_URLS.map(u=>`<button class="btn sm ghost" data-act="fill-url" data-url="${u}">${esc(u.replace("https://",""))}</button>`).join("")}</div>
       <button class="btn primary" data-act="navigate">${svg(I.play)} Navigate</button>`, true);
 
-    html += `<div class="deck-grp">Inspect</div>`;
+    html += `<h2 class="deck-grp">Inspect</h2>`;
     html += op("Find element", I.search, "find", `
       <label class="f"><span class="lt">xpath</span><input class="t" id="find-xpath" value="//h1" placeholder="//button[@id=&quot;submit&quot;]"></label>
       <button class="btn" data-act="find">Resolve element</button>
       <div id="find-out"></div>`);
 
-    html += `<div class="deck-grp">Interact</div>`;
+    html += `<h2 class="deck-grp">Interact</h2>`;
     if(!b.mobile){
       html += op("Element action", I.hand, "action", `
         <label class="f"><span class="lt">element handle</span><input class="t" id="act-handle" placeholder="el_1 (from Find)"></label>
@@ -1038,7 +1066,7 @@
         <button class="btn sm" data-act="alert-respond" data-choice="dismiss">Dismiss</button>
       </div><div id="alert-out"></div>`);
 
-    html += `<div class="deck-grp">Script &amp; source</div>`;
+    html += `<h2 class="deck-grp">Script &amp; source</h2>`;
     html += op("Execute JS", I.code, "exec", `
       <label class="f"><span class="lt">script</span><textarea class="t" id="exec-src">return document.title;</textarea></label>
       <button class="btn" data-act="execute">Run script</button>
@@ -1166,7 +1194,7 @@
     return `
       <div class="page-head"><h1>Session history</h1><p>The audit trail from the <span class="mono">browser_sessions</span> table — every session that closed, and why it closed.</p></div>
       <div class="card"><div class="tbl-wrap"><table class="tbl">
-        <thead><tr><th>Session</th><th>Browser</th><th>Lifetime</th><th>Closed reason</th><th>Outcome</th><th>Closed at</th></tr></thead>
+        <thead><tr><th scope="col">Session</th><th scope="col">Browser</th><th scope="col">Lifetime</th><th scope="col">Closed reason</th><th scope="col">Outcome</th><th scope="col">Closed at</th></tr></thead>
         <tbody>${rows}</tbody></table></div></div>`;
   }
 
@@ -1197,12 +1225,19 @@
   function closeModal(){ const had=$("#modal-root").firstElementChild; $("#modal-root").innerHTML=""; if(had && _lastFocus && _lastFocus.focus) _lastFocus.focus(); }
 
   // ---------- actions ----------
-  function go(view, id){ state.view=view; if(id) state.activeSessionId=id; renderView(true); }
+  function go(view, id){
+    state.view=view; if(id) state.activeSessionId=id; renderView(true);
+    // SPA route change: move focus to the new view's heading so keyboard/screen-reader users land
+    // at the top of the new content and hear it announced (WCAG 2.4.3), instead of focus sticking
+    // on the nav control while the page silently swaps beneath them.
+    const h=$("#view h1"); if(h){ h.setAttribute("tabindex","-1"); h.focus(); }
+  }
 
   function doNavigate(s, url){
-    if(!/^https?:\/\//.test(url)){ logOp(s,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url},{error:{code:"validation_failed",message:"url must be absolute http(s)",requestId:uid("req_")}},"err"); toast("err","Navigation rejected","URL must start with http:// or https://","validation_failed"); return; }
+    if(!/^https?:\/\//.test(url)){ logOp(s,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url},{error:{code:"validation_failed",message:"url must be absolute http(s)",requestId:uid("req_")}},"err"); toast("err","Navigation rejected","URL must start with http:// or https://","validation_failed"); fieldError("nav-url","URL must start with http:// or https://"); return; }
     const safe=urlSafe(url);
-    if(!safe.ok){ logOp(s,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url},{error:{code:safe.code,message:safe.message,requestId:uid("req_")}},"err"); toast("err","Navigation blocked",safe.message,safe.code); return; }
+    if(!safe.ok){ logOp(s,"navigation.navigate","POST /v1/sessions/{id}/navigate",{url},{error:{code:safe.code,message:safe.message,requestId:uid("req_")}},"err"); toast("err","Navigation blocked",safe.message,safe.code); fieldError("nav-url",safe.message); return; }
+    clearFieldError("nav-url");
     touch(s);
     s.currentUrl=url; s.pageKey=url; s.scrollOffset={x:0,y:0}; s.gdprShown=true; s.driftShown=true;
     // Real WebDriver element handles are page-bound and go stale on navigation — drop them,
@@ -1248,7 +1283,8 @@
     const o=$("#find-out"); if(o) o.innerHTML=out;
   }
   function doElementAction(s, handle, kind, input){
-    if(!handle || !s.elements[handle]){ toast("err","Unknown handle","Run Find element first to get a handle.","validation_failed"); return; }
+    if(!handle || !s.elements[handle]){ toast("err","Unknown handle","Run Find element first to get a handle.","validation_failed"); fieldError("act-handle","Run Find element first to get a handle."); return; }
+    clearFieldError("act-handle");
     touch(s);
     const xpath=s.elements[handle]; const p=pageFor(s.currentUrl);
     logOp(s,"element.action","POST /v1/sessions/{id}/element/action",{elementHandle:handle,action:kind,input:input||null},{status:204},"ok");
@@ -1263,7 +1299,8 @@
     }
   }
   function doTouch(s, handle, kind, input){
-    if(!handle || !s.elements[handle]){ toast("err","Unknown handle","Run Find element first to get a handle.","validation_failed"); return; }
+    if(!handle || !s.elements[handle]){ toast("err","Unknown handle","Run Find element first to get a handle.","validation_failed"); fieldError("act-handle","Run Find element first to get a handle."); return; }
+    clearFieldError("act-handle");
     touch(s);
     logOp(s,"touch.tap","POST /v1/sessions/{id}/element/touch",{elementHandle:handle,action:kind,input:input||null},{status:204},"ok");
     pushEvent(s,"console.log",`[touch] ${kind}${kind==="sendKeys"&&input?` "${input}"`:""} on ${s.elements[handle]}`);
@@ -1282,13 +1319,14 @@
     const req={ mode };
     if(mode==="DOWN_PERCENT"){
       const pct=parseFloat(percent);
-      if(!(pct>0 && pct<=1)){ logOp(s,"scroll.to","POST /v1/sessions/{id}/scroll",{mode},{error:{code:"validation_failed",message:"percent (0-1) is required for DOWN_PERCENT",requestId:uid("req_")}},"err"); toast("err","Scroll rejected","DOWN_PERCENT needs a percent between 0 and 1.","validation_failed"); return; }
+      if(!(pct>0 && pct<=1)){ logOp(s,"scroll.to","POST /v1/sessions/{id}/scroll",{mode},{error:{code:"validation_failed",message:"percent (0-1) is required for DOWN_PERCENT",requestId:uid("req_")}},"err"); toast("err","Scroll rejected","DOWN_PERCENT needs a percent between 0 and 1.","validation_failed"); fieldError("scroll-percent","Enter a percent between 0 and 1."); return; }
       req.percent=pct;
     }
     if(mode==="TO_ELEMENT"||mode==="TO_ELEMENT_CENTERED"){
-      if(!handle || !s.elements[handle]){ logOp(s,"scroll.to","POST /v1/sessions/{id}/scroll",{mode,elementHandle:handle||null},{error:{code:"validation_failed",message:mode+" requires a valid elementHandle",requestId:uid("req_")}},"err"); toast("err","Scroll rejected",`${mode} needs an element handle (run Find element first).`,"validation_failed"); return; }
+      if(!handle || !s.elements[handle]){ logOp(s,"scroll.to","POST /v1/sessions/{id}/scroll",{mode,elementHandle:handle||null},{error:{code:"validation_failed",message:mode+" requires a valid elementHandle",requestId:uid("req_")}},"err"); toast("err","Scroll rejected",`${mode} needs an element handle (run Find element first).`,"validation_failed"); fieldError("scroll-handle",`${mode} needs a valid element handle.`); return; }
       req.elementHandle=handle;
     }
+    clearFieldError("scroll-percent"); clearFieldError("scroll-handle");
     touch(s);
     const vp=$("#viewport"); const max = vp ? vp.scrollHeight-vp.clientHeight : 800;
     let y=s.scrollOffset.y;
@@ -1304,7 +1342,8 @@
   }
   function doDomRemove(s, preset, value){
     // Mirror DomRemoveRequest: BY_CLASS requires a class name in `value`.
-    if(preset==="BY_CLASS" && !value){ logOp(s,"dom.remove","POST /v1/sessions/{id}/dom/remove",{preset},{error:{code:"validation_failed",message:"value (class name) is required for BY_CLASS",requestId:uid("req_")}},"err"); toast("err","Removal rejected","BY_CLASS needs a class name.","validation_failed"); return; }
+    if(preset==="BY_CLASS" && !value){ logOp(s,"dom.remove","POST /v1/sessions/{id}/dom/remove",{preset},{error:{code:"validation_failed",message:"value (class name) is required for BY_CLASS",requestId:uid("req_")}},"err"); toast("err","Removal rejected","BY_CLASS needs a class name.","validation_failed"); fieldError("dom-value","Enter a class name for BY_CLASS."); return; }
+    clearFieldError("dom-value");
     touch(s); const p=pageFor(s.currentUrl); let removed=false;
     if((preset==="GDPR_MODAL"||preset==="GDPR") && p.gdpr && s.gdprShown){ s.gdprShown=false; removed=true; }
     if(preset==="DRIFT_CHAT" && p.drift && s.driftShown){ s.driftShown=false; removed=true; }
@@ -1565,6 +1604,15 @@
       const s=getSession(state.activeSessionId);
       if(el.id==="nav-url" && s){ e.preventDefault(); return doNavigate(s, el.value.trim()); }
       if(el.id==="find-xpath" && s){ e.preventDefault(); return doFind(s, el.value.trim()); }
+      // Every op's primary text input submits its own op on Enter, so the interaction is uniform.
+      if(s && (el.id==="act-handle"||el.id==="act-input"||el.id==="touch-input")){
+        e.preventDefault();
+        return BROWSERS[s.browserType].mobile
+          ? doTouch(s, $("#act-handle").value.trim(), $("#touch-kind").value, ($("#touch-input")||{}).value)
+          : doElementAction(s, $("#act-handle").value.trim(), $("#act-kind").value, ($("#act-input")||{}).value);
+      }
+      if(s && (el.id==="scroll-percent"||el.id==="scroll-handle")){ e.preventDefault(); return doScroll(s, $("#scroll-mode").value, ($("#scroll-percent")||{}).value, (($("#scroll-handle")||{}).value||"").trim()); }
+      if(s && el.id==="dom-value"){ e.preventDefault(); return doDomRemove(s, $("#dom-preset").value, (($("#dom-value")||{}).value||"").trim()); }
       if(el.id==="cap-url" || el.id==="cap-xpath"){
         e.preventDefault();
         syncCapForm();
@@ -1665,6 +1713,7 @@
   }, 7000);
 
   // ---------- boot ----------
+  document.documentElement.lang = "en"; // WCAG 3.1.1 — the content-only file has no <html lang>
   paintThemeToggle();
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", paintThemeToggle);
   seed();
