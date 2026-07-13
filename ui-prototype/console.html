@@ -688,7 +688,7 @@
   }
 
   // ---------- state ----------
-  const CFG = { maxConcurrent:20, idleTtlDefault:300, absoluteTtl:1800 }; // matches browserservice.session.max-concurrent
+  const CFG = { maxConcurrent:10, idleTtlDefault:300, absoluteTtl:1800 }; // task spec: 10-session cap
   const state = {
     view:"dashboard", activeSessionId:null, cockpitTab:"console",
     sessions:[], history:[],
