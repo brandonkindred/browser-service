@@ -25,7 +25,7 @@ honours your OS `prefers-color-scheme`).
 ## What you can do
 
 - **Dashboard** — the session fleet: live TTL countdown rings, a capacity meter (hit the
-  10-session cap to see the `429 session_cap_exceeded` path), a create-session flow, and
+  20-session concurrency cap to see the `429 session_cap_exceeded` path), a create-session flow, and
   an upstream-readiness strip. Sessions reap themselves on idle/absolute TTL in real time.
 - **Session cockpit** — drive one browser live: a mock viewport (with screenshot
   strategies), Navigate, Find element (resolves a handle + attributes + rect and
