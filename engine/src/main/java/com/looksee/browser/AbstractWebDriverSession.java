@@ -58,7 +58,7 @@ public abstract class AbstractWebDriverSession implements DriverOps {
    * Compatibility alias for {@link #getScrollOffsetX()}. Kept for engine JAR callers that used the
    * pre-DriverOps Lombok accessor names.
    */
-  @SuppressWarnings("checkstyle:AbbreviationAsWordInName")
+  // CHECKSTYLE.SUPPRESS: AbbreviationAsWordInName for +1 lines
   public long getXScrollOffset() {
     return getScrollOffsetX();
   }
@@ -67,7 +67,7 @@ public abstract class AbstractWebDriverSession implements DriverOps {
    * Compatibility alias for {@link #setScrollOffsetX(long)}. Kept for engine JAR callers that used
    * the pre-DriverOps Lombok accessor names.
    */
-  @SuppressWarnings("checkstyle:AbbreviationAsWordInName")
+  // CHECKSTYLE.SUPPRESS: AbbreviationAsWordInName for +1 lines
   public void setXScrollOffset(long offset) {
     setScrollOffsetX(offset);
   }
@@ -76,7 +76,7 @@ public abstract class AbstractWebDriverSession implements DriverOps {
    * Compatibility alias for {@link #getScrollOffsetY()}. Kept for engine JAR callers that used the
    * pre-DriverOps Lombok accessor names.
    */
-  @SuppressWarnings("checkstyle:AbbreviationAsWordInName")
+  // CHECKSTYLE.SUPPRESS: AbbreviationAsWordInName for +1 lines
   public long getYScrollOffset() {
     return getScrollOffsetY();
   }
@@ -85,7 +85,7 @@ public abstract class AbstractWebDriverSession implements DriverOps {
    * Compatibility alias for {@link #setScrollOffsetY(long)}. Kept for engine JAR callers that used
    * the pre-DriverOps Lombok accessor names.
    */
-  @SuppressWarnings("checkstyle:AbbreviationAsWordInName")
+  // CHECKSTYLE.SUPPRESS: AbbreviationAsWordInName for +1 lines
   public void setYScrollOffset(long offset) {
     setScrollOffsetY(offset);
   }
