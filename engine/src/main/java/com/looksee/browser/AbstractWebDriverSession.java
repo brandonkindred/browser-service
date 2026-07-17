@@ -54,6 +54,38 @@ public abstract class AbstractWebDriverSession implements DriverOps {
   private long scrollOffsetX;
   private Dimension viewportSize;
 
+  /**
+   * Compatibility alias for {@link #getScrollOffsetX()}. Kept for engine JAR callers that used the
+   * pre-DriverOps Lombok accessor names.
+   */
+  public long getXScrollOffset() {
+    return getScrollOffsetX();
+  }
+
+  /**
+   * Compatibility alias for {@link #setScrollOffsetX(long)}. Kept for engine JAR callers that used
+   * the pre-DriverOps Lombok accessor names.
+   */
+  public void setXScrollOffset(long offset) {
+    setScrollOffsetX(offset);
+  }
+
+  /**
+   * Compatibility alias for {@link #getScrollOffsetY()}. Kept for engine JAR callers that used the
+   * pre-DriverOps Lombok accessor names.
+   */
+  public long getYScrollOffset() {
+    return getScrollOffsetY();
+  }
+
+  /**
+   * Compatibility alias for {@link #setScrollOffsetY(long)}. Kept for engine JAR callers that used
+   * the pre-DriverOps Lombok accessor names.
+   */
+  public void setYScrollOffset(long offset) {
+    setScrollOffsetY(offset);
+  }
+
   /** Used by tests and by subclasses that inject a pre-built driver. */
   protected AbstractWebDriverSession(WebDriver driver) {
     this.driver = driver;
@@ -87,7 +119,7 @@ public abstract class AbstractWebDriverSession implements DriverOps {
     getDriver().get(url);
     try {
       waitForPageToLoad();
-    } catch (Exception e) {
+    } catch (WebDriverException e) {
       // Best-effort: some pages never reach readyState=complete.
       log.debug("waitForPageToLoad during navigateTo failed: {}", e.toString());
     }
@@ -97,7 +129,7 @@ public abstract class AbstractWebDriverSession implements DriverOps {
   public void close() {
     try {
       driver.quit();
-    } catch (Exception e) {
+    } catch (WebDriverException e) {
       log.debug("Exception occurred when closing session: " + e.getMessage());
     }
   }

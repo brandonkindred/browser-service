@@ -99,7 +99,7 @@ public class AbstractWebDriverSessionTest {
 
   @Test
   void closeSwallowsQuitExceptions() {
-    doThrow(new RuntimeException("boom")).when(driver).quit();
+    doThrow(new org.openqa.selenium.WebDriverException("boom")).when(driver).quit();
     assertDoesNotThrow(() -> session.close());
   }
 

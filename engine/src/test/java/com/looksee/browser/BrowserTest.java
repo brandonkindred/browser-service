@@ -86,7 +86,7 @@ public class BrowserTest {
 
   @Test
   public void testCloseWithException() {
-    doThrow(new RuntimeException("error")).when(driver).quit();
+    doThrow(new org.openqa.selenium.WebDriverException("error")).when(driver).quit();
     assertDoesNotThrow(() -> browser.close());
   }
 
@@ -325,7 +325,7 @@ public class BrowserTest {
   public void testNavigateToWithWaitException() {
     // When waitForPageToLoad throws, navigateTo should still succeed
     when(driver.executeScript("return document.readyState"))
-        .thenThrow(new RuntimeException("timeout"));
+        .thenThrow(new org.openqa.selenium.WebDriverException("timeout"));
     assertDoesNotThrow(() -> browser.navigateTo("http://example.com"));
     verify(driver).get("http://example.com");
   }

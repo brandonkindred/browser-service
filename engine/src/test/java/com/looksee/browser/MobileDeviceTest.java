@@ -82,7 +82,7 @@ public class MobileDeviceTest {
 
   @Test
   public void testCloseWithException() {
-    doThrow(new RuntimeException("error")).when(driver).quit();
+    doThrow(new org.openqa.selenium.WebDriverException("error")).when(driver).quit();
     assertDoesNotThrow(() -> device.close());
   }
 
@@ -245,7 +245,7 @@ public class MobileDeviceTest {
   @Test
   public void testNavigateToWithWaitException() {
     when(driver.executeScript("return document.readyState"))
-        .thenThrow(new RuntimeException("timeout"));
+        .thenThrow(new org.openqa.selenium.WebDriverException("timeout"));
     assertDoesNotThrow(() -> device.navigateTo("http://example.com"));
     verify(driver).get("http://example.com");
   }
