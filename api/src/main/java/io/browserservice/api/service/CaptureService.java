@@ -1,6 +1,7 @@
 package io.browserservice.api.service;
 
 import com.looksee.browser.Browser;
+import com.looksee.browser.DriverOps;
 import com.looksee.browser.MobileDevice;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.dto.CaptureRequest;
@@ -86,13 +87,9 @@ public class CaptureService {
               h,
               sess -> {
                 try {
-                  if (sess.isMobile()) {
-                    sess.asMobileDevice().navigateTo(req.url());
-                    sess.asMobileDevice().waitForPageToLoad();
-                  } else {
-                    sess.asBrowser().navigateTo(req.url());
-                    sess.asBrowser().waitForPageToLoad();
-                  }
+                  DriverOps ops = sess.ops();
+                  ops.navigateTo(req.url());
+                  ops.waitForPageToLoad();
 
                   ElementStateResponse element = resolveElement(sess, xpath);
 
@@ -103,10 +100,7 @@ public class CaptureService {
 
                   String source = null;
                   if (includeSource) {
-                    source =
-                        sess.isMobile()
-                            ? sess.asMobileDevice().getSource()
-                            : sess.asBrowser().getSource();
+                    source = ops.getSource();
                   }
 
                   String currentUrl = sess.driver().getCurrentUrl();
@@ -141,10 +135,7 @@ public class CaptureService {
     }
     WebElement element;
     try {
-      element =
-          sess.isMobile()
-              ? sess.asMobileDevice().findElement(xpath)
-              : sess.asBrowser().findElement(xpath);
+      element = sess.ops().findElement(xpath);
     } catch (NoSuchElementException e) {
       return new ElementStateResponse(null, false, false, Map.of(), null);
     }
@@ -155,10 +146,7 @@ public class CaptureService {
     } catch (Exception e) {
       displayed = false;
     }
-    Map<String, String> attributes =
-        sess.isMobile()
-            ? sess.asMobileDevice().extractAttributes(element)
-            : sess.asBrowser().extractAttributes(element);
+    Map<String, String> attributes = sess.ops().extractAttributes(element);
     Rect rect;
     try {
       org.openqa.selenium.Rectangle r = element.getRect();

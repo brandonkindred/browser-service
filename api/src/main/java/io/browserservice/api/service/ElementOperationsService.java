@@ -60,10 +60,7 @@ public class ElementOperationsService {
                 h -> {
                   WebElement element;
                   try {
-                    element =
-                        h.isMobile()
-                            ? h.asMobileDevice().findElement(req.xpath())
-                            : h.asBrowser().findElement(req.xpath());
+                    element = h.ops().findElement(req.xpath());
                   } catch (NoSuchElementException e) {
                     return new ElementStateResponse(null, false, false, Map.of(), null);
                   }
@@ -71,10 +68,7 @@ public class ElementOperationsService {
                   // Read everything that might throw BEFORE registering the handle, so a retry
                   // after a mid-read WebDriverException doesn't leak an orphaned entry.
                   boolean displayed = safeIsDisplayed(element);
-                  Map<String, String> attributes =
-                      h.isMobile()
-                          ? h.asMobileDevice().extractAttributes(element)
-                          : h.asBrowser().extractAttributes(element);
+                  Map<String, String> attributes = h.ops().extractAttributes(element);
                   Rect rect = safeRect(element);
                   String id = h.elements().put(element);
                   return new ElementStateResponse(id, true, displayed, attributes, rect);
