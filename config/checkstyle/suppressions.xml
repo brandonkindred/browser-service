@@ -216,8 +216,6 @@
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]ActionFactory\.java$" checks="FileTabCharacter"/>
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]ActionFactory\.java$" checks="SummaryJavadoc"/>
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]ActionFactory\.java$" id="RightCurlySame"/>
-  <!-- Legacy getXScrollOffset/getYScrollOffset aliases required for engine JAR binary compat. -->
-  <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]AbstractWebDriverSession\.java$" checks="AbbreviationAsWordInName"/>
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]Browser\.java$" checks="AbbreviationAsWordInName"/>
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]Browser\.java$" checks="CatchParameterName"/>
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]Browser\.java$" checks="EmptyCatchBlock"/>
