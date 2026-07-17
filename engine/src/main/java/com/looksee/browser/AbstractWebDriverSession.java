@@ -114,22 +114,25 @@ public abstract class AbstractWebDriverSession implements DriverOps {
   }
 
   @Override
+  @SuppressWarnings("PMD.AvoidCatchingGenericException")
   public void navigateTo(String url) {
     assert url != null;
     getDriver().get(url);
     try {
       waitForPageToLoad();
-    } catch (WebDriverException e) {
-      // Best-effort: some pages never reach readyState=complete.
+    } catch (Exception e) {
+      // Best-effort wait: decorators/listeners may throw non-WebDriverException.
       log.debug("waitForPageToLoad during navigateTo failed: {}", e.toString());
     }
   }
 
   @Override
+  @SuppressWarnings("PMD.AvoidCatchingGenericException")
   public void close() {
     try {
       driver.quit();
-    } catch (WebDriverException e) {
+    } catch (Exception e) {
+      // Swallow all quit failures (decorators/listeners included).
       log.debug("Exception occurred when closing session: " + e.getMessage());
     }
   }

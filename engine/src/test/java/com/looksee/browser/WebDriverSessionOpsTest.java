@@ -26,7 +26,7 @@ import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
 /** Unit tests for {@link AbstractWebDriverSession} shared DriverOps behavior. */
-public class AbstractWebDriverSessionTest {
+public class WebDriverSessionOpsTest {
 
   interface MockDriver extends WebDriver, JavascriptExecutor, TakesScreenshot {}
 
@@ -101,6 +101,20 @@ public class AbstractWebDriverSessionTest {
   void closeSwallowsQuitExceptions() {
     doThrow(new org.openqa.selenium.WebDriverException("boom")).when(driver).quit();
     assertDoesNotThrow(() -> session.close());
+  }
+
+  @Test
+  void closeSwallowsNonWebDriverQuitExceptions() {
+    doThrow(new RuntimeException("decorator boom")).when(driver).quit();
+    assertDoesNotThrow(() -> session.close());
+  }
+
+  @Test
+  void navigateToSwallowsNonWebDriverWaitFailures() {
+    when(driver.executeScript("return document.readyState"))
+        .thenThrow(new RuntimeException("poll boom"));
+    assertDoesNotThrow(() -> session.navigateTo("http://example.com"));
+    verify(driver).get("http://example.com");
   }
 
   @Test
