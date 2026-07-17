@@ -159,10 +159,7 @@ public class SessionService {
 
   private static ScrollOffset safeScrollOffset(SessionHandle handle) {
     try {
-      Point p =
-          handle.isMobile()
-              ? handle.asMobileDevice().getViewportScrollOffset()
-              : handle.asBrowser().getViewportScrollOffset();
+      Point p = handle.ops().getViewportScrollOffset();
       return new ScrollOffset(p.getX(), p.getY());
     } catch (Exception e) {
       return null;

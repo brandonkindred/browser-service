@@ -32,6 +32,7 @@ class SessionHandleTest {
 
     assertThat(handle.isMobile()).isFalse();
     assertThat(handle.asBrowser()).isSameAs(browser);
+    assertThat(handle.ops()).isSameAs(browser);
     assertThat(handle.driver()).isSameAs(driver);
     assertThat(handle.browserType()).isEqualTo(BrowserType.CHROME);
     assertThat(handle.idleTtl()).isEqualTo(Duration.ofSeconds(30));
@@ -60,6 +61,7 @@ class SessionHandleTest {
 
     assertThat(handle.isMobile()).isTrue();
     assertThat(handle.asMobileDevice()).isSameAs(device);
+    assertThat(handle.ops()).isSameAs(device);
     assertThat(handle.driver()).isSameAs(driver);
     assertThat(handle.owner().value()).isEqualTo("test-tenant:alice");
     assertThatThrownBy(handle::asBrowser).isInstanceOf(IllegalStateException.class);

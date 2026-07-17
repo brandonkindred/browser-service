@@ -1,6 +1,7 @@
 package io.browserservice.api.session;
 
 import com.looksee.browser.Browser;
+import com.looksee.browser.DriverOps;
 import com.looksee.browser.MobileDevice;
 import com.looksee.browser.enums.BrowserType;
 import java.time.Duration;
@@ -124,8 +125,12 @@ public final class SessionHandle {
     return mobileDevice;
   }
 
+  public DriverOps ops() {
+    return mobileDevice != null ? mobileDevice : browser;
+  }
+
   public WebDriver driver() {
-    return mobileDevice != null ? mobileDevice.getDriver() : browser.getDriver();
+    return ops().getDriver();
   }
 
   /**
@@ -181,11 +186,7 @@ public final class SessionHandle {
       return false;
     }
     try {
-      if (mobileDevice != null) {
-        mobileDevice.close();
-      } else if (browser != null) {
-        browser.close();
-      }
+      ops().close();
     } catch (Exception e) {
       log.warn("error while closing session {}: {}", id, e.toString());
     }
