@@ -2,7 +2,6 @@ package com.looksee.browser;
 
 import com.assertthat.selenium_shutterbug.core.Capture;
 import com.assertthat.selenium_shutterbug.core.Shutterbug;
-import com.looksee.browser.utils.HtmlUtils;
 import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.net.MalformedURLException;
@@ -20,8 +19,6 @@ import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 import org.openqa.selenium.interactions.Actions;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import ru.yandex.qatools.ashot.AShot;
 import ru.yandex.qatools.ashot.shooting.ShootingStrategies;
 
@@ -33,7 +30,7 @@ import ru.yandex.qatools.ashot.shooting.ShootingStrategies;
  * <p>For static utility operations, see:
  *
  * <ul>
- *   <li>{@link HtmlUtils} — HTML parsing and cleaning
+ *   <li>{@link com.looksee.browser.utils.HtmlUtils} — HTML parsing and cleaning
  *   <li>{@link com.looksee.browser.utils.CssUtils} — CSS property extraction
  *   <li>{@link com.looksee.utils.ScreenshotUtils} — element screenshot extraction from images
  *   <li>{@link com.looksee.utils.ElementUtils} — label finding, coordinate calculations
@@ -56,7 +53,6 @@ import ru.yandex.qatools.ashot.shooting.ShootingStrategies;
 @Setter
 public class Browser extends AbstractWebDriverSession {
 
-  private static final Logger log = LoggerFactory.getLogger(Browser.class);
   private String browserName;
 
   /**
