@@ -14,9 +14,9 @@ import org.openqa.selenium.WebElement;
 
 /**
  * Manages an Appium mobile device session and provides mobile-only methods for interacting with
- * mobile browsers (screenshots). This is the mobile counterpart of {@link Browser}, allowing
- * Appium to evolve independently from Selenium. Shared navigation, scrolling, and DOM inspection
- * logic lives on {@link AbstractWebDriverSession}.
+ * mobile browsers (screenshots). This is the mobile counterpart of {@link Browser}, allowing Appium
+ * to evolve independently from Selenium. Shared navigation, scrolling, and DOM inspection logic
+ * lives on {@link AbstractWebDriverSession}.
  *
  * <p>Uses native Appium/WebDriver screenshot capabilities instead of Shutterbug/AShot (which are
  * desktop-only). Does not support mouse actions since mobile devices use touch interactions.

@@ -24,8 +24,8 @@ import ru.yandex.qatools.ashot.shooting.ShootingStrategies;
 
 /**
  * Manages a Selenium browser session and provides desktop-only methods for interacting with the
- * browser (screenshots, mouse, alerts, GDPR/Drift removers). Shared navigation, scrolling, and
- * DOM inspection logic lives on {@link AbstractWebDriverSession}.
+ * browser (screenshots, mouse, alerts, GDPR/Drift removers). Shared navigation, scrolling, and DOM
+ * inspection logic lives on {@link AbstractWebDriverSession}.
  *
  * <p>For static utility operations, see:
  *
