@@ -62,8 +62,8 @@ public class MobileDeviceTest {
   public void testConstructorWithDriver() {
     assertNotNull(device.getDriver());
     assertEquals("android", device.getPlatformName());
-    assertEquals(0, device.getYScrollOffset());
-    assertEquals(0, device.getXScrollOffset());
+    assertEquals(0, device.getScrollOffsetY());
+    assertEquals(0, device.getScrollOffsetX());
     assertNotNull(device.getViewportSize());
   }
 
@@ -301,11 +301,11 @@ public class MobileDeviceTest {
 
   @Test
   public void testGetterSetter() {
-    device.setYScrollOffset(100);
-    assertEquals(100, device.getYScrollOffset());
+    device.setScrollOffsetY(100);
+    assertEquals(100, device.getScrollOffsetY());
 
-    device.setXScrollOffset(50);
-    assertEquals(50, device.getXScrollOffset());
+    device.setScrollOffsetX(50);
+    assertEquals(50, device.getScrollOffsetX());
 
     device.setPlatformName("ios");
     assertEquals("ios", device.getPlatformName());

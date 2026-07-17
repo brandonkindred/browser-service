@@ -21,6 +21,10 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+/**
+ * Shared WebDriver session state and DOM/navigation operations for {@link Browser} and {@link
+ * MobileDevice}. Screenshots and input stacks remain on the concrete subclasses.
+ */
 @NoArgsConstructor
 @Getter
 @Setter
@@ -29,28 +33,46 @@ public abstract class AbstractWebDriverSession implements DriverOps {
   private static final Logger log = LoggerFactory.getLogger(AbstractWebDriverSession.class);
 
   protected static final String JS_GET_VIEWPORT_WIDTH =
-      "var width = undefined; if (window.innerWidth) {width = window.innerWidth;} else if (document.documentElement && document.documentElement.clientWidth) {width = document.documentElement.clientWidth;} else { var b = document.getElementsByTagName('body')[0]; if (b.clientWidth) {width = b.clientWidth;}};return width;";
+      "var width = undefined; if (window.innerWidth) {width = window.innerWidth;} "
+          + "else if (document.documentElement && document.documentElement.clientWidth) {"
+          + "width = document.documentElement.clientWidth;} else { "
+          + "var b = document.getElementsByTagName('body')[0]; "
+          + "if (b.clientWidth) {width = b.clientWidth;}};return width;";
   protected static final String JS_GET_VIEWPORT_HEIGHT =
-      "var height = undefined;  if (window.innerHeight) {height = window.innerHeight;}  else if (document.documentElement && document.documentElement.clientHeight) {height = document.documentElement.clientHeight;}  else { var b = document.getElementsByTagName('body')[0]; if (b.clientHeight) {height = b.clientHeight;}};return height;";
+      "var height = undefined;  if (window.innerHeight) {height = window.innerHeight;}  "
+          + "else if (document.documentElement && document.documentElement.clientHeight) {"
+          + "height = document.documentElement.clientHeight;}  else { "
+          + "var b = document.getElementsByTagName('body')[0]; "
+          + "if (b.clientHeight) {height = b.clientHeight;}};return height;";
+  private static final String JS_EXTRACT_ATTRIBUTES =
+      "var items = []; for (index = 0; index < arguments[0].attributes.length; ++index) { "
+          + "items.push(arguments[0].attributes[index].name + '::' "
+          + "+ arguments[0].attributes[index].value) }; return items;";
 
-  private WebDriver driver = null;
-  private long yScrollOffset;
-  private long xScrollOffset;
+  private WebDriver driver;
+  private long scrollOffsetY;
+  private long scrollOffsetX;
   private Dimension viewportSize;
 
   /** Used by tests and by subclasses that inject a pre-built driver. */
   protected AbstractWebDriverSession(WebDriver driver) {
-    assert driver != null;
     this.driver = driver;
-    setYScrollOffset(0);
-    setXScrollOffset(0);
-    setViewportSize(measureViewport(driver));
+    this.scrollOffsetY = 0;
+    this.scrollOffsetX = 0;
+  }
+
+  /**
+   * Assigns the WebDriver without going through an overridable setter. Subclasses that create the
+   * driver themselves should call this before {@link #initViewportState()}.
+   */
+  protected final void bindDriver(WebDriver driver) {
+    this.driver = driver;
   }
 
   /** Subclasses that build the driver themselves call this after assigning {@code driver}. */
   protected final void initViewportState() {
-    setYScrollOffset(0);
-    setXScrollOffset(0);
+    setScrollOffsetY(0);
+    setScrollOffsetX(0);
     setViewportSize(measureViewport(this.driver));
   }
 
@@ -66,6 +88,8 @@ public abstract class AbstractWebDriverSession implements DriverOps {
     try {
       waitForPageToLoad();
     } catch (Exception e) {
+      // Best-effort: some pages never reach readyState=complete.
+      log.debug("waitForPageToLoad during navigateTo failed: {}", e.toString());
     }
   }
 
@@ -103,36 +127,33 @@ public abstract class AbstractWebDriverSession implements DriverOps {
   @SuppressWarnings("unchecked")
   public Map<String, String> extractAttributes(WebElement element) {
     assert element != null;
-    List<String> attribute_strings =
+    List<String> attributeStrings =
         (ArrayList<String>)
-            ((JavascriptExecutor) driver)
-                .executeScript(
-                    "var items = []; for (index = 0; index < arguments[0].attributes.length; ++index) { items.push(arguments[0].attributes[index].name + '::' + arguments[0].attributes[index].value) }; return items;",
-                    element);
-    return loadAttributes(attribute_strings);
+            ((JavascriptExecutor) driver).executeScript(JS_EXTRACT_ATTRIBUTES, element);
+    return loadAttributes(attributeStrings);
   }
 
   private Map<String, String> loadAttributes(List<String> attributeList) {
-    Map<String, String> attributes_seen = new HashMap<>();
-    for (int i = 0; i < attributeList.size(); i++) {
-      String[] attributes = attributeList.get(i).split("::");
+    Map<String, String> attributesSeen = new HashMap<>();
+    for (String attributeEntry : attributeList) {
+      String[] attributes = attributeEntry.split("::");
       if (attributes.length > 1) {
-        String attribute_name = attributes[0].trim().replace("\'", "'");
+        String attributeName = attributes[0].trim().replace("\'", "'");
         String[] attributeVals = attributes[1].split(" ");
-        if (!attributes_seen.containsKey(attribute_name)) {
-          attributes_seen.put(attribute_name, Arrays.asList(attributeVals).toString());
+        if (!attributesSeen.containsKey(attributeName)) {
+          attributesSeen.put(attributeName, Arrays.asList(attributeVals).toString());
         }
       }
     }
-    return attributes_seen;
+    return attributesSeen;
   }
 
   /** Shared by desktop and mobile; not on {@link DriverOps}. */
-  public void removeElement(String class_name) {
-    assert class_name != null;
+  public void removeElement(String className) {
+    assert className != null;
     if (this.getDriver() instanceof JavascriptExecutor) {
       JavascriptExecutor js = (JavascriptExecutor) driver;
-      js.executeScript("return document.getElementsByClassName('" + class_name + "')[0].remove();");
+      js.executeScript("return document.getElementsByClassName('" + className + "')[0].remove();");
     }
   }
 
@@ -171,19 +192,19 @@ public abstract class AbstractWebDriverSession implements DriverOps {
 
   @Override
   public Point getViewportScrollOffset() {
-    int x_offset = 0;
-    int y_offset = 0;
-    Object offset_obj =
+    int offsetX = 0;
+    int offsetY = 0;
+    Object offsetObj =
         ((JavascriptExecutor) driver)
             .executeScript("return window.pageXOffset+','+window.pageYOffset;");
-    if (offset_obj instanceof String) {
-      String[] coord = ((String) offset_obj).split(",");
-      x_offset = Integer.parseInt(coord[0]);
-      y_offset = Integer.parseInt(coord[1]);
+    if (offsetObj instanceof String) {
+      String[] coord = ((String) offsetObj).split(",");
+      offsetX = Integer.parseInt(coord[0]);
+      offsetY = Integer.parseInt(coord[1]);
     }
-    this.setXScrollOffset(x_offset);
-    this.setYScrollOffset(y_offset);
-    return new Point(x_offset, y_offset);
+    this.setScrollOffsetX(offsetX);
+    this.setScrollOffsetY(offsetY);
+    return new Point(offsetX, offsetY);
   }
 
   @Override
@@ -191,9 +212,10 @@ public abstract class AbstractWebDriverSession implements DriverOps {
     new WebDriverWait(driver, Duration.ofSeconds(30))
         .until(
             webDriver ->
-                ((JavascriptExecutor) webDriver)
-                    .executeScript("return document.readyState")
-                    .equals("complete"));
+                "complete"
+                    .equals(
+                        ((JavascriptExecutor) webDriver)
+                            .executeScript("return document.readyState")));
   }
 
   @Override
@@ -206,15 +228,18 @@ public abstract class AbstractWebDriverSession implements DriverOps {
     return HtmlUtils.is503Error(this.getSource());
   }
 
+  /** Measures the current viewport size via JS. */
   protected static Dimension measureViewport(WebDriver driver) {
     return new Dimension(extractViewportWidth(driver), extractViewportHeight(driver));
   }
 
+  /** Extracts viewport width via JS. */
   protected static int extractViewportWidth(WebDriver driver) {
     JavascriptExecutor js = (JavascriptExecutor) driver;
     return Integer.parseInt(js.executeScript(JS_GET_VIEWPORT_WIDTH, new Object[0]).toString());
   }
 
+  /** Extracts viewport height via JS. */
   protected static int extractViewportHeight(WebDriver driver) {
     JavascriptExecutor js = (JavascriptExecutor) driver;
     return Integer.parseInt(js.executeScript(JS_GET_VIEWPORT_HEIGHT, new Object[0]).toString());

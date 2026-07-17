@@ -1,8 +1,16 @@
 package com.looksee.browser;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.contains;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +25,7 @@ import org.openqa.selenium.TakesScreenshot;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.WebElement;
 
+/** Unit tests for {@link AbstractWebDriverSession} shared DriverOps behavior. */
 public class AbstractWebDriverSessionTest {
 
   interface MockDriver extends WebDriver, JavascriptExecutor, TakesScreenshot {}
@@ -25,6 +34,7 @@ public class AbstractWebDriverSessionTest {
   static final class TestSession extends AbstractWebDriverSession {
     TestSession(WebDriver driver) {
       super(driver);
+      initViewportState();
     }
   }
 
@@ -40,18 +50,30 @@ public class AbstractWebDriverSessionTest {
         .thenAnswer(
             inv -> {
               String script = inv.getArgument(0);
-              if (script.contains("innerWidth")) return "1920";
-              if (script.contains("innerHeight")) return "1080";
+              if (script.contains("innerWidth")) {
+                return "1920";
+              }
+              if (script.contains("innerHeight")) {
+                return "1080";
+              }
               return null;
             });
     when(driver.executeScript(anyString()))
         .thenAnswer(
             inv -> {
               String script = inv.getArgument(0);
-              if (script.contains("innerWidth")) return "1920";
-              if (script.contains("innerHeight")) return "1080";
-              if (script.contains("pageXOffset")) return "10,20";
-              if (script.contains("readyState")) return "complete";
+              if (script.contains("innerWidth")) {
+                return "1920";
+              }
+              if (script.contains("innerHeight")) {
+                return "1080";
+              }
+              if (script.contains("pageXOffset")) {
+                return "10,20";
+              }
+              if (script.contains("readyState")) {
+                return "complete";
+              }
               return null;
             });
     session = new TestSession(driver);

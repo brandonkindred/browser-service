@@ -66,8 +66,8 @@ public class BrowserTest {
   public void testConstructorWithDriver() {
     assertNotNull(browser.getDriver());
     assertEquals("chrome", browser.getBrowserName());
-    assertEquals(0, browser.getYScrollOffset());
-    assertEquals(0, browser.getXScrollOffset());
+    assertEquals(0, browser.getScrollOffsetY());
+    assertEquals(0, browser.getScrollOffsetX());
     assertNotNull(browser.getViewportSize());
   }
 
@@ -235,8 +235,8 @@ public class BrowserTest {
     Point offset = browser.getViewportScrollOffset();
     assertEquals(150, offset.getX());
     assertEquals(300, offset.getY());
-    assertEquals(150, browser.getXScrollOffset());
-    assertEquals(300, browser.getYScrollOffset());
+    assertEquals(150, browser.getScrollOffsetX());
+    assertEquals(300, browser.getScrollOffsetY());
   }
 
   @Test
@@ -383,7 +383,7 @@ public class BrowserTest {
     when(mockElement.getLocation()).thenReturn(new Point(0, 0));
     when(driver.executeScript(contains("pageXOffset"))).thenReturn("0,0");
 
-    browser.setYScrollOffset(0);
+    browser.setScrollOffsetY(0);
     browser.scrollToElement("//body/div/section", mockElement);
 
     // getViewportScrollOffset should be called
@@ -392,11 +392,11 @@ public class BrowserTest {
 
   @Test
   public void testGetterSetter() {
-    browser.setYScrollOffset(100);
-    assertEquals(100, browser.getYScrollOffset());
+    browser.setScrollOffsetY(100);
+    assertEquals(100, browser.getScrollOffsetY());
 
-    browser.setXScrollOffset(50);
-    assertEquals(50, browser.getXScrollOffset());
+    browser.setScrollOffsetX(50);
+    assertEquals(50, browser.getScrollOffsetX());
 
     browser.setBrowserName("firefox");
     assertEquals("firefox", browser.getBrowserName());

@@ -44,8 +44,8 @@ import ru.yandex.qatools.ashot.shooting.ShootingStrategies;
  *   <li>invariant: browserName is not null after parameterized construction
  *   <li>invariant: driver is not null after parameterized construction
  *   <li>invariant: viewportSize is not null after parameterized construction
- *   <li>invariant: yScrollOffset >= 0
- *   <li>invariant: xScrollOffset >= 0
+ *   <li>invariant: scrollOffsetY >= 0
+ *   <li>invariant: scrollOffsetX >= 0
  * </ul>
  */
 @NoArgsConstructor
@@ -68,7 +68,7 @@ public class Browser extends AbstractWebDriverSession {
     assert hub_node_url != null;
 
     this.setBrowserName(browser);
-    this.setDriver(BrowserFactory.createDriver(browser, hub_node_url));
+    this.bindDriver(BrowserFactory.createDriver(browser, hub_node_url));
     initViewportState();
   }
 
@@ -82,6 +82,7 @@ public class Browser extends AbstractWebDriverSession {
   public Browser(WebDriver driver, String browserName) {
     super(driver);
     assert browserName != null;
+    initViewportState();
     this.setBrowserName(browserName);
   }
 
@@ -187,7 +188,7 @@ public class Browser extends AbstractWebDriverSession {
     }
 
     Point element_offset = elem.getLocation();
-    while (this.getYScrollOffset() != element_offset.getY()) {
+    while (this.getScrollOffsetY() != element_offset.getY()) {
       scrollDownFull();
     }
 

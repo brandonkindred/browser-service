@@ -27,8 +27,8 @@ import org.openqa.selenium.WebElement;
  *   <li>invariant: platformName is not null after parameterized construction
  *   <li>invariant: driver is not null after parameterized construction
  *   <li>invariant: viewportSize is not null after parameterized construction
- *   <li>invariant: yScrollOffset >= 0
- *   <li>invariant: xScrollOffset >= 0
+ *   <li>invariant: scrollOffsetY >= 0
+ *   <li>invariant: scrollOffsetX >= 0
  * </ul>
  */
 @NoArgsConstructor
@@ -51,7 +51,7 @@ public class MobileDevice extends AbstractWebDriverSession {
     assert serverUrl != null;
 
     this.setPlatformName(platformType);
-    this.setDriver(MobileFactory.createDriver(platformType, serverUrl));
+    this.bindDriver(MobileFactory.createDriver(platformType, serverUrl));
     initViewportState();
   }
 
@@ -65,6 +65,7 @@ public class MobileDevice extends AbstractWebDriverSession {
   public MobileDevice(WebDriver driver, String platformName) {
     super(driver);
     assert platformName != null;
+    initViewportState();
     this.setPlatformName(platformName);
   }
 
