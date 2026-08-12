@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 
 import com.looksee.browser.Browser;
 import com.looksee.browser.MobileDevice;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.dto.DomRemovePreset;
@@ -346,12 +345,7 @@ class BrowserOperationsServiceTest {
     when(browser.getViewportScrollOffset()).thenReturn(new Point(0, 0));
     SessionHandle handle =
         SessionHandle.desktop(
-            browser,
-            ALICE,
-            BrowserType.CHROME,
-            BrowserEnvironment.TEST,
-            Duration.ofSeconds(30),
-            Duration.ofSeconds(60));
+            browser, ALICE, BrowserType.CHROME, Duration.ofSeconds(30), Duration.ofSeconds(60));
     registry.acquirePermit();
     registry.register(handle);
     WebElement element = mock(WebElement.class);
@@ -383,12 +377,7 @@ class BrowserOperationsServiceTest {
     when(browser.getViewportScrollOffset()).thenReturn(new Point(0, 0));
     SessionHandle handle =
         SessionHandle.desktop(
-            browser,
-            ALICE,
-            BrowserType.CHROME,
-            BrowserEnvironment.TEST,
-            Duration.ofSeconds(30),
-            Duration.ofSeconds(60));
+            browser, ALICE, BrowserType.CHROME, Duration.ofSeconds(30), Duration.ofSeconds(60));
     registry.acquirePermit();
     registry.register(handle);
     WebElement element = mock(WebElement.class);
@@ -407,12 +396,7 @@ class BrowserOperationsServiceTest {
     when(device.getViewportScrollOffset()).thenReturn(new Point(0, 0));
     SessionHandle handle =
         SessionHandle.mobile(
-            device,
-            ALICE,
-            BrowserType.ANDROID,
-            BrowserEnvironment.TEST,
-            Duration.ofSeconds(30),
-            Duration.ofSeconds(60));
+            device, ALICE, BrowserType.ANDROID, Duration.ofSeconds(30), Duration.ofSeconds(60));
     registry.acquirePermit();
     registry.register(handle);
     WebElement element = mock(WebElement.class);
@@ -481,12 +465,7 @@ class BrowserOperationsServiceTest {
     when(device.getViewportScrollOffset()).thenReturn(new Point(0, 0));
     SessionHandle handle =
         SessionHandle.mobile(
-            device,
-            ALICE,
-            BrowserType.ANDROID,
-            BrowserEnvironment.TEST,
-            Duration.ofSeconds(30),
-            Duration.ofSeconds(60));
+            device, ALICE, BrowserType.ANDROID, Duration.ofSeconds(30), Duration.ofSeconds(60));
     registry.acquirePermit();
     registry.register(handle);
 
@@ -502,12 +481,7 @@ class BrowserOperationsServiceTest {
     when(device.getViewportScrollOffset()).thenReturn(new Point(0, 0));
     SessionHandle handle =
         SessionHandle.mobile(
-            device,
-            ALICE,
-            BrowserType.ANDROID,
-            BrowserEnvironment.TEST,
-            Duration.ofSeconds(30),
-            Duration.ofSeconds(60));
+            device, ALICE, BrowserType.ANDROID, Duration.ofSeconds(30), Duration.ofSeconds(60));
     registry.acquirePermit();
     registry.register(handle);
 
@@ -523,12 +497,7 @@ class BrowserOperationsServiceTest {
     when(device.getViewportScrollOffset()).thenReturn(new Point(0, 0));
     SessionHandle handle =
         SessionHandle.mobile(
-            device,
-            ALICE,
-            BrowserType.ANDROID,
-            BrowserEnvironment.TEST,
-            Duration.ofSeconds(30),
-            Duration.ofSeconds(60));
+            device, ALICE, BrowserType.ANDROID, Duration.ofSeconds(30), Duration.ofSeconds(60));
     registry.acquirePermit();
     registry.register(handle);
 
@@ -544,12 +513,7 @@ class BrowserOperationsServiceTest {
     when(device.getViewportScrollOffset()).thenReturn(new Point(0, 0));
     SessionHandle handle =
         SessionHandle.mobile(
-            device,
-            ALICE,
-            BrowserType.ANDROID,
-            BrowserEnvironment.TEST,
-            Duration.ofSeconds(30),
-            Duration.ofSeconds(60));
+            device, ALICE, BrowserType.ANDROID, Duration.ofSeconds(30), Duration.ofSeconds(60));
     registry.acquirePermit();
     registry.register(handle);
 
@@ -785,12 +749,7 @@ class BrowserOperationsServiceTest {
   private UUID register(Browser browser) {
     SessionHandle handle =
         SessionHandle.desktop(
-            browser,
-            ALICE,
-            BrowserType.CHROME,
-            BrowserEnvironment.TEST,
-            Duration.ofSeconds(30),
-            Duration.ofSeconds(60));
+            browser, ALICE, BrowserType.CHROME, Duration.ofSeconds(30), Duration.ofSeconds(60));
     registry.acquirePermit();
     registry.register(handle);
     return handle.id();
@@ -799,12 +758,7 @@ class BrowserOperationsServiceTest {
   private UUID registerMobile(MobileDevice device) {
     SessionHandle handle =
         SessionHandle.mobile(
-            device,
-            ALICE,
-            BrowserType.ANDROID,
-            BrowserEnvironment.TEST,
-            Duration.ofSeconds(30),
-            Duration.ofSeconds(60));
+            device, ALICE, BrowserType.ANDROID, Duration.ofSeconds(30), Duration.ofSeconds(60));
     registry.acquirePermit();
     registry.register(handle);
     return handle.id();

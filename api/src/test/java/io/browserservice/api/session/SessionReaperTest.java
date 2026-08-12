@@ -10,7 +10,6 @@ import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import com.looksee.browser.Browser;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.persistence.BrowserSessionEntity.ClosedReason;
@@ -35,7 +34,6 @@ class SessionReaperTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofMillis(1),
             Duration.ofSeconds(60));
     SessionHandle active =
@@ -43,7 +41,6 @@ class SessionReaperTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(60),
             Duration.ofSeconds(60));
 
@@ -76,7 +73,6 @@ class SessionReaperTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(60),
             Duration.ofMillis(1));
     registry.acquirePermit();
@@ -101,7 +97,6 @@ class SessionReaperTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofMillis(1),
             Duration.ofSeconds(60));
     registry.acquirePermit();
@@ -139,7 +134,6 @@ class SessionReaperTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(60),
             Duration.ofSeconds(60));
     registry.acquirePermit();
@@ -168,7 +162,6 @@ class SessionReaperTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(60),
             Duration.ofSeconds(60));
     registry.acquirePermit();

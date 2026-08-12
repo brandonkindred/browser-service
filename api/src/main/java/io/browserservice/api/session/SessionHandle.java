@@ -1,8 +1,8 @@
 package io.browserservice.api.session;
 
 import com.looksee.browser.Browser;
+import com.looksee.browser.DriverOps;
 import com.looksee.browser.MobileDevice;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import java.time.Duration;
 import java.time.Instant;
@@ -23,7 +23,6 @@ public final class SessionHandle {
   private final Browser browser; // null iff mobile session
   private final MobileDevice mobileDevice; // null iff desktop session
   private final BrowserType browserType;
-  private final BrowserEnvironment environment;
   private final Instant createdAt;
   private volatile Instant lastUsedAt;
   private final Duration idleTtl;
@@ -38,7 +37,6 @@ public final class SessionHandle {
       Browser browser,
       MobileDevice mobileDevice,
       BrowserType type,
-      BrowserEnvironment env,
       Duration idleTtl,
       Duration absoluteTtl) {
     this.id = id;
@@ -46,7 +44,6 @@ public final class SessionHandle {
     this.browser = browser;
     this.mobileDevice = mobileDevice;
     this.browserType = type;
-    this.environment = env;
     this.createdAt = Instant.now();
     this.lastUsedAt = this.createdAt;
     this.idleTtl = idleTtl;
@@ -57,25 +54,17 @@ public final class SessionHandle {
   }
 
   public static SessionHandle desktop(
-      Browser browser,
-      CallerId owner,
-      BrowserType type,
-      BrowserEnvironment env,
-      Duration idleTtl,
-      Duration absoluteTtl) {
-    return new SessionHandle(
-        UUID.randomUUID(), owner, browser, null, type, env, idleTtl, absoluteTtl);
+      Browser browser, CallerId owner, BrowserType type, Duration idleTtl, Duration absoluteTtl) {
+    return new SessionHandle(UUID.randomUUID(), owner, browser, null, type, idleTtl, absoluteTtl);
   }
 
   public static SessionHandle mobile(
       MobileDevice device,
       CallerId owner,
       BrowserType type,
-      BrowserEnvironment env,
       Duration idleTtl,
       Duration absoluteTtl) {
-    return new SessionHandle(
-        UUID.randomUUID(), owner, null, device, type, env, idleTtl, absoluteTtl);
+    return new SessionHandle(UUID.randomUUID(), owner, null, device, type, idleTtl, absoluteTtl);
   }
 
   public UUID id() {
@@ -88,10 +77,6 @@ public final class SessionHandle {
 
   public BrowserType browserType() {
     return browserType;
-  }
-
-  public BrowserEnvironment environment() {
-    return environment;
   }
 
   public Instant createdAt() {
@@ -140,8 +125,12 @@ public final class SessionHandle {
     return mobileDevice;
   }
 
+  public DriverOps ops() {
+    return mobileDevice != null ? mobileDevice : browser;
+  }
+
   public WebDriver driver() {
-    return mobileDevice != null ? mobileDevice.getDriver() : browser.getDriver();
+    return ops().getDriver();
   }
 
   /**
@@ -197,11 +186,7 @@ public final class SessionHandle {
       return false;
     }
     try {
-      if (mobileDevice != null) {
-        mobileDevice.close();
-      } else if (browser != null) {
-        browser.close();
-      }
+      ops().close();
     } catch (Exception e) {
       log.warn("error while closing session {}: {}", id, e.toString());
     }

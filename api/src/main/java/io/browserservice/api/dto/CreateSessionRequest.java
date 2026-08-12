@@ -1,6 +1,5 @@
 package io.browserservice.api.dto;
 
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -14,12 +13,6 @@ public record CreateSessionRequest(
             enumeration = {"CHROME", "FIREFOX", "SAFARI", "IE", "ANDROID", "IOS"},
             example = "CHROME")
         BrowserType browserType,
-    @NotNull
-        @Schema(
-            description = "Session environment",
-            enumeration = {"TEST", "DISCOVERY"},
-            example = "TEST")
-        BrowserEnvironment environment,
     @Min(1)
         @Schema(
             description =

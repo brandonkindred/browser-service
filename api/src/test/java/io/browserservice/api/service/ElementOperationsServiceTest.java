@@ -8,7 +8,6 @@ import static org.mockito.Mockito.when;
 import com.looksee.browser.Browser;
 import com.looksee.browser.MobileDevice;
 import com.looksee.browser.enums.Action;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import com.looksee.browser.enums.MobileAction;
 import io.browserservice.api.config.EngineProperties;
@@ -271,12 +270,7 @@ class ElementOperationsServiceTest {
   private SessionHandle registerDesktop(Browser browser) {
     SessionHandle handle =
         SessionHandle.desktop(
-            browser,
-            ALICE,
-            BrowserType.CHROME,
-            BrowserEnvironment.TEST,
-            Duration.ofSeconds(30),
-            Duration.ofSeconds(60));
+            browser, ALICE, BrowserType.CHROME, Duration.ofSeconds(30), Duration.ofSeconds(60));
     registry.acquirePermit();
     registry.register(handle);
     return handle;
@@ -285,12 +279,7 @@ class ElementOperationsServiceTest {
   private SessionHandle registerMobile(MobileDevice device) {
     SessionHandle handle =
         SessionHandle.mobile(
-            device,
-            ALICE,
-            BrowserType.ANDROID,
-            BrowserEnvironment.TEST,
-            Duration.ofSeconds(30),
-            Duration.ofSeconds(60));
+            device, ALICE, BrowserType.ANDROID, Duration.ofSeconds(30), Duration.ofSeconds(60));
     registry.acquirePermit();
     registry.register(handle);
     return handle;

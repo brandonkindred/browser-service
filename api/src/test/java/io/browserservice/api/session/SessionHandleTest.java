@@ -8,7 +8,6 @@ import static org.mockito.Mockito.verify;
 
 import com.looksee.browser.Browser;
 import com.looksee.browser.MobileDevice;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import java.time.Duration;
 import java.time.Instant;
@@ -28,15 +27,14 @@ class SessionHandleTest {
             browser,
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
             Duration.ofSeconds(60));
 
     assertThat(handle.isMobile()).isFalse();
     assertThat(handle.asBrowser()).isSameAs(browser);
+    assertThat(handle.ops()).isSameAs(browser);
     assertThat(handle.driver()).isSameAs(driver);
     assertThat(handle.browserType()).isEqualTo(BrowserType.CHROME);
-    assertThat(handle.environment()).isEqualTo(BrowserEnvironment.TEST);
     assertThat(handle.idleTtl()).isEqualTo(Duration.ofSeconds(30));
     assertThat(handle.absoluteTtl()).isEqualTo(Duration.ofSeconds(60));
     assertThat(handle.createdAt()).isNotNull();
@@ -58,12 +56,12 @@ class SessionHandleTest {
             device,
             CallerId.of("test-tenant", "alice"),
             BrowserType.ANDROID,
-            BrowserEnvironment.DISCOVERY,
             Duration.ofSeconds(15),
             Duration.ofSeconds(45));
 
     assertThat(handle.isMobile()).isTrue();
     assertThat(handle.asMobileDevice()).isSameAs(device);
+    assertThat(handle.ops()).isSameAs(device);
     assertThat(handle.driver()).isSameAs(driver);
     assertThat(handle.owner().value()).isEqualTo("test-tenant:alice");
     assertThatThrownBy(handle::asBrowser).isInstanceOf(IllegalStateException.class);
@@ -77,7 +75,6 @@ class SessionHandleTest {
             browser,
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
             Duration.ofSeconds(60));
     assertThatThrownBy(handle::asMobileDevice).isInstanceOf(IllegalStateException.class);
@@ -90,7 +87,6 @@ class SessionHandleTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
             Duration.ofSeconds(60));
     Instant before = handle.lastUsedAt();
@@ -106,7 +102,6 @@ class SessionHandleTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
             Duration.ofSeconds(60));
     final Instant before = handle.lastUsedAt();
@@ -115,7 +110,6 @@ class SessionHandleTest {
     // Read paths a describe/list response would touch — none should refresh idle.
     handle.id();
     handle.browserType();
-    handle.environment();
     handle.createdAt();
     handle.lastUsedAt();
     handle.expiresAt();
@@ -132,7 +126,6 @@ class SessionHandleTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(10),
             Duration.ofSeconds(60));
     Instant idleExpiry = handle.lastUsedAt().plus(Duration.ofSeconds(10));
@@ -148,7 +141,6 @@ class SessionHandleTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofMillis(1),
             Duration.ofSeconds(10));
     assertThat(handle.isExpired(Instant.now().plusSeconds(5))).isTrue();
@@ -161,7 +153,6 @@ class SessionHandleTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(10),
             Duration.ofSeconds(60));
     Instant pastIdle = handle.lastUsedAt().plus(Duration.ofSeconds(15));
@@ -175,7 +166,6 @@ class SessionHandleTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(60),
             Duration.ofSeconds(10));
     Instant pastAbsolute = handle.createdAt().plus(Duration.ofSeconds(15));
@@ -190,7 +180,6 @@ class SessionHandleTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(60),
             Duration.ofSeconds(10));
     Instant boundary = handle.createdAt().plus(Duration.ofSeconds(10));
@@ -206,7 +195,6 @@ class SessionHandleTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(10),
             Duration.ofSeconds(60));
     assertThat(handle.expiryReason(handle.createdAt())).isEqualTo(SessionHandle.ExpiryReason.IDLE);
@@ -220,7 +208,6 @@ class SessionHandleTest {
             mock(Browser.class),
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
             Duration.ofSeconds(5));
     Instant farFuture = handle.createdAt().plus(Duration.ofMinutes(10));
@@ -241,7 +228,6 @@ class SessionHandleTest {
             browser,
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
             Duration.ofSeconds(60));
 
@@ -261,7 +247,6 @@ class SessionHandleTest {
             browser,
             CallerId.of("test-tenant", "alice"),
             BrowserType.CHROME,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
             Duration.ofSeconds(60));
 
@@ -276,7 +261,6 @@ class SessionHandleTest {
             device,
             CallerId.of("test-tenant", "alice"),
             BrowserType.ANDROID,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
             Duration.ofSeconds(60));
     assertThat(handle.closeOnce()).isTrue();
@@ -292,7 +276,6 @@ class SessionHandleTest {
             device,
             CallerId.of("test-tenant", "alice"),
             BrowserType.IOS,
-            BrowserEnvironment.TEST,
             Duration.ofSeconds(30),
             Duration.ofSeconds(60));
     assertThat(handle.closeOnce()).isTrue();
@@ -307,7 +290,6 @@ class SessionHandleTest {
                     browser,
                     null,
                     BrowserType.CHROME,
-                    BrowserEnvironment.TEST,
                     Duration.ofSeconds(30),
                     Duration.ofSeconds(60)))
         .isInstanceOf(NullPointerException.class);
@@ -322,7 +304,6 @@ class SessionHandleTest {
                     device,
                     null,
                     BrowserType.ANDROID,
-                    BrowserEnvironment.TEST,
                     Duration.ofSeconds(30),
                     Duration.ofSeconds(60)))
         .isInstanceOf(NullPointerException.class);

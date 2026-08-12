@@ -47,13 +47,6 @@ components:
           - BASE64
           nullable: true
           type: string
-        environment:
-          description: Environment (defaults to TEST)
-          enum:
-          - test
-          - discovery
-          nullable: true
-          type: string
         includeSource:
           description: Include the page HTML source in the response
           nullable: true
@@ -137,15 +130,6 @@ components:
           - IOS
           example: CHROME
           type: string
-        environment:
-          description: Session environment
-          enum:
-          - test
-          - discovery
-          - TEST
-          - DISCOVERY
-          example: TEST
-          type: string
         idleTtlSeconds:
           description: Optional idle TTL override (seconds). Falls back to service default when omitted.
           format: int32
@@ -154,7 +138,6 @@ components:
           type: integer
       required:
       - browserType
-      - environment
       type: object
     DomRemoveRequest:
       description: Remove one or more DOM overlays by preset or class name.
@@ -547,12 +530,6 @@ components:
           description: Instant the session was created
           format: date-time
           type: string
-        environment:
-          description: Session environment
-          enum:
-          - test
-          - discovery
-          type: string
         expiresAt:
           description: Instant at which the session will be reaped
           format: date-time
@@ -589,12 +566,6 @@ components:
         currentUrl:
           description: Current URL as reported by the driver
           nullable: true
-          type: string
-        environment:
-          description: Session environment
-          enum:
-          - test
-          - discovery
           type: string
         expiresAt:
           description: Instant at which the session will be reaped

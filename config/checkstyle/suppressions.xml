@@ -255,8 +255,6 @@
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]Action\.java$" checks="MissingJavadocMethod"/>
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]AlertChoice\.java$" checks="MissingJavadocMethod"/>
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]AlertChoice\.java$" checks="SummaryJavadoc"/>
-  <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]BrowserEnvironment\.java$" checks="MissingJavadocMethod"/>
-  <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]BrowserEnvironment\.java$" checks="SummaryJavadoc"/>
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]BrowserType\.java$" checks="MissingJavadocMethod"/>
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]BrowserType\.java$" checks="SummaryJavadoc"/>
   <suppress files="engine[/\\]src[/\\]main[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]MobileAction\.java$" checks="MissingJavadocMethod"/>
@@ -315,8 +313,6 @@
   <suppress files="engine[/\\]src[/\\]test[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]ActionTest\.java$" checks="MissingJavadocType"/>
   <suppress files="engine[/\\]src[/\\]test[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]AlertChoiceTest\.java$" checks="AvoidStarImport"/>
   <suppress files="engine[/\\]src[/\\]test[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]AlertChoiceTest\.java$" checks="MissingJavadocType"/>
-  <suppress files="engine[/\\]src[/\\]test[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]BrowserEnvironmentTest\.java$" checks="AvoidStarImport"/>
-  <suppress files="engine[/\\]src[/\\]test[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]BrowserEnvironmentTest\.java$" checks="MissingJavadocType"/>
   <suppress files="engine[/\\]src[/\\]test[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]BrowserTypeTest\.java$" checks="AvoidStarImport"/>
   <suppress files="engine[/\\]src[/\\]test[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]BrowserTypeTest\.java$" checks="MissingJavadocType"/>
   <suppress files="engine[/\\]src[/\\]test[/\\]java[/\\]com[/\\]looksee[/\\]browser[/\\]enums[/\\]MobileActionTest\.java$" checks="AvoidStarImport"/>

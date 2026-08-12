@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 import com.looksee.browser.Browser;
-import com.looksee.browser.enums.BrowserEnvironment;
 import com.looksee.browser.enums.BrowserType;
 import io.browserservice.api.config.EngineProperties;
 import io.browserservice.api.error.SessionCapExceededException;
@@ -116,7 +115,6 @@ class SessionRegistryTest {
         mock(Browser.class),
         CallerId.of("test-tenant", "alice"),
         BrowserType.CHROME,
-        BrowserEnvironment.TEST,
         Duration.ofSeconds(30),
         Duration.ofSeconds(60));
   }

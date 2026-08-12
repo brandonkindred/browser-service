@@ -1,6 +1,7 @@
 package io.browserservice.api.service;
 
 import com.looksee.browser.Browser;
+import com.looksee.browser.DriverOps;
 import com.looksee.browser.MobileDevice;
 import com.looksee.browser.utils.HtmlUtils;
 import io.browserservice.api.dto.DomRemovePreset;
@@ -13,7 +14,6 @@ import io.browserservice.api.dto.NavigateResponse;
 import io.browserservice.api.dto.NavigateStatus;
 import io.browserservice.api.dto.PageSourceResponse;
 import io.browserservice.api.dto.PageStatusResponse;
-import io.browserservice.api.dto.ScrollMode;
 import io.browserservice.api.dto.ScrollOffset;
 import io.browserservice.api.dto.ScrollRequest;
 import io.browserservice.api.dto.Viewport;
@@ -71,13 +71,9 @@ public class BrowserOperationsService {
                 handle,
                 h -> {
                   try {
-                    if (h.isMobile()) {
-                      h.asMobileDevice().navigateTo(req.url());
-                      h.asMobileDevice().waitForPageToLoad();
-                    } else {
-                      h.asBrowser().navigateTo(req.url());
-                      h.asBrowser().waitForPageToLoad();
-                    }
+                    DriverOps ops = h.ops();
+                    ops.navigateTo(req.url());
+                    ops.waitForPageToLoad();
                     return new NavigateResponse(h.driver().getCurrentUrl(), NavigateStatus.LOADED);
                   } catch (TimeoutException e) {
                     return new NavigateResponse(safeUrl(h.driver()), NavigateStatus.TIMEOUT);
@@ -120,8 +116,7 @@ public class BrowserOperationsService {
             locks.doWithLock(
                 handle,
                 h -> {
-                  String src =
-                      h.isMobile() ? h.asMobileDevice().getSource() : h.asBrowser().getSource();
+                  String src = h.ops().getSource();
                   return new PageSourceResponse(safeUrl(h.driver()), src);
                 }));
   }
@@ -146,8 +141,7 @@ public class BrowserOperationsService {
                 h -> {
                   boolean is503;
                   try {
-                    String html =
-                        h.isMobile() ? h.asMobileDevice().getSource() : h.asBrowser().getSource();
+                    String html = h.ops().getSource();
                     is503 = HtmlUtils.is503Error(html);
                   } catch (WebDriverException e) {
                     // Driver-level failure must reach the guard so the breaker can trip and
@@ -181,10 +175,7 @@ public class BrowserOperationsService {
                 handle,
                 h -> {
                   Dimension size = h.driver().manage().window().getSize();
-                  Point scroll =
-                      h.isMobile()
-                          ? h.asMobileDevice().getViewportScrollOffset()
-                          : h.asBrowser().getViewportScrollOffset();
+                  Point scroll = h.ops().getViewportScrollOffset();
                   return new ViewportStateResponse(
                       new Viewport(size.getWidth(), size.getHeight()),
                       new ScrollOffset(scroll.getX(), scroll.getY()));
@@ -199,10 +190,7 @@ public class BrowserOperationsService {
                 handle,
                 h -> {
                   performScroll(h, req);
-                  Point scroll =
-                      h.isMobile()
-                          ? h.asMobileDevice().getViewportScrollOffset()
-                          : h.asBrowser().getViewportScrollOffset();
+                  Point scroll = h.ops().getViewportScrollOffset();
                   return new ScrollOffset(scroll.getX(), scroll.getY());
                 }));
   }
@@ -302,49 +290,34 @@ public class BrowserOperationsService {
   }
 
   private void performScroll(SessionHandle h, ScrollRequest req) {
-    Browser browser = h.isMobile() ? null : h.asBrowser();
-    MobileDevice mobile = h.isMobile() ? h.asMobileDevice() : null;
-    ScrollMode mode = req.mode();
-    switch (mode) {
-      case TO_TOP -> {
-        if (browser != null) browser.scrollToTopOfPage();
-        else mobile.scrollToTopOfPage();
-      }
-      case TO_BOTTOM -> {
-        if (browser != null) browser.scrollToBottomOfPage();
-        else mobile.scrollToBottomOfPage();
-      }
+    DriverOps ops = h.ops();
+    switch (req.mode()) {
+      case TO_TOP -> ops.scrollToTopOfPage();
+      case TO_BOTTOM -> ops.scrollToBottomOfPage();
       case TO_ELEMENT -> {
         if (req.elementHandle() == null || req.elementHandle().isBlank()) {
           throw new ValidationFailedException("element_handle is required for TO_ELEMENT");
         }
-        WebElement el = h.elements().get(req.elementHandle());
-        if (browser != null) browser.scrollToElement(el);
-        else mobile.scrollToElement(el);
+        ops.scrollToElement(h.elements().get(req.elementHandle()));
       }
       case TO_ELEMENT_CENTERED -> {
         if (req.elementHandle() == null || req.elementHandle().isBlank()) {
           throw new ValidationFailedException("element_handle is required for TO_ELEMENT_CENTERED");
         }
         WebElement el = h.elements().get(req.elementHandle());
-        if (browser != null) {
-          browser.scrollToElementCentered(el);
+        if (h.isMobile()) {
+          ops.scrollToElement(el);
         } else {
-          // MobileDevice has no "centered" variant; fall through to scrollToElement
-          mobile.scrollToElement(el);
+          h.asBrowser().scrollToElementCentered(el);
         }
       }
       case DOWN_PERCENT -> {
         if (req.percent() == null) {
           throw new ValidationFailedException("percent is required for DOWN_PERCENT");
         }
-        if (browser != null) browser.scrollDownPercent(req.percent());
-        else mobile.scrollDownPercent(req.percent());
+        ops.scrollDownPercent(req.percent());
       }
-      case DOWN_FULL -> {
-        if (browser != null) browser.scrollDownFull();
-        else mobile.scrollDownFull();
-      }
+      case DOWN_FULL -> ops.scrollDownFull();
     }
   }
 

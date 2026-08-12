@@ -190,14 +190,13 @@ sequenceDiagram
 SESSION=$(curl -s -X POST http://localhost:8080/v1/sessions \
   -H "X-Caller-Id: $CALLER" \
   -H 'Content-Type: application/json' \
-  -d '{"browser_type":"CHROME","environment":"TEST"}' \
+  -d '{"browser_type":"CHROME"}' \
   | jq -r .session_id)
 echo "$SESSION"
 ```
 
 `browser_type` accepts `CHROME`, `FIREFOX`, `SAFARI`, `IE`, `ANDROID`, `IOS`.
-`environment` accepts `TEST` or `DISCOVERY`. Field names are snake_case
-(Jackson is configured globally that way).
+Field names are snake_case (Jackson is configured globally that way).
 
 If you opened the noVNC window in step 2, you should now see a fresh Chrome.
 
@@ -325,7 +324,6 @@ curl -s -X POST http://localhost:8080/v1/capture \
   -d '{
     "url":"https://example.com",
     "browser_type":"CHROME",
-    "environment":"TEST",
     "strategy":"VIEWPORT",
     "encoding":"BINARY"
   }' | jq
@@ -373,7 +371,7 @@ websocat -H 'X-Caller-Id: me' ws://localhost:8080/v1/ws/sessions
 Then paste:
 
 ```json
-{"type":"command","id":"1","op":"session.create","params":{"browser_type":"CHROME","environment":"TEST"}}
+{"type":"command","id":"1","op":"session.create","params":{"browser_type":"CHROME"}}
 {"type":"command","id":"2","op":"navigation.navigate","params":{"url":"https://example.com"}}
 {"type":"command","id":"3","op":"viewport.state","params":{}}
 {"type":"command","id":"4","op":"session.close","params":{}}
