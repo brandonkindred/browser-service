@@ -1,9 +1,8 @@
 # syntax=docker/dockerfile:1.7
-# Multi-stage build for browser-service-api.
+# Multi-stage build for browser-service-api (Quarkus 3 fast-jar).
 # - stage 1: warm the local Maven cache so subsequent builds are incremental.
-# - stage 2: compile + package the layered Spring Boot jar.
-# - stage 3: extract Spring Boot layers for cache-friendly image composition.
-# - stage 4: runtime image based on eclipse-temurin:21-jre.
+# - stage 2: compile + package the Quarkus fast-jar.
+# - stage 3: runtime image based on eclipse-temurin:21-jre.
 
 FROM maven:3.9-eclipse-temurin-21 AS deps
 WORKDIR /src
@@ -17,17 +16,9 @@ COPY engine engine
 COPY api api
 RUN mvn -q -pl api -am -DskipTests package
 
-FROM eclipse-temurin:21-jre AS layers
-WORKDIR /workspace
-COPY --from=build /src/api/target/*-exec.jar app.jar
-RUN java -Djarmode=layertools -jar app.jar extract
-
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-COPY --from=layers /workspace/dependencies/           ./
-COPY --from=layers /workspace/spring-boot-loader/     ./
-COPY --from=layers /workspace/snapshot-dependencies/  ./
-COPY --from=layers /workspace/application/            ./
+COPY --from=build /src/api/target/quarkus-app/ ./quarkus-app/
 EXPOSE 8080
 USER 10001:10001
-ENTRYPOINT ["java","org.springframework.boot.loader.launch.JarLauncher"]
+ENTRYPOINT ["java", "-jar", "quarkus-app/quarkus-run.jar"]
