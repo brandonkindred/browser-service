@@ -113,6 +113,18 @@ variable "selenium_grid_urls" {
   type        = list(string)
 }
 
+variable "webdriver_api_keys_secret_name" {
+  description = "Short name of the Secret Manager secret holding WEBDRIVER_API_KEYS (`key:tenant_id:subject` triples for /wd/hub). Empty leaves the variable unset."
+  type        = string
+  default     = ""
+}
+
+variable "webdriver_api_keys_secret_version" {
+  description = "Pinned Secret Manager version of the WEBDRIVER_API_KEYS secret, so a new key set rolls out with a new revision rather than silently on restart."
+  type        = string
+  default     = ""
+}
+
 variable "extra_env" {
   description = "Additional plain (non-secret) environment variables to inject into the container."
   type        = map(string)

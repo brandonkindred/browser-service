@@ -94,6 +94,39 @@ module "postgres" {
   depends_on = [module.vpc]
 }
 
+# API keys for the W3C WebDriver proxy (/wd/hub) — the endpoint Look-see and
+# other RemoteWebDriver clients use. Stored in Secret Manager so the keys never
+# appear as plain Cloud Run env vars; only the API runtime SA can read them.
+resource "google_secret_manager_secret" "webdriver_api_keys" {
+  count = var.webdriver_api_keys != "" ? 1 : 0
+
+  project   = var.project_id
+  secret_id = "${var.browser_service_service_name}-${var.environment}-webdriver-api-keys"
+  labels    = local.base_labels
+
+  replication {
+    auto {}
+  }
+
+  depends_on = [google_project_service.required]
+}
+
+resource "google_secret_manager_secret_version" "webdriver_api_keys" {
+  count = var.webdriver_api_keys != "" ? 1 : 0
+
+  secret      = google_secret_manager_secret.webdriver_api_keys[0].id
+  secret_data = var.webdriver_api_keys
+}
+
+resource "google_secret_manager_secret_iam_member" "webdriver_api_keys_accessor" {
+  count = var.webdriver_api_keys != "" ? 1 : 0
+
+  project   = var.project_id
+  secret_id = google_secret_manager_secret.webdriver_api_keys[0].secret_id
+  role      = "roles/secretmanager.secretAccessor"
+  member    = "serviceAccount:${google_service_account.api_runtime.email}"
+}
+
 # Fan out N Selenium standalone-chrome Cloud Run services. Each is the same
 # pattern as LookseeIaC/GCP/modules/selenium, just provisioned `count` times
 # with a stable per-replica name.
@@ -146,8 +179,11 @@ module "browser_service" {
 
   selenium_grid_urls = [for s in module.selenium : s.grid_url]
 
+  webdriver_api_keys_secret_name    = var.webdriver_api_keys != "" ? google_secret_manager_secret.webdriver_api_keys[0].secret_id : ""
+  webdriver_api_keys_secret_version = var.webdriver_api_keys != "" ? google_secret_manager_secret_version.webdriver_api_keys[0].version : ""
+
   labels = local.base_labels
 
   # Make sure secret access IAM is in place before the service tries to read it.
-  depends_on = [module.postgres]
+  depends_on = [module.postgres, google_secret_manager_secret_iam_member.webdriver_api_keys_accessor]
 }

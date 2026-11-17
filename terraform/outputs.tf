@@ -3,6 +3,11 @@ output "browser_service_url" {
   value       = module.browser_service.service_url
 }
 
+output "browser_service_webdriver_url" {
+  description = "W3C WebDriver endpoint (RemoteWebDriver hub URL). Authenticate with HTTP Basic: username = caller subject, password = one of webdriver_api_keys. Feed this to Look-see's browser_service_webdriver_url."
+  value       = "${module.browser_service.service_url}/wd/hub"
+}
+
 output "browser_service_name" {
   description = "Cloud Run service name for the browser-service API."
   value       = module.browser_service.service_name
