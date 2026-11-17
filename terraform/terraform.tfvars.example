@@ -27,3 +27,8 @@ postgres_deletion_protection = false
 labels = {
   owner = "platform"
 }
+
+# API keys for the /wd/hub WebDriver proxy (`key:tenant_id:subject`, comma-
+# separated). Look-see authenticates with one of these. Prefer passing it via
+# TF_VAR_webdriver_api_keys rather than committing it to a tfvars file.
+# webdriver_api_keys = "sk_live_change_me:looksee:looksee"

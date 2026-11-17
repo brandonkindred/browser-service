@@ -72,6 +72,19 @@ resource "google_cloud_run_service" "api" {
         }
 
         dynamic "env" {
+          for_each = var.webdriver_api_keys_secret_name != "" ? [1] : []
+          content {
+            name = "WEBDRIVER_API_KEYS"
+            value_from {
+              secret_key_ref {
+                name = var.webdriver_api_keys_secret_name
+                key  = var.webdriver_api_keys_secret_version
+              }
+            }
+          }
+        }
+
+        dynamic "env" {
           for_each = var.extra_env
           content {
             name  = env.key

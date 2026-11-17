@@ -96,7 +96,7 @@ variable "browser_service_image" {
 }
 
 variable "browser_service_service_name" {
-  description = "Cloud Run service name for the browser-service API. Composed name is `${var}-${environment}` and must fit Cloud Run's 49-char limit; with environment capped at 12 chars, this base is capped at 36."
+  description = "Cloud Run service name for the browser-service API. Composed name is `$${var}-$${environment}` and must fit Cloud Run's 49-char limit; with environment capped at 12 chars, this base is capped at 36."
   type        = string
   default     = "browser-service-api"
 
@@ -159,6 +159,13 @@ variable "browser_service_allow_public" {
   description = "If true, the browser-service API is invokable by allUsers. Set false to restrict to authenticated callers only — pair with `browser_service_invoker_members` to grant specific principals, otherwise the service has no IAM bindings and is unreachable."
   type        = bool
   default     = true
+}
+
+variable "webdriver_api_keys" {
+  description = "API keys for the /wd/hub WebDriver proxy, as comma-separated `key:tenant_id:subject` triples (e.g. `sk_live_abc:looksee:looksee`). Stored in Secret Manager and injected as WEBDRIVER_API_KEYS. Empty disables /wd/hub (every request 401s)."
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 
 variable "browser_service_invoker_members" {
